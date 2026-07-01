@@ -1,0 +1,54 @@
+// ============================================
+// 设计 Token - 1:1 复刻 JetLinks Cloud 配色
+// 数值均从原页面 computedStyle 提取
+// ============================================
+
+// 主题色（紫色系）
+$color-primary: #6e4bff; // rgb(110,75,255)
+$color-primary-hover: #7d5cff;
+$color-primary-active: #5d3bff;
+$color-primary-bg: #ece7ff; // rgb(236,231,255) 菜单/卡片选中背景
+
+// 文字
+$text-base: #111418; // rgb(17,20,24) 正文/菜单项
+$text-secondary: #3a3f47; // rgb(58,63,71) 卡片描述/示例
+$text-tertiary: #8895ab; // 辅助
+$text-title: #1c2842; // rgb(28,40,66) 标题深色
+$text-muted: #9aa1ab; // rgb(154,161,171) 菜单箭头
+$text-white: #ffffff;
+
+// 背景
+$bg-page: #fafbfc; // rgb(250,251,252)
+$bg-chip: #fafbfc; // rgb(250,251,252) chip 默认背景
+$bg-card: #ffffff;
+$bg-hover: #f5f5f5;
+
+// 边框
+$border-color: #d9e2f0; // 会话栏边框
+$border-color-light: #dbe4f1; // 提问按钮边框
+$border-color-input: #dce4f0; // 输入框边框
+$border-color-card: #f4f5f7; // rgb(244,245,247) 卡片/分隔默认边框
+
+// 阴影
+$shadow-card-active: 0 8px 24px 0 rgba(20, 23, 31, 0.06); // 卡片选中态阴影
+$shadow-sider: 1px 0 0 0 #f4f5f7; // 侧栏右侧分隔（boxShadow）
+$shadow-header: 0 1px 4px 0 rgba(0, 21, 41, 0.12); // 顶栏下边框阴影
+$shadow-composer: 0 18px 46px 0 rgba(20, 23, 31, 0.08); // 首页大输入框阴影
+$shadow-send-btn: 0 2px 0 0 rgba(88, 5, 255, 0.06); // 发送按钮阴影
+
+// 圆角
+$radius-sidebar: 18px; // 会话历史栏
+$radius-composer: 20px; // 会话历史栏
+$radius-home-composer: 12px; // 首页大输入框
+$radius-menu-item: 6px; // 菜单项
+$radius-card: 8px; // 能力卡片
+$radius-btn: 6px; // 按钮
+$radius-chip: 9999px; // 胶囊
+
+// 尺寸
+$header-h: 48px;
+$sider-w: 224px;
+$chat-history-w: 300px;
+$menu-item-h: 32px;
+$menu-item-margin: 2px;
+$home-composer-h: 110px;

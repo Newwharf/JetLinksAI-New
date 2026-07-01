@@ -1,0 +1,41 @@
+@use 'variables' as *;
+
+/* ============================================
+   全局样式 - 复刻 JetLinks Cloud 视觉
+   ============================================ */
+
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  // 与原站点一致：AliRegular（阿里普惠体），回退到 Noto Sans SC / 系统字体
+  font-family: AliRegular, 'Noto Sans SC', -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: $bg-page;
+  color: $text-base;
+}
+
+/* 覆写 Ant Design Vue 主题色为紫色（与原站点一致） */
+:root {
+  --ant-primary-color: #{$color-primary};
+  --ant-primary-color-hover: #{$color-primary-hover};
+  --ant-primary-color-active: #{$color-primary-active};
+  --ant-primary-1: #{$color-primary-bg};
+}
+
+// Ant Design Vue 4.x 主题 token 覆写
+body {
+  // 选中态菜单背景
+  .ant-menu-item-selected {
+    background-color: $color-primary-bg !important;
+    color: $color-primary !important;
+    a {
+      color: $color-primary !important;
+    }
+  }
+}
