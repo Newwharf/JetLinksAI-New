@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">
+<defs>
+<linearGradient id="g4" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#3d4a3a"/>
+<stop offset="0.5" stop-color="#34402f"/>
+<stop offset="1" stop-color="#242e22"/>
+</linearGradient>
+</defs>
+<rect width="320" height="180" fill="url(#g4)"/>
+<!-- 地板 -->
+<rect y="120" width="320" height="60" fill="#28311f"/>
+<!-- 办公桌 -->
+<rect x="30" y="80" width="120" height="40" rx="2" fill="#3a4a32"/>
+<rect x="30" y="78" width="120" height="4" fill="#4a5a42"/>
+<!-- 显示器 -->
+<rect x="50" y="55" width="35" height="25" rx="1" fill="#1a1a1a"/>
+<rect x="52" y="57" width="31" height="21" fill="#2a4a5a" opacity="0.8"/>
+<rect x="55" y="60" width="25" height="3" fill="#4a6a7a" opacity="0.6"/>
+<rect x="55" y="66" width="18" height="2" fill="#4a6a7a" opacity="0.4"/>
+<!-- 第二个工位 -->
+<rect x="180" y="80" width="120" height="40" rx="2" fill="#3a4a32"/>
+<rect x="180" y="78" width="120" height="4" fill="#4a5a42"/>
+<rect x="210" y="55" width="35" height="25" rx="1" fill="#1a1a1a"/>
+<rect x="212" y="57" width="31" height="21" fill="#2a3a4a" opacity="0.7"/>
+<!-- 椅子 -->
+<ellipse cx="90" cy="130" rx="18" ry="8" fill="#2a3322"/>
+<ellipse cx="240" cy="130" rx="18" ry="8" fill="#2a3322"/>
+<!-- 绿植 -->
+<circle cx="290" cy="110" r="14" fill="#1e3320" opacity="0.8"/>
+<!-- UI -->
+<text x="8" y="16" font-size="10" fill="rgba(255,255,255,0.85)" font-family="monospace" font-weight="bold">CAM-04 办公区</text>
+<text x="8" y="172" font-size="9" fill="rgba(255,255,255,0.6)" font-family="monospace">2026-07-02 14:32:30</text>
+<rect x="278" y="6" width="34" height="14" rx="2" fill="#e8312f"/>
+<text x="285" y="16" font-size="8" fill="#fff" font-family="monospace" font-weight="bold">● LIVE</text>
+</svg>

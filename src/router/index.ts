@@ -61,7 +61,7 @@ const routes: RouteRecordRaw[] = [
         },
         children: [
           { path: '', redirect: '/video/wall' },
-          { path: 'wall', name: 'video-wall', ...ph('监控墙') },
+          { path: 'wall', name: 'video-wall', component: () => import('@/views/video/WallView.vue'), meta: { title: '监控墙' } },
           { path: 'device', name: 'video-device', ...ph('视频设备管理') }
         ]
       },
@@ -72,12 +72,14 @@ const routes: RouteRecordRaw[] = [
         component: SubTabLayout,
         meta: {
           tabs: [
+            { key: 'text', label: '文搜图', path: '/image-search/text' },
             { key: 'person', label: '人员', path: '/image-search/person' },
             { key: 'vehicle', label: '车辆', path: '/image-search/vehicle' }
           ]
         },
         children: [
-          { path: '', redirect: '/image-search/person' },
+          { path: '', redirect: '/image-search/text' },
+          { path: 'text', name: 'image-text', component: () => import('@/views/image-search/TextSearchView.vue'), meta: { title: '文搜图' } },
           { path: 'person', name: 'image-person', ...ph('人员') },
           { path: 'vehicle', name: 'image-vehicle', ...ph('车辆') }
         ]
@@ -95,8 +97,8 @@ const routes: RouteRecordRaw[] = [
         },
         children: [
           { path: '', redirect: '/flow/analysis' },
-          { path: 'analysis', name: 'flow-analysis', ...ph('客流分析') },
-          { path: 'point', name: 'flow-point', ...ph('客流点位管理') }
+          { path: 'analysis', name: 'flow-analysis', component: () => import('@/views/flow/TrendView.vue'), meta: { title: '客流分析' } },
+          { path: 'point', name: 'flow-point', component: () => import('@/views/flow/PointView.vue'), meta: { title: '客流点位管理' } }
         ]
       },
 

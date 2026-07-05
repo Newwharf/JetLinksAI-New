@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">
+<defs>
+<linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#4a4035"/>
+<stop offset="0.4" stop-color="#3a322a"/>
+<stop offset="1" stop-color="#2a241e"/>
+</linearGradient>
+</defs>
+<rect width="320" height="180" fill="url(#g2)"/>
+<!-- 地板透视 -->
+<polygon points="0,180 320,180 280,110 40,110" fill="#2e2820" opacity="0.6"/>
+<!-- 天花板灯 -->
+<ellipse cx="100" cy="20" rx="30" ry="6" fill="#8a7a5a" opacity="0.3"/>
+<ellipse cx="220" cy="20" rx="30" ry="6" fill="#8a7a5a" opacity="0.3"/>
+<!-- 柱子 -->
+<rect x="45" y="30" width="16" height="80" fill="#33291f"/>
+<rect x="259" y="30" width="16" height="80" fill="#33291f"/>
+<!-- 前台 -->
+<rect x="120" y="80" width="80" height="30" rx="2" fill="#3d3025"/>
+<rect x="120" y="78" width="80" height="4" fill="#5a4530"/>
+<!-- 装饰植物 -->
+<circle cx="60" cy="95" r="12" fill="#2a3d28" opacity="0.7"/>
+<circle cx="260" cy="95" r="12" fill="#2a3d28" opacity="0.7"/>
+<!-- UI -->
+<text x="8" y="16" font-size="10" fill="rgba(255,255,255,0.85)" font-family="monospace" font-weight="bold">CAM-02 大厅A</text>
+<text x="8" y="172" font-size="9" fill="rgba(255,255,255,0.6)" font-family="monospace">2026-07-02 14:32:22</text>
+<rect x="278" y="6" width="34" height="14" rx="2" fill="#e8312f"/>
+<text x="285" y="16" font-size="8" fill="#fff" font-family="monospace" font-weight="bold">● LIVE</text>
+</svg>

@@ -1,0 +1,346 @@
+{
+  "d": 0,
+  "tag": "div",
+  "cls": "",
+  "id": "#app",
+  "r": {
+    "x": 0,
+    "y": 0,
+    "w": 1914,
+    "h": 1374
+  },
+  "style": {
+    "width": "1914px",
+    "height": "1374.31px",
+    "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+    "border": "0px none rgb(17, 20, 24)",
+    "color": "rgb(17, 20, 24)",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "overflow": "visible",
+    "flex": "0 1 auto",
+    "flexGrow": "0"
+  },
+  "kids": [
+    {
+      "d": 1,
+      "tag": "div",
+      "cls": "ant-pro-basicLayout ant-pro-basicLayout-fix-siderbar ant-pro-basicLayout-side ant-pro-basicLayout-list css-1awc6q8 jet-l",
+      "id": "",
+      "r": {
+        "x": 0,
+        "y": 0,
+        "w": 1914,
+        "h": 1374
+      },
+      "style": {
+        "display": "flex",
+        "flexDirection": "column",
+        "width": "1914px",
+        "height": "1374.31px",
+        "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+        "border": "0px none rgb(17, 20, 24)",
+        "color": "rgb(17, 20, 24)",
+        "fontSize": "16px",
+        "fontWeight": "400",
+        "overflow": "visible",
+        "flex": "0 1 auto",
+        "flexGrow": "0"
+      },
+      "kids": [
+        {
+          "d": 2,
+          "tag": "section",
+          "cls": "css-1awc6q8 ant-layout",
+          "id": "",
+          "r": {
+            "x": 0,
+            "y": 0,
+            "w": 1914,
+            "h": 1374
+          },
+          "style": {
+            "display": "flex",
+            "flexDirection": "column",
+            "width": "1914px",
+            "height": "1374.31px",
+            "background": "rgb(250, 251, 252) none repeat scroll 0% 0% / auto padding-box border-box",
+            "backgroundColor": "rgb(250, 251, 252)",
+            "border": "0px none rgb(17, 20, 24)",
+            "color": "rgb(17, 20, 24)",
+            "fontSize": "14px",
+            "fontWeight": "400",
+            "overflow": "visible",
+            "flex": "1 1 auto",
+            "flexGrow": "1"
+          },
+          "kids": [
+            {
+              "d": 3,
+              "tag": "header",
+              "cls": "ant-layout-header",
+              "id": "",
+              "r": {
+                "x": 0,
+                "y": 0,
+                "w": 1914,
+                "h": 48
+              },
+              "style": {
+                "padding": "0px 50px",
+                "width": "1914px",
+                "height": "48px",
+                "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+                "border": "0px none rgb(17, 20, 24)",
+                "color": "rgb(17, 20, 24)",
+                "fontSize": "14px",
+                "fontWeight": "400",
+                "overflow": "visible",
+                "flex": "0 0 auto",
+                "flexGrow": "0"
+              }
+            },
+            {
+              "d": 3,
+              "tag": "header",
+              "cls": "ant-layout-header ant-pro-fixed-header",
+              "id": "",
+              "r": {
+                "x": 0,
+                "y": 0,
+                "w": 1914,
+                "h": 48
+              },
+              "style": {
+                "width": "1914px",
+                "height": "48px",
+                "background": "rgb(0, 21, 41) none repeat scroll 0% 0% / auto padding-box border-box",
+                "backgroundColor": "rgb(0, 21, 41)",
+                "border": "0px none rgb(17, 20, 24)",
+                "color": "rgb(17, 20, 24)",
+                "fontSize": "14px",
+                "fontWeight": "400",
+                "position": "fixed",
+                "bottom": "914px",
+                "overflow": "visible",
+                "flex": "0 0 auto",
+                "flexGrow": "0"
+              },
+              "kids": [
+                {
+                  "d": 4,
+                  "tag": "div",
+                  "cls": "ant-pro-top-nav-header css-1awc6q8 light",
+                  "id": "",
+                  "r": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 1914,
+                    "h": 48
+                  },
+                  "kids": [
+                    {
+                      "d": 5,
+                      "tag": "div",
+                      "cls": "ant-pro-top-nav-header-main ",
+                      "id": "",
+                      "r": {
+                        "x": 0,
+                        "y": 0,
+                        "w": 1914,
+                        "h": 48
+                      },
+                      "kids": [
+                        {
+                          "d": 6,
+                          "tag": "div",
+                          "cls": "ant-pro-top-nav-header-main-left",
+                          "id": "",
+                          "r": {
+                            "x": 16,
+                            "y": 0,
+                            "w": 165,
+                            "h": 48
+                          }
+                        },
+                        {
+                          "d": 6,
+                          "tag": "div",
+                          "cls": "ant-pro-top-nav-header-menu",
+                          "id": "",
+                          "r": {
+                            "x": 181,
+                            "y": 0,
+                            "w": 1535,
+                            "h": 48
+                          }
+                        },
+                        {
+                          "d": 6,
+                          "tag": "div",
+                          "cls": "",
+                          "id": "",
+                          "r": {
+                            "x": 1716,
+                            "y": 0,
+                            "w": 198,
+                            "h": 48
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "d": 3,
+              "tag": "section",
+              "cls": "css-1awc6q8 ant-layout ant-layout-has-sider ant-layout",
+              "id": "",
+              "r": {
+                "x": 0,
+                "y": 48,
+                "w": 1914,
+                "h": 1326
+              },
+              "style": {
+                "display": "flex",
+                "width": "1914px",
+                "height": "1326.31px",
+                "background": "rgb(250, 251, 252) none repeat scroll 0% 0% / auto padding-box border-box",
+                "backgroundColor": "rgb(250, 251, 252)",
+                "border": "0px none rgb(17, 20, 24)",
+                "color": "rgb(17, 20, 24)",
+                "fontSize": "14px",
+                "fontWeight": "400",
+                "position": "relative",
+                "overflow": "visible",
+                "flex": "1 1 auto",
+                "flexGrow": "1"
+              },
+              "kids": [
+                {
+                  "d": 4,
+                  "tag": "div",
+                  "cls": "",
+                  "id": "",
+                  "r": {
+                    "x": 0,
+                    "y": 48,
+                    "w": 224,
+                    "h": 1326
+                  }
+                },
+                {
+                  "d": 4,
+                  "tag": "aside",
+                  "cls": "ant-layout-sider ant-layout-sider-light ant-pro-sider ant-pro-sider-fixed ant-pro-sider-light ant-pro-sider-layout-side ",
+                  "id": "",
+                  "r": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 224,
+                    "h": 962
+                  },
+                  "kids": [
+                    {
+                      "d": 5,
+                      "tag": "div",
+                      "cls": "ant-layout-sider-children",
+                      "id": "",
+                      "r": {
+                        "x": 0,
+                        "y": 48,
+                        "w": 224,
+                        "h": 914
+                      },
+                      "kids": [
+                        {
+                          "d": 6,
+                          "tag": "div",
+                          "cls": "ant-pro-sider-extra ant-pro-sider-extra-no-logo",
+                          "id": "",
+                          "r": {
+                            "x": 0,
+                            "y": 48,
+                            "w": 224,
+                            "h": 58
+                          }
+                        },
+                        {
+                          "d": 6,
+                          "tag": "div",
+                          "cls": "ant-pro-sider-body",
+                          "id": "",
+                          "r": {
+                            "x": 0,
+                            "y": 106,
+                            "w": 224,
+                            "h": 797
+                          }
+                        },
+                        {
+                          "d": 6,
+                          "tag": "div",
+                          "cls": "ant-pro-sider-links",
+                          "id": "",
+                          "r": {
+                            "x": 0,
+                            "y": 903,
+                            "w": 224,
+                            "h": 59
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "d": 4,
+                  "tag": "section",
+                  "cls": "css-1awc6q8 ant-layout",
+                  "id": "",
+                  "r": {
+                    "x": 224,
+                    "y": 48,
+                    "w": 1690,
+                    "h": 1326
+                  },
+                  "kids": [
+                    {
+                      "d": 5,
+                      "tag": "main",
+                      "cls": "ant-layout-content",
+                      "id": "",
+                      "r": {
+                        "x": 224,
+                        "y": 48,
+                        "w": 1690,
+                        "h": 1326
+                      },
+                      "kids": [
+                        {
+                          "d": 6,
+                          "tag": "div",
+                          "cls": "flow-trend-page",
+                          "id": "",
+                          "r": {
+                            "x": 248,
+                            "y": 64,
+                            "w": 1642,
+                            "h": 1310
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

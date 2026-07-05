@@ -52,3 +52,19 @@ $chat-history-w: 300px;
 $menu-item-h: 32px;
 $menu-item-margin: 2px;
 $home-composer-h: 110px;
+
+// ============================================
+// 视频墙 - 深色剧院风(从 cloud-uat.jetlinks.cn 实测)
+// ============================================
+$video-stage-bg-start: #23262b; // 渐变起点(深灰)
+$video-stage-bg-end: #37383d; // 渐变终点(浅灰)
+$video-stage-border: rgba(255, 255, 255, 0.16); // 视频墙边框
+$video-stage-shadow: 0 20px 40px 0 rgba(2, 6, 23, 0.18); // 视频墙大阴影
+$video-stage-text: rgba(255, 255, 255, 0.7); // 工具栏次要文字
+$video-stage-text-strong: #ffffff; // 激活/主要文字
+$video-stage-text-weak: rgba(255, 255, 255, 0.56); // 提示文字
+$video-stage-group-bg: rgba(255, 255, 255, 0.12); // 分屏按钮组容器
+$video-stage-btn-bg: rgba(110, 75, 255, 0.5); // 激活分屏按钮(紫)
+$video-cell-radius: 14px; // 视频格圆角
+$video-panel-width: 280px; // 左通道面板宽
+$video-rail-width: 312px; // 右监控墙栏宽

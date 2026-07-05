@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">
+<defs>
+<linearGradient id="g3" x1="0.5" y1="0" x2="0.5" y2="1">
+<stop offset="0" stop-color="#2e3845"/>
+<stop offset="0.5" stop-color="#384555"/>
+<stop offset="1" stop-color="#222c36"/>
+</linearGradient>
+</defs>
+<rect width="320" height="180" fill="url(#g3)"/>
+<!-- 走廊透视 - 墙壁 -->
+<polygon points="0,0 80,40 80,140 0,180" fill="#2a3340"/>
+<polygon points="320,0 240,40 240,140 320,180" fill="#2a3340"/>
+<!-- 地板 -->
+<polygon points="80,140 240,140 320,180 0,180" fill="#1e2630"/>
+<!-- 天花板 -->
+<polygon points="80,40 240,40 320,0 0,0" fill="#252e3a"/>
+<!-- 门的透视线 -->
+<line x1="80" y1="40" x2="80" y2="140" stroke="#3a4a5c" stroke-width="1" opacity="0.5"/>
+<line x1="240" y1="40" x2="240" y2="140" stroke="#3a4a5c" stroke-width="1" opacity="0.5"/>
+<!-- 远处门 -->
+<rect x="135" y="70" width="50" height="70" fill="#1a2230"/>
+<!-- 壁灯 -->
+<circle cx="70" cy="70" r="4" fill="#6a7a8a" opacity="0.5"/>
+<circle cx="250" cy="70" r="4" fill="#6a7a8a" opacity="0.5"/>
+<!-- UI -->
+<text x="8" y="16" font-size="10" fill="rgba(255,255,255,0.85)" font-family="monospace" font-weight="bold">CAM-03 走廊B</text>
+<text x="8" y="172" font-size="9" fill="rgba(255,255,255,0.6)" font-family="monospace">2026-07-02 14:32:25</text>
+<rect x="278" y="6" width="34" height="14" rx="2" fill="#888"/>
+<text x="285" y="16" font-size="8" fill="#fff" font-family="monospace" font-weight="bold">● OFF</text>
+</svg>

@@ -24,25 +24,68 @@ interface MenuItem {
   path?: string
 }
 
-const menus: MenuItem[] = [
-  { key: 'space', label: '空间态势', icon: 'i-ant-design-apartment-outlined', path: '/space/situation' },
-  { key: 'video', label: '视联中心', icon: 'i-ant-design-video-camera-outlined', path: '/video/wall' },
-  { key: 'image-search', label: '问图', icon: 'i-ant-design-file-image-outlined', path: '/image-search/person' },
-  { key: 'flow', label: '客流分析', icon: 'i-ant-design-line-chart-outlined', path: '/flow/analysis' },
-  { key: 'alarm', label: '告警中心', icon: 'i-ant-design-alert-outlined', path: '/alarm/event' },
-  { key: 'inspection', label: '巡检', icon: 'i-ant-design-audit-outlined', path: '/inspection/workbench' },
-  { key: 'dashboard', label: '可视化', icon: 'i-ant-design-dashboard-outlined', path: '/dashboard/workbench' },
-  { key: 'iot', label: '物联中心', icon: 'i-ant-design-api-outlined', path: '/iot/device' },
-  { key: 'system', label: '系统管理', icon: 'i-ant-design-setting-outlined', path: '/system/project' }
+// 全部菜单定义（字典，供各场景按 key 引用）
+const ALL_MENUS: Record<string, MenuItem> = {
+  space: { key: 'space', label: '空间态势', icon: 'i-ant-design-apartment-outlined', path: '/space/situation' },
+  video: { key: 'video', label: '视联中心', icon: 'i-ant-design-video-camera-outlined', path: '/video/wall' },
+  'image-search': { key: 'image-search', label: '问图', icon: 'i-ant-design-file-image-outlined', path: '/image-search/text' },
+  flow: { key: 'flow', label: '客流分析', icon: 'i-ant-design-line-chart-outlined', path: '/flow/analysis' },
+  alarm: { key: 'alarm', label: '告警中心', icon: 'i-ant-design-alert-outlined', path: '/alarm/event' },
+  inspection: { key: 'inspection', label: '巡检', icon: 'i-ant-design-audit-outlined', path: '/inspection/workbench' },
+  dashboard: { key: 'dashboard', label: '可视化', icon: 'i-ant-design-dashboard-outlined', path: '/dashboard/workbench' },
+  iot: { key: 'iot', label: '物联中心', icon: 'i-ant-design-api-outlined', path: '/iot/device' },
+  system: { key: 'system', label: '系统管理', icon: 'i-ant-design-setting-outlined', path: '/system/project' }
+}
+
+// 场景 -> 菜单 key 顺序映射
+const SCENARIOS: Record<string, string[]> = {
+  general: ['space', 'video', 'image-search', 'flow', 'alarm', 'inspection', 'dashboard', 'iot', 'system'],
+  security: ['space', 'video', 'image-search', 'alarm', 'inspection', 'system'],
+  commercial: ['flow', 'space', 'video', 'image-search', 'alarm', 'system'],
+  dormitory: ['video', 'space', 'image-search', 'alarm', 'system'],
+  elderly: ['video', 'space', 'image-search', 'alarm', 'system']
+}
+
+// 场景选项（下拉框）
+const scenarioOptions = [
+  { value: 'general', label: '通用' },
+  { value: 'security', label: '安防' },
+  { value: 'commercial', label: '商业体' },
+  { value: 'dormitory', label: '宿管' },
+  { value: 'elderly', label: '养老' }
 ]
+
+// 当前场景
+const currentScenario = ref('general')
+const scenarioSelectedKeys = computed({
+  get: () => [currentScenario.value],
+  set: () => {}
+})
+
+// 当前场景对应的菜单列表
+const menus = computed<MenuItem[]>(() => {
+  const keys = SCENARIOS[currentScenario.value] || SCENARIOS.general
+  return keys.map(k => ALL_MENUS[k]).filter(Boolean)
+})
+
+// 切换场景时，如果当前页面不在新菜单中，跳到第一个菜单
+watch(currentScenario, () => {
+  const firstMenu = menus.value[0]
+  if (firstMenu?.path) {
+    const currentKey = activeTopKey.value
+    if (!menus.value.some(m => m.key === currentKey)) {
+      router.push(firstMenu.path)
+    }
+  }
+})
 
 // 当前一级菜单高亮（路由匹配前缀）
 const activeTopKey = computed(() => {
   const path = route.path
-  for (const m of menus) {
+  for (const m of menus.value) {
     if (m.path && path.startsWith('/' + m.key)) return m.key
   }
-  return 'ai-search-hub'
+  return menus.value[0]?.key ?? 'space'
 })
 
 function handleMenuClick(m: MenuItem) {
@@ -61,11 +104,26 @@ function handleMenuClick(m: MenuItem) {
         <span class="project-name">办公室场景项目</span>
       </div>
       <div class="header-right">
-        <!-- AI 对话入口（彩虹发光动效） -->
+        <!-- AI 对话入口 -->
         <button class="ai-entry-btn" @click="router.push('/ai-search-hub')">
           <i class="i-ant-design-robot-outlined ai-entry-icon" />
           <span class="ai-entry-text">AI 对话</span>
         </button>
+        <!-- 场景切换下拉框 -->
+        <a-dropdown>
+          <div class="scenario-trigger" @click.prevent>
+            <i class="i-ant-design-appstore-outlined" />
+            <span>{{ scenarioOptions.find(o => o.value === currentScenario)?.label }}</span>
+            <i class="i-ant-design-down-outlined scenario-arrow" />
+          </div>
+          <template #overlay>
+            <a-menu v-model:selected-keys="scenarioSelectedKeys">
+              <a-menu-item v-for="o in scenarioOptions" :key="o.value" @click="currentScenario = o.value">
+                {{ o.label }}
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
         <a-dropdown>
           <div class="lang-trigger" @click.prevent>
             <i class="i-ant-design-global-outlined" />
@@ -207,6 +265,37 @@ function handleMenuClick(m: MenuItem) {
   .ai-entry-icon {
     font-size: 15px;
     color: #fff;
+  }
+}
+
+/* 场景切换下拉框 */
+.scenario-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid $border-color-card;
+  border-radius: 9999px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  color: $text-base;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: $color-primary;
+    color: $color-primary;
+
+    .scenario-arrow {
+      color: $color-primary;
+    }
+  }
+
+  .scenario-arrow {
+    font-size: 10px;
+    color: $text-muted;
+    transition: color 0.2s;
   }
 }
 

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180">
+<defs>
+<linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#3a4a5c"/>
+<stop offset="0.5" stop-color="#2c3e50"/>
+<stop offset="1" stop-color="#1a252f"/>
+</linearGradient>
+<linearGradient id="floor1" x1="0" y1="0.6" x2="0" y2="1">
+<stop offset="0" stop-color="#2a3441"/>
+<stop offset="1" stop-color="#1c252e"/>
+</linearGradient>
+</defs>
+<rect width="320" height="180" fill="url(#g1)"/>
+<!-- 地面 -->
+<rect y="120" width="320" height="60" fill="url(#floor1)"/>
+<!-- 建筑轮廓 -->
+<rect x="20" y="40" width="80" height="80" fill="#1e2a36" opacity="0.8"/>
+<rect x="120" y="30" width="100" height="90" fill="#22303c" opacity="0.7"/>
+<rect x="240" y="45" width="60" height="75" fill="#1e2a36" opacity="0.8"/>
+<!-- 窗户灯光 -->
+<rect x="35" y="55" width="15" height="12" fill="#4a5f7a" opacity="0.6"/>
+<rect x="60" y="55" width="15" height="12" fill="#4a5f7a" opacity="0.4"/>
+<rect x="140" y="50" width="20" height="15" fill="#4a5f7a" opacity="0.5"/>
+<rect x="175" y="50" width="20" height="15" fill="#4a5f7a" opacity="0.6"/>
+<!-- 门 -->
+<rect x="150" y="85" width="25" height="35" fill="#15202b"/>
+<!-- 道路线 -->
+<line x1="0" y1="160" x2="320" y2="140" stroke="#3a4a5c" stroke-width="1" opacity="0.4"/>
+<!-- UI 覆盖层 -->
+<text x="8" y="16" font-size="10" fill="rgba(255,255,255,0.85)" font-family="monospace" font-weight="bold">CAM-01 东门</text>
+<text x="8" y="172" font-size="9" fill="rgba(255,255,255,0.6)" font-family="monospace">2026-07-02 14:32:18</text>
+<rect x="278" y="6" width="34" height="14" rx="2" fill="#e8312f"/>
+<text x="285" y="16" font-size="8" fill="#fff" font-family="monospace" font-weight="bold">● LIVE</text>
+</svg>

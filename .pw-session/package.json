@@ -1,0 +1,10 @@
+{
+  "name": "pw-session",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "dependencies": {
+    "echarts": "^6.1.0",
+    "vue-echarts": "^8.0.1"
+  }
+}
