@@ -31,3 +31,6 @@ pnpm-debug.log*
 
 # 编辑器
 *.local
+.pw-session/
+play-modal-preview.png
+*-preview.png
