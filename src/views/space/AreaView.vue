@@ -6,6 +6,7 @@
 import AreaTreeNode from './AreaTreeNode.vue'
 import AssetBindView from './AssetBindView.vue'
 import FloorPlanView from './FloorPlanView.vue'
+import PanoramaView from './PanoramaView.vue'
 import type { PlanMarker } from './FloorPlanView.vue'
 import { videoDevices, iotDevices } from './devices.mock'
 
@@ -28,6 +29,8 @@ export interface TreeNode {
   planImageOriginal?: string  // 美化前的原图（用于还原）
   planImageEnhanced?: boolean // 是否已美化
   markers?: PlanMarker[]
+  // 3D 全景图：等距柱状投影全景图 URL
+  panoramaImage?: string
 }
 
 // 平面图可选标记的设备池：合并视频 + 物联，统一字段
@@ -41,11 +44,13 @@ interface FloorPlanDevice {
   gateway?: string
 }
 const allBoundDevices = computed<FloorPlanDevice[]>(() => {
-  const videos = videoDevices.value.map(d => ({
+  // 仅当前选中空间的设备（用于平面图标记）
+  const sid = selectedId.value
+  const videos = videoDevices.value.filter(d => d.spaceId === sid).map(d => ({
     id: d.id, name: d.name, type: 'video' as const, status: d.status, icon: d.icon,
     thumb: d.thumb, gateway: d.gateway
   }))
-  const iots = iotDevices.value.map(d => ({
+  const iots = iotDevices.value.filter(d => d.spaceId === sid).map(d => ({
     id: d.id, name: d.name, type: 'iot' as const, status: d.status, icon: d.icon,
     gateway: d.gateway
   }))
@@ -127,7 +132,77 @@ function ensureExpanded(nodes: TreeNode[]) {
 }
 ensureExpanded(treeData.value)
 
-const selectedId = ref('park-1')
+// 展开某个节点的所有祖先（让该节点在树里可见）
+function expandAncestors(targetId: string) {
+  function walk(nodes: TreeNode[]): boolean {
+    for (const n of nodes) {
+      if (n.id === targetId) return true
+      if (n.children && walk(n.children)) {
+        n.expanded = true
+        return true
+      }
+    }
+    return false
+  }
+  walk(treeData.value)
+}
+
+// ===== 设备数量统计：基于 devices.mock 的 spaceId 递归求和 =====
+// 收集一个节点及其所有子孙节点的 id 集合
+// 收集一个节点及其所有子孙节点的 id 集合
+function collectSubtreeIds(node: TreeNode): Set<string> {
+  const ids = new Set<string>([node.id])
+  if (node.children) {
+    for (const c of node.children) {
+      for (const id of collectSubtreeIds(c)) ids.add(id)
+    }
+  }
+  return ids
+}
+
+// 递归刷新每个节点的 videoCount / iotCount（当前节点 + 所有下级节点设备数之和）
+function refreshCounts(node: TreeNode) {
+  const idSet = collectSubtreeIds(node)
+  node.videoCount = videoDevices.value.filter(d => idSet.has(d.spaceId)).length
+  node.iotCount = iotDevices.value.filter(d => idSet.has(d.spaceId)).length
+  if (node.children) node.children.forEach(refreshCounts)
+}
+
+function refreshAllCounts() {
+  treeData.value.forEach(refreshCounts)
+}
+
+refreshAllCounts()
+
+// 设备数据变化时重新统计（添加/解绑设备后）
+watch([videoDevices, iotDevices], () => {
+  refreshAllCounts()
+}, { deep: true })
+
+// 计算节点完整路径（如 "物联网产业园区/E栋/4F/研发部办公区"）
+function getNodePath(id: string): string {
+  const path: string[] = []
+  function walk(nodes: TreeNode[], parents: string[]): boolean {
+    for (const n of nodes) {
+      const newParents = [...parents, n.label]
+      if (n.id === id) {
+        path.push(...newParents)
+        return true
+      }
+      if (n.children && walk(n.children, newParents)) return true
+    }
+    return false
+  }
+  walk(treeData.value, [])
+  return path.join(' / ')
+}
+
+const route = useRoute()
+
+// 从 query 读取初始节点和 tab（如从空间态势跳转过来）
+const initialNode = (route.query.node as string) || 'park-1'
+const initialTab = (route.query.tab as string) || 'device'
+const selectedId = ref(initialNode)
 
 function selectNode(id: string) {
   selectedId.value = id
@@ -150,6 +225,16 @@ function findNode(nodes: TreeNode[], id: string): TreeNode | null {
 
 const selectedNode = computed(() => findNode(treeData.value, selectedId.value))
 
+// 应用路由参数：展开祖先让选中节点可见，无效 id 回退到根节点
+if (initialNode !== 'park-1') {
+  const exists = findNode(treeData.value, initialNode)
+  if (exists) {
+    expandAncestors(initialNode)
+  } else {
+    selectedId.value = 'park-1'
+  }
+}
+
 const searchKey = ref('')
 
 // + 按钮下拉菜单
@@ -157,7 +242,7 @@ const addActionOpen = ref(false)
 
 // 当前选中节点的完整路径（如 "物联网产业园区/E栋"）
 // 当前激活的 tab
-const activeTab = ref('device')
+const activeTab = ref(initialTab)
 
 // 根据等级生成 tab 配置
 interface TabConfig {
@@ -170,8 +255,8 @@ const tabs = computed<TabConfig[]>(() => {
   // 所有等级统一：绑定设备管理、平面图、空间白模
   return [
     { key: 'device', label: '绑定设备管理', icon: 'i-ant-design-api-outlined' },
-    { key: 'plan', label: '平面图', icon: 'i-ant-design-file-image-outlined' },
-    { key: 'model', label: '空间白模', icon: 'i-ant-design-block-outlined' }
+    { key: 'plan', label: '空间平面图', icon: 'i-ant-design-file-image-outlined' },
+    { key: 'model', label: '空间3D图', icon: 'i-ant-design-block-outlined' }
   ]
 })
 
@@ -462,8 +547,10 @@ const moveTreeData = computed<TreeSelectNode[]>(() => {
           </div>
           <!-- 树 -->
           <div class="tree-scroll scroll-thin">
-            <template v-for="node in treeData" :key="node.id">
+            <template v-if="treeData.length > 0">
               <AreaTreeNode
+                v-for="node in treeData"
+                :key="node.id"
                 :node="node"
                 :selected-id="selectedId"
                 @select="selectNode"
@@ -472,6 +559,11 @@ const moveTreeData = computed<TreeSelectNode[]>(() => {
                 @rename="handleRename"
               />
             </template>
+            <div v-else class="tree-empty">
+              <i class="i-ant-design-apartment-outlined tree-empty-icon" />
+              <p class="tree-empty-title">暂无空间数据</p>
+              <p class="tree-empty-hint">点击右上角 <i class="i-ant-design-plus-outlined" /> 新增空间</p>
+            </div>
           </div>
         </div>
       </div>
@@ -496,12 +588,21 @@ const moveTreeData = computed<TreeSelectNode[]>(() => {
         <div class="workspace-content" v-if="selectedNode">
           <!-- 绑定设备管理 tab 内容 -->
           <template v-if="activeTab === 'device'">
-            <AssetBindView />
+            <AssetBindView
+              :space-id="selectedNode.id"
+              :space-name="selectedNode.label"
+              :space-path="getNodePath(selectedNode.id)"
+            />
           </template>
 
           <!-- 平面图 tab 内容 -->
           <template v-else-if="activeTab === 'plan'">
             <FloorPlanView :node="selectedNode" :devices="allBoundDevices" />
+          </template>
+
+          <!-- 空间3D图 tab 内容 -->
+          <template v-else-if="activeTab === 'model'">
+            <PanoramaView :node="selectedNode" :devices="allBoundDevices" />
           </template>
 
           <!-- 其他 tab 占位内容 -->
@@ -658,26 +759,32 @@ const moveTreeData = computed<TreeSelectNode[]>(() => {
     }
   }
 
-  // 加号按钮（纯图标风格）
+  // 新增按钮（紫色实心 + 白色加号）
   .add-btn {
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     border: none;
-    background: transparent;
-    color: $text-secondary;
+    border-radius: 6px;
+    background: $color-primary;
+    color: #fff;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.15s;
 
     i {
-      font-size: 15px;
+      font-size: 14px;
     }
 
     &:hover {
-      color: $color-primary;
+      background: $color-primary-hover;
+      transform: scale(1.06);
+    }
+
+    &:active {
+      transform: scale(0.96);
     }
   }
 }
@@ -701,6 +808,47 @@ const moveTreeData = computed<TreeSelectNode[]>(() => {
   overflow-y: auto;
   padding: 8px;
   min-height: 0;
+}
+
+/* 空间列表空状态 */
+.tree-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: $text-tertiary;
+
+  .tree-empty-icon {
+    font-size: 44px;
+    color: $text-muted;
+    opacity: 0.45;
+    margin-bottom: 14px;
+  }
+
+  .tree-empty-title {
+    font-size: 14px;
+    color: $text-secondary;
+    margin: 0 0 6px;
+    font-weight: 500;
+  }
+
+  .tree-empty-hint {
+    font-size: 12px;
+    color: $text-muted;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+
+    i {
+      font-size: 12px;
+      color: $color-primary;
+      border: 1px solid $color-primary;
+      border-radius: 3px;
+      padding: 0 1px;
+    }
+  }
 }
 
 /* ===== 右侧详情 ===== */
@@ -800,8 +948,9 @@ const moveTreeData = computed<TreeSelectNode[]>(() => {
   overflow-y: auto;
   padding: 16px 20px;
 
-  /* 平面图 tab：撑满、不要内边距和滚动 */
-  &:has(.floor-plan-view) {
+  /* 平面图 / 3D图 tab：撑满、不要内边距和滚动 */
+  &:has(.floor-plan-view),
+  &:has(.panorama-view) {
     overflow: hidden;
     padding: 8px 12px;
   }

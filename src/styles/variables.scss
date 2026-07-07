@@ -9,6 +9,10 @@ $color-primary-hover: #7d5cff;
 $color-primary-active: #5d3bff;
 $color-primary-bg: #ece7ff; // rgb(236,231,255) 菜单/卡片选中背景
 
+// 语义色：在线/成功（青蓝绿，与紫色主题同属冷调，和谐搭配）
+$color-online: #2bb3a3; // rgb(43,179,163)
+$color-online-bg: rgba(43, 179, 163, 0.1); // 在线标签/状态点背景
+
 // 文字
 $text-base: #111418; // rgb(17,20,24) 正文/菜单项
 $text-secondary: #3a3f47; // rgb(58,63,71) 卡片描述/示例

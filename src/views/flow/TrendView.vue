@@ -180,7 +180,7 @@ const columns = [
   { title: '进 / 出', dataIndex: 'inOut', width: 110 },
   { title: '当前在场', dataIndex: 'present', width: 100, customRender: ({ record }: { record: PointDetailRow }) => {
     const v = parseInt(record.present.replace(/,/g, ''))
-    return h('span', { style: { color: v < 0 ? '#fa541c' : '#52c41a', fontWeight: 600 } }, record.present)
+    return h('span', { style: { color: v < 0 ? '#fa541c' : '#2bb3a3', fontWeight: 600 } }, record.present)
   }},
   { title: '高峰时段', dataIndex: 'peak', width: 180 }
 ]

@@ -15,13 +15,16 @@
     "dayjs": "^1.11.21",
     "echarts": "^6.1.0",
     "pinia": "^2.1.7",
+    "three": "^0.185.1",
     "vue": "^3.4.31",
     "vue-echarts": "^8.0.1",
     "vue-router": "^4.4.0"
   },
   "devDependencies": {
     "@iconify-json/ant-design": "^1.2.7",
+    "@iconify-json/lucide": "^1.2.116",
     "@types/node": "^20.14.10",
+    "@types/three": "^0.185.0",
     "@unocss/preset-attributify": "^0.61.0",
     "@unocss/preset-icons": "^0.61.0",
     "@unocss/preset-uno": "^0.61.0",

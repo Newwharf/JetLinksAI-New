@@ -199,7 +199,7 @@ function statusTag(s: string) {
   vertical-align: middle;
 
   &.online {
-    background: #52c41a;
+    background: $color-online;
   }
 
   &.offline {

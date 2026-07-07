@@ -5,9 +5,11 @@
  * 数据来源：UAT 站 cloud-uat.jetlinks.cn computedStyle 提取
  */
 import { useRouter } from 'vue-router'
+import { useAppStore } from '@/stores/app'
 
 const route = useRoute()
 const router = useRouter()
+const appStore = useAppStore()
 
 // 亮色/暗色模式切换
 const isDark = ref(false)
@@ -28,35 +30,53 @@ interface MenuItem {
 const ALL_MENUS: Record<string, MenuItem> = {
   space: { key: 'space', label: '空间态势', icon: 'i-ant-design-apartment-outlined', path: '/space/situation' },
   video: { key: 'video', label: '视联中心', icon: 'i-ant-design-video-camera-outlined', path: '/video/wall' },
-  'image-search': { key: 'image-search', label: '问图', icon: 'i-ant-design-file-image-outlined', path: '/image-search/text' },
+  'image-search': { key: 'image-search', label: '文搜图', icon: 'i-ant-design-file-image-outlined', path: '/image-search/text' },
   flow: { key: 'flow', label: '客流分析', icon: 'i-ant-design-line-chart-outlined', path: '/flow/analysis' },
   alarm: { key: 'alarm', label: '告警中心', icon: 'i-ant-design-alert-outlined', path: '/alarm/event' },
   inspection: { key: 'inspection', label: '巡检', icon: 'i-ant-design-audit-outlined', path: '/inspection/workbench' },
   dashboard: { key: 'dashboard', label: '可视化', icon: 'i-ant-design-dashboard-outlined', path: '/dashboard/workbench' },
   iot: { key: 'iot', label: '物联中心', icon: 'i-ant-design-api-outlined', path: '/iot/device' },
-  system: { key: 'system', label: '系统管理', icon: 'i-ant-design-setting-outlined', path: '/system/project' }
+  system: { key: 'system', label: '系统管理', icon: 'i-ant-design-setting-outlined', path: '/system/project' },
+  // 养老场景专属菜单
+  'elderly-security': { key: 'elderly-security', label: '安防态势', icon: 'i-ant-design-safety-outlined', path: '/elderly-security/situation' },
+  'elderly-behavior': { key: 'elderly-behavior', label: '老人行为分析', icon: 'i-ant-design-user-outlined', path: '/elderly-behavior/analysis' },
+  'elderly-staff': { key: 'elderly-staff', label: '护工行为分析', icon: 'i-ant-design-team-outlined', path: '/elderly-staff/analysis' },
+  // 商业体场景专属菜单
+  'vehicle': { key: 'vehicle', label: '车辆分析', icon: 'i-ant-design-car-outlined', path: '/vehicle/trend' },
+  'security-posture': { key: 'security-posture', label: '安防态势', icon: 'i-ant-design-safety-outlined', path: '/security-posture/situation' },
+  'work-order': { key: 'work-order', label: '工单', icon: 'i-ant-design-profile-outlined', path: '/work-order/list' },
+  'energy': { key: 'energy', label: '能耗分析', icon: 'i-ant-design-bar-chart-outlined', path: '/energy/analysis' }
 }
 
 // 场景 -> 菜单 key 顺序映射
 const SCENARIOS: Record<string, string[]> = {
   general: ['space', 'video', 'image-search', 'flow', 'alarm', 'inspection', 'dashboard', 'iot', 'system'],
-  security: ['space', 'video', 'image-search', 'alarm', 'inspection', 'system'],
-  commercial: ['flow', 'space', 'video', 'image-search', 'alarm', 'system'],
-  dormitory: ['video', 'space', 'image-search', 'alarm', 'system'],
-  elderly: ['video', 'space', 'image-search', 'alarm', 'system']
+  security: ['security-posture', 'video', 'image-search', 'alarm', 'system'],
+  commercial: ['flow', 'vehicle', 'security-posture', 'video', 'image-search', 'alarm', 'dashboard', 'work-order', 'energy', 'iot', 'system'],
+  // 公寓场景
+  apartment: ['video', 'space', 'image-search', 'alarm', 'system'],
+  elderly: ['elderly-security', 'elderly-behavior', 'elderly-staff', 'image-search', 'alarm', 'system']
 }
 
-// 场景选项（下拉框）
+// 场景选项（下拉框）+ 对应的 logo 字符和项目名
 const scenarioOptions = [
-  { value: 'general', label: '通用' },
-  { value: 'security', label: '安防' },
-  { value: 'commercial', label: '商业体' },
-  { value: 'dormitory', label: '宿管' },
-  { value: 'elderly', label: '养老' }
+  { value: 'general', label: '通用', logo: '通', name: '通用场景项目' },
+  { value: 'security', label: '安防', logo: '安', name: '安防场景项目' },
+  { value: 'commercial', label: '商业体', logo: '商', name: '商业体场景项目' },
+  { value: 'apartment', label: '公寓', logo: '公', name: '公寓场景项目' },
+  { value: 'elderly', label: '养老', logo: '养', name: '养老场景项目' }
 ]
 
-// 当前场景
-const currentScenario = ref('general')
+// 当前场景对应的 logo 和项目名
+const currentScenarioInfo = computed(() =>
+  scenarioOptions.find(o => o.value === currentScenario.value) || scenarioOptions[0]
+)
+
+// 当前场景（读 store，全局共享给 SubTabLayout/SpaceLayout）
+const currentScenario = computed({
+  get: () => appStore.scenario,
+  set: (v: string) => appStore.setScenario(v)
+})
 const scenarioSelectedKeys = computed({
   get: () => [currentScenario.value],
   set: () => {}
@@ -88,10 +108,20 @@ const activeTopKey = computed(() => {
   return menus.value[0]?.key ?? 'space'
 })
 
+// 侧边栏折叠状态（默认收起）
+const collapsed = ref(true)
+function toggleCollapse() {
+  collapsed.value = !collapsed.value
+}
+
 function handleMenuClick(m: MenuItem) {
-  if (m.path) {
-    router.push(m.path)
+  if (!m.path) return
+  // 文搜图：所有场景默认进「人员」
+  if (m.key === 'image-search') {
+    router.push('/image-search/person')
+    return
   }
+  router.push(m.path)
 }
 </script>
 
@@ -100,8 +130,8 @@ function handleMenuClick(m: MenuItem) {
     <!-- 顶栏（带阴影） -->
     <header class="layout-header">
       <div class="header-left">
-        <div class="logo-box">办</div>
-        <span class="project-name">办公室场景项目</span>
+        <div class="logo-box">{{ currentScenarioInfo.logo }}</div>
+        <span class="project-name">{{ currentScenarioInfo.name }}</span>
       </div>
       <div class="header-right">
         <!-- AI 对话入口 -->
@@ -151,30 +181,43 @@ function handleMenuClick(m: MenuItem) {
     </header>
 
     <div class="layout-body">
-      <!-- 侧栏（boxShadow + border 双重分隔） -->
-      <aside class="layout-sider">
+      <!-- 侧栏（支持折叠/展开） -->
+      <aside class="layout-sider" :class="{ collapsed }">
+        <!-- 折叠按钮 -->
+        <div class="collapse-btn" @click="toggleCollapse">
+          <i :class="collapsed ? 'i-ant-design-menu-unfold-outlined' : 'i-ant-design-menu-fold-outlined'" />
+          <span v-if="!collapsed" class="collapse-text">收起菜单</span>
+        </div>
+
         <!-- 菜单列表（仅一级） -->
         <nav class="sider-menu">
-          <a
+          <a-tooltip
             v-for="m in menus"
             :key="m.key"
-            class="menu-item"
-            :class="{ 'is-selected': activeTopKey === m.key }"
-            @click="handleMenuClick(m)"
+            :title="collapsed ? m.label : ''"
+            placement="right"
           >
-            <i :class="m.icon" class="menu-icon" />
-            <span class="menu-label">{{ m.label }}</span>
-          </a>
+            <a
+              class="menu-item"
+              :class="{ 'is-selected': activeTopKey === m.key }"
+              @click="handleMenuClick(m)"
+            >
+              <i :class="m.icon" class="menu-icon" />
+              <span v-if="!collapsed" class="menu-label">{{ m.label }}</span>
+            </a>
+          </a-tooltip>
         </nav>
 
         <!-- 用户区 -->
         <div class="sider-user">
           <div class="user-avatar">李</div>
-          <div class="user-info">
-            <div class="user-name">李瀚</div>
-            <div class="user-id">pm_cef5d9ed954f11c2</div>
-          </div>
-          <i class="i-ant-design-up-outlined user-arrow" />
+          <template v-if="!collapsed">
+            <div class="user-info">
+              <div class="user-name">李瀚</div>
+              <div class="user-id">pm_cef5d9ed954f11c2</div>
+            </div>
+            <i class="i-ant-design-up-outlined user-arrow" />
+          </template>
         </div>
       </aside>
 
@@ -327,54 +370,124 @@ function handleMenuClick(m: MenuItem) {
   overflow: hidden;
 }
 
-/* ===== 侧栏（boxShadow + border 双重右边框） ===== */
+/* ===== 侧栏（支持折叠/展开） ===== */
 .layout-sider {
   width: $sider-w;
   background: #fff;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  // 原页面：boxShadow 1px 分隔 + border-right 单线
   box-shadow: $shadow-sider;
   border-right: 1px solid $border-color-card;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* 折叠态：窄边栏，只显图标 */
+  &.collapsed {
+    width: 72px;
+
+    .sider-menu {
+      padding: 8px;
+      align-items: center;
+    }
+
+    .menu-item {
+      width: 52px;
+      height: 52px;
+      padding: 0;
+      margin: 6px 0;
+      justify-content: center;
+      border-radius: 12px;
+
+      .menu-icon {
+        font-size: 28px;
+        margin: 0;
+      }
+    }
+
+    .collapse-btn {
+      padding: 0;
+      justify-content: center;
+
+      i { margin: 0; }
+    }
+
+    .sider-user {
+      justify-content: center;
+      padding: 8px 0;
+    }
+  }
+}
+
+/* 折叠按钮 */
+.collapse-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  cursor: pointer;
+  color: $text-tertiary;
+  font-size: 13px;
+  border-bottom: 1px solid $border-color-card;
+  flex-shrink: 0;
+  transition: color 0.15s;
+
+  i {
+    font-size: 16px;
+  }
+
+  .collapse-text {
+    font-weight: 500;
+  }
+
+  &:hover {
+    color: $color-primary;
+  }
 }
 
 /* 菜单列表 */
 .sider-menu {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 8px;
+  overflow-x: hidden;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  height: $menu-item-h;
-  padding: 0 16px 0 4px;
-  margin: $menu-item-margin 0;
+  height: 48px;
+  padding: 0 14px;
+  margin: 4px 0;
   border-radius: $radius-menu-item;
-  font-size: 14px;
-  color: $text-base;
+  font-size: 15px;
+  color: $text-secondary;
   cursor: pointer;
-  line-height: $menu-item-h;
   transition: background 0.2s;
+  flex-shrink: 0;
 
   .menu-icon {
-    font-size: 14px;
-    color: $text-base;
-    margin: 0 10px 0 0;
+    font-size: 24px;
+    color: $text-tertiary;
+    margin: 0 12px 0 2px;
+    flex-shrink: 0;
   }
 
-  // 菜单文字加粗（medium）
   .menu-label {
     font-weight: 500;
+    white-space: nowrap;
   }
 
   &:hover {
     background: $bg-hover;
+
+    .menu-icon {
+      color: $color-primary;
+    }
   }
 
-  // 选中态：紫底紫字
   &.is-selected {
     background: $color-primary-bg;
     color: $color-primary;

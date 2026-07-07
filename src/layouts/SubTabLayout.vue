@@ -2,16 +2,20 @@
 /**
  * 通用二级 tab 布局
  * 从父路由 meta.tabs 读取 tab 配置，顶部 tab 栏 + 内容区
+ * 支持按场景过滤：tab 配置 scenarios 字段时只在指定场景显示
  */
 import { useRoute, useRouter } from 'vue-router'
+import { useAppStore } from '@/stores/app'
 
 const route = useRoute()
 const router = useRouter()
+const appStore = useAppStore()
 
 interface TabItem {
   key: string
   label: string
   path: string
+  scenarios?: string[]  // 不填 = 所有场景都显示
 }
 
 // 从匹配链中找到带 tabs 的那一级路由
@@ -19,15 +23,33 @@ const layoutRoute = computed(() => {
   return route.matched.find(r => Array.isArray(r.meta.tabs)) || route.matched[route.matched.length - 2]
 })
 
-const tabs = computed<TabItem[]>(() => (layoutRoute.value?.meta.tabs as TabItem[]) || [])
+// 按当前场景过滤 tab
+const tabs = computed<TabItem[]>(() => {
+  const all = (layoutRoute.value?.meta.tabs as TabItem[]) || []
+  const sc = appStore.scenario
+  return all.filter(t => !t.scenarios || t.scenarios.includes(sc))
+})
 
 const activeTab = computed(() => {
-  // 用最后一段路径作为 key
   const layoutPath = layoutRoute.value?.path || ''
   const fullPath = route.path
-  // 当前路径去掉 layout 前缀后的剩余部分
   const rest = fullPath.replace(layoutPath, '')
   return rest.replace(/^\//, '')
+})
+
+// 如果当前路由是 layout 根路径（无子路径），或当前 tab 在场景下不可见，
+// 自动跳转到第一个可见 tab
+watchEffect(() => {
+  if (tabs.value.length === 0) return
+  const layoutPath = layoutRoute.value?.path || ''
+  const rest = route.path.replace(layoutPath, '').replace(/^\//, '')
+  // 根路径 或 当前 tab 不在可见列表 → 跳第一个
+  if (!rest || !tabs.value.some(t => t.key === rest)) {
+    const first = tabs.value[0]
+    if (first && route.path !== first.path) {
+      router.replace(first.path)
+    }
+  }
 })
 
 function switchTab(tab: TabItem) {

@@ -4,6 +4,7 @@
  * 2.5D 楼层可视化（图片占位，可缩放拖拽）+ 浮动控制面板
  */
 import floorPlan from '@/assets/floorPlan.png'
+import type { TreeNode } from './AreaView.vue'
 
 // ===== 图片缩放与拖拽 =====
 const scale = ref(1)
@@ -97,42 +98,108 @@ function toggleLayer(layer: LayerSwitch) {
 // ===== 值守栏展开 =====
 const watchOpen = ref(false)
 
-// ===== 楼栋选择（多园区） =====
-interface BuildingItem {
-  label: string
-  value: string
-  active: boolean
-}
-interface ParkItem {
-  name: string
-  children: BuildingItem[]
-}
-const parks = ref<ParkItem[]>([
+// ===== 空间树（与空间管理共用结构，含 planImage）=====
+const spaceTree = ref<TreeNode[]>([
   {
-    name: '物联网产业园区',
+    id: 'park-1',
+    label: '物联网产业园区',
+    level: 1,
+    type: 'park',
+    expanded: true,
+    planImage: floorPlan,
     children: [
-      { label: 'A栋', value: '物联网产业园区/A栋', active: false },
-      { label: 'B栋', value: '物联网产业园区/B栋', active: false },
-      { label: 'C栋', value: '物联网产业园区/C栋', active: false },
-      { label: 'D栋', value: '物联网产业园区/D栋', active: false },
-      { label: 'E栋', value: '物联网产业园区/E栋', active: true }
-    ]
-  },
-  {
-    name: '新媒体创新园区',
-    children: [
-      { label: '新知楼', value: '新媒体创新园区/新知楼', active: false },
-      { label: '信创楼', value: '新媒体创新园区/信创楼', active: false }
+      {
+        id: 'b-e',
+        label: 'E栋',
+        level: 2,
+        type: 'building',
+        expanded: true,
+        planImage: floorPlan,
+        children: [
+          {
+            id: 'f-4f',
+            label: '4F',
+            level: 3,
+            type: 'floor',
+            expanded: true,
+            planImage: floorPlan,
+            children: [
+              { id: 'a-rd', label: '研发部办公区', level: 4, type: 'area', planImage: floorPlan },
+              { id: 'a-pm', label: '项目部办公区', level: 4, type: 'area' /* 无平面图 */ }
+            ]
+          },
+          { id: 'f-2f', label: '2F', level: 3, type: 'floor', planImage: floorPlan }
+        ]
+      },
+      {
+        id: 'b-a',
+        label: 'A栋',
+        level: 2,
+        type: 'building',
+        expanded: false,
+        /* 无平面图 */
+        children: [
+          {
+            id: 'f-1f',
+            label: '1F',
+            level: 3,
+            type: 'floor',
+            expanded: false,
+            children: [
+              { id: 'a-op', label: '运营办公室', level: 4, type: 'area' /* 无平面图 */ }
+            ]
+          }
+        ]
+      }
     ]
   }
 ])
-const currentBuilding = ref('E栋')
+
+// 当前选中节点
+const selectedNodeId = ref<string>('park-1')
 const buildingMenuOpen = ref(false)
-function selectBuilding(b: BuildingItem) {
-  parks.value.forEach(p => p.children.forEach(item => (item.active = false)))
-  b.active = true
-  currentBuilding.value = b.label
+
+// 扁平查找
+function findNode(nodes: TreeNode[], id: string): TreeNode | null {
+  for (const n of nodes) {
+    if (n.id === id) return n
+    if (n.children) {
+      const f = findNode(n.children, id)
+      if (f) return f
+    }
+  }
+  return null
+}
+
+const selectedNode = computed(() => findNode(spaceTree.value, selectedNodeId.value))
+
+// 节点完整路径
+function getNodePath(id: string): string {
+  const path: string[] = []
+  function walk(nodes: TreeNode[], parents: string[]): boolean {
+    for (const n of nodes) {
+      const np = [...parents, n.label]
+      if (n.id === id) { path.push(...np); return true }
+      if (n.children && walk(n.children, np)) return true
+    }
+    return false
+  }
+  walk(spaceTree.value, [])
+  return path.join(' / ')
+}
+
+function selectSpaceNode(node: TreeNode) {
+  selectedNodeId.value = node.id
   buildingMenuOpen.value = false
+  // 切换节点后重置视图
+  scale.value = 1
+  translateX.value = 0
+  translateY.value = 0
+}
+
+// 切换展开
+function toggleNodeExpand(node: TreeNode) {
+  node.expanded = !node.expanded
 }
 
 // ===== 状态摘要 =====
@@ -188,11 +255,7 @@ function statusText(d: DevicePoint): string {
   return '在线'
 }
 
-// ===== 楼层 =====
-const floors = ['4F', '2F']
-const activeFloor = ref('4F')
-
-// ===== 时间轴回放 =====
+// ===== 时间轴回放 =====// ===== 时间轴回放 =====
 const playing = ref(false)
 const playSpeed = ref('x1')
 const currentDate = ref('07/01')
@@ -216,34 +279,50 @@ const timelineHours = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12
         :class="{ dragging: isDragging }"
         :style="{ transform: `translate(${translateX}px, ${translateY}px) scale(${scale})` }"
       >
-        <img :src="floorPlan" class="canvas-bg-img" alt="2.5D空间态势" draggable="false" />
-        <!-- 设备点位（百分比定位，跟随缩放移动） -->
-        <a-tooltip
-          v-for="d in devices"
-          :key="d.id"
-          :mouse-enter-delay="0.2"
-        >
-          <template #title>
-            <div class="device-tip">
-              <div class="device-tip-name">{{ d.name }}</div>
-              <div class="device-tip-status" :class="{ offline: d.status === 'offline', alarm: d.alarm > 0 }">
-                状态：{{ statusText(d) }}
-              </div>
-              <div v-if="d.alarm > 0" class="device-tip-alarm">告警数：{{ d.alarm }}</div>
-            </div>
-          </template>
-          <div
-            v-show="isDeviceVisible(d)"
-            class="device-point"
-            :class="[d.type, d.status, { 'has-alarm': d.alarm > 0 }]"
-            :style="{ left: d.x + '%', top: d.y + '%' }"
-            @mousedown.stop
-            @click.stop
+        <!-- 有平面图：显示 -->
+        <template v-if="selectedNode?.planImage">
+          <img :src="selectedNode.planImage" class="canvas-bg-img" alt="2.5D空间态势" draggable="false" />
+          <!-- 设备点位（百分比定位，跟随缩放移动） -->
+          <a-tooltip
+            v-for="d in devices"
+            :key="d.id"
+            :mouse-enter-delay="0.2"
           >
-            <i :class="d.type === 'iot' ? 'i-ant-design-control-outlined' : 'i-ant-design-video-camera-outlined'" />
-            <span v-if="d.alarm > 0" class="alarm-badge">{{ d.alarm }}</span>
-          </div>
-        </a-tooltip>
+            <template #title>
+              <div class="device-tip">
+                <div class="device-tip-name">{{ d.name }}</div>
+                <div class="device-tip-status" :class="{ offline: d.status === 'offline', alarm: d.alarm > 0 }">
+                  状态：{{ statusText(d) }}
+                </div>
+                <div v-if="d.alarm > 0" class="device-tip-alarm">告警数：{{ d.alarm }}</div>
+              </div>
+            </template>
+            <div
+              v-show="isDeviceVisible(d)"
+              class="device-point"
+              :class="[d.type, d.status, { 'has-alarm': d.alarm > 0 }]"
+              :style="{ left: d.x + '%', top: d.y + '%' }"
+              @mousedown.stop
+              @click.stop
+            >
+              <i :class="d.type === 'iot' ? 'i-ant-design-control-outlined' : 'i-ant-design-video-camera-outlined'" />
+              <span v-if="d.alarm > 0" class="alarm-badge">{{ d.alarm }}</span>
+            </div>
+          </a-tooltip>
+        </template>
+        <!-- 无平面图：提示去上传 -->
+        <div v-else class="no-plan-tip">
+          <i class="i-ant-design-file-image-outlined no-plan-icon" />
+          <h4 class="no-plan-title">该空间暂无平面图</h4>
+          <p class="no-plan-desc">
+            当前空间「{{ selectedNode?.label }}」尚未上传平面图，
+            <br />请前往「空间管理 → {{ selectedNode?.label }} → 空间平面图」上传
+          </p>
+          <router-link :to="{ path: '/space/area', query: { node: selectedNodeId, tab: 'plan' } }" class="no-plan-btn">
+            <i class="i-ant-design-arrow-right-outlined" />
+            <span>去上传平面图</span>
+          </router-link>
+        </div>
       </div>
 
       <!-- 左上：值守栏卡片（折叠/展开图标，宽=楼层卡片94px） -->
@@ -252,32 +331,95 @@ const timelineHours = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12
         <span>值守栏</span>
       </div>
 
-      <!-- 楼栋选择卡片（楼栋图标 + 文案 + 树菜单） -->
+      <!-- 空间选择卡片（图标 + 当前节点路径 + 树菜单） -->
       <div class="building-wrap">
         <div class="card-btn building-card" @click="buildingMenuOpen = !buildingMenuOpen">
-          <i class="i-ant-design-home-outlined building-icon" />
-          <span class="building-name">物联网产业园区/{{ currentBuilding }}</span>
+          <i class="i-ant-design-apartment-outlined building-icon" />
+          <span class="building-name">{{ getNodePath(selectedNodeId) }}</span>
           <i class="i-ant-design-down-outlined card-btn-arrow" />
         </div>
-        <!-- 树菜单（多园区） -->
-        <div v-show="buildingMenuOpen" class="building-tree">
-          <div v-for="park in parks" :key="park.name" class="tree-park">
-            <div class="tree-root">
-              <i class="i-ant-design-apartment-outlined tree-root-icon" />
-              <span>{{ park.name }}</span>
+        <!-- 完整空间树菜单 -->
+        <div v-show="buildingMenuOpen" class="building-tree scroll-thin">
+          <template v-for="node in spaceTree" :key="node.id">
+            <div
+              class="tree-node-row"
+              :class="{ active: selectedNodeId === node.id }"
+              :style="{ paddingLeft: '8px' }"
+              @click="selectSpaceNode(node)"
+            >
+              <i
+                v-if="node.children?.length"
+                class="tree-arrow"
+                :class="node.expanded ? 'i-ant-design-caret-down-filled' : 'i-ant-design-caret-right-filled'"
+                @click.stop="toggleNodeExpand(node)"
+              />
+              <span v-else class="tree-arrow-placeholder" />
+              <i class="tree-node-icon" :class="node.type === 'park' ? 'i-ant-design-apartment-outlined' : node.type === 'building' ? 'i-ant-design-home-outlined' : node.type === 'floor' ? 'i-ant-design-appstore-outlined' : 'i-ant-design-environment-outlined'" />
+              <span class="tree-node-label">{{ node.label }}</span>
+              <i v-if="!node.planImage" class="tree-no-plan-tip" title="未上传平面图" />
             </div>
-            <div class="tree-children">
+            <!-- 子节点（递归一层一层渲染） -->
+            <template v-if="node.expanded && node.children">
               <div
-                v-for="b in park.children"
-                :key="b.value"
-                class="tree-item"
-                :class="{ active: b.active }"
-                @click="selectBuilding(b)"
+                v-for="child in node.children"
+                :key="child.id"
               >
-                {{ b.label }}
+                <div
+                  class="tree-node-row"
+                  :class="{ active: selectedNodeId === child.id }"
+                  :style="{ paddingLeft: '24px' }"
+                  @click="selectSpaceNode(child)"
+                >
+                  <i
+                    v-if="child.children?.length"
+                    class="tree-arrow"
+                    :class="child.expanded ? 'i-ant-design-caret-down-filled' : 'i-ant-design-caret-right-filled'"
+                    @click.stop="toggleNodeExpand(child)"
+                  />
+                  <span v-else class="tree-arrow-placeholder" />
+                  <i class="tree-node-icon" :class="child.type === 'building' ? 'i-ant-design-home-outlined' : child.type === 'floor' ? 'i-ant-design-appstore-outlined' : 'i-ant-design-environment-outlined'" />
+                  <span class="tree-node-label">{{ child.label }}</span>
+                </div>
+                <template v-if="child.expanded && child.children">
+                  <div
+                    v-for="gc in child.children"
+                    :key="gc.id"
+                  >
+                    <div
+                      class="tree-node-row"
+                      :class="{ active: selectedNodeId === gc.id }"
+                      :style="{ paddingLeft: '40px' }"
+                      @click="selectSpaceNode(gc)"
+                    >
+                      <i
+                        v-if="gc.children?.length"
+                        class="tree-arrow"
+                        :class="gc.expanded ? 'i-ant-design-caret-down-filled' : 'i-ant-design-caret-right-filled'"
+                        @click.stop="toggleNodeExpand(gc)"
+                      />
+                      <span v-else class="tree-arrow-placeholder" />
+                      <i class="tree-node-icon" :class="gc.type === 'floor' ? 'i-ant-design-appstore-outlined' : 'i-ant-design-environment-outlined'" />
+                      <span class="tree-node-label">{{ gc.label }}</span>
+                    </div>
+                    <template v-if="gc.expanded && gc.children">
+                      <div
+                        v-for="ggc in gc.children"
+                        :key="ggc.id"
+                        class="tree-node-row"
+                        :class="{ active: selectedNodeId === ggc.id }"
+                        :style="{ paddingLeft: '56px' }"
+                        @click="selectSpaceNode(ggc)"
+                      >
+                        <span class="tree-arrow-placeholder" />
+                        <i class="tree-node-icon i-ant-design-environment-outlined" />
+                        <span class="tree-node-label">{{ ggc.label }}</span>
+                      </div>
+                    </template>
+                  </div>
+                </template>
               </div>
-            </div>
-          </div>
+            </template>
+          </template>
         </div>
       </div>
 
@@ -301,19 +443,6 @@ const timelineHours = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12
             </span>
           </button>
         </template>
-      </div>
-
-      <!-- 左侧：楼层切换 -->
-      <div class="floor-stack">
-        <button
-          v-for="f in floors"
-          :key="f"
-          class="floor-btn"
-          :class="{ active: activeFloor === f }"
-          @click="activeFloor = f"
-        >
-          {{ f }}
-        </button>
       </div>
 
       <!-- 左侧：视图工具（重置、放大、缩小，各自独立卡片） -->
@@ -424,6 +553,63 @@ const timelineHours = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12
     max-height: 90%;
     object-fit: contain;
     pointer-events: none;
+  }
+
+  /* 无平面图提示 */
+  .no-plan-tip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px dashed $border-color-input;
+    border-radius: 12px;
+    max-width: 460px;
+
+    .no-plan-icon {
+      font-size: 56px;
+      color: $text-muted;
+      opacity: 0.4;
+      margin-bottom: 16px;
+    }
+
+    .no-plan-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: $text-base;
+      margin: 0 0 8px;
+    }
+
+    .no-plan-desc {
+      font-size: 13px;
+      color: $text-tertiary;
+      line-height: 1.7;
+      margin: 0 0 18px;
+    }
+
+    .no-plan-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 34px;
+      padding: 0 18px;
+      background: $color-primary;
+      color: #fff;
+      font-size: 13px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: opacity 0.15s;
+
+      i {
+        font-size: 13px;
+      }
+
+      &:hover {
+        opacity: 0.9;
+      }
+    }
   }
 }
 
@@ -572,7 +758,7 @@ const timelineHours = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12
   position: relative;
   top: auto;
   left: auto;
-  width: 200px;
+  width: 280px;
 
   .building-icon {
     font-size: 16px;
@@ -583,6 +769,8 @@ const timelineHours = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12
     font-size: 13px;
     color: $text-base;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     flex: 1;
   }
 
@@ -592,12 +780,14 @@ const timelineHours = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12
   }
 }
 
-/* 楼栋树菜单 */
+/* 楼栋树菜单（完整空间树） */
 .building-tree {
   position: absolute;
   top: 42px;
   left: 0;
-  width: 200px;
+  width: 240px;
+  max-height: 60vh;
+  overflow-y: auto;
   background: #fff;
   border: 1px solid $border-color-card;
   border-radius: 12px;
@@ -605,40 +795,17 @@ const timelineHours = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12
   padding: 6px;
   z-index: 12;
 
-  // 园区分组间距
-  .tree-park + .tree-park {
-    margin-top: 4px;
-  }
-
-  .tree-root {
+  .tree-node-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    height: 32px;
-    padding: 0 8px;
-    font-size: 13px;
-    font-weight: 500;
-    color: $text-base;
-
-    .tree-root-icon {
-      font-size: 14px;
-      color: $text-secondary;
-    }
-  }
-
-  .tree-children {
-    // 不加左侧 padding，让选中背景铺满整行
-  }
-
-  .tree-item {
-    display: flex;
-    align-items: center;
-    height: 32px;
-    padding: 0 8px 0 28px;
+    gap: 4px;
+    height: 30px;
+    padding-right: 8px;
     font-size: 13px;
     color: $text-base;
     cursor: pointer;
     border-radius: 6px;
+    transition: background 0.15s;
 
     &:hover {
       background: $bg-hover;
@@ -648,6 +815,40 @@ const timelineHours = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12
       background: $color-primary-bg;
       color: $color-primary;
       font-weight: 500;
+    }
+
+    .tree-arrow {
+      font-size: 10px;
+      color: $text-muted;
+      width: 14px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .tree-arrow-placeholder {
+      width: 14px;
+      flex-shrink: 0;
+    }
+
+    .tree-node-icon {
+      font-size: 13px;
+      color: $text-secondary;
+      flex-shrink: 0;
+    }
+
+    .tree-node-label {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tree-no-plan-tip {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #faad14;
+      flex-shrink: 0;
     }
   }
 }
@@ -720,8 +921,8 @@ const timelineHours = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12
     }
     // 在线：绿
     &.icon-online {
-      color: #52c41a;
-      background: rgba(82, 196, 26, 0.1);
+      color: $color-online;
+      background: $color-online-bg;
     }
     // 离线：灰
     &.icon-offline {
@@ -766,50 +967,10 @@ const timelineHours = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12
   }
 }
 
-/* ===== 左侧：楼层切换（宽94px = 与值守栏一致） ===== */
-.floor-stack {
-  position: absolute;
-  top: 68px;
-  left: 16px;
-  z-index: 10;
-  width: 94px;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid $border-color-card;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px 0 rgba(20, 22, 30, 0.04);
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.floor-btn {
-  width: 100%;
-  height: 34px;
-  border: none;
-  background: transparent;
-  color: $text-base;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  border-radius: 8px;
-  text-align: left;
-  padding-left: 12px;
-
-  &:hover {
-    background: $bg-hover;
-  }
-
-  &.active {
-    background: $color-primary-bg;
-    color: $color-primary;
-  }
-}
-
 /* ===== 左侧：视图工具（各自独立卡片，38×36） ===== */
 .map-control-stack {
   position: absolute;
-  top: 158px;
+  top: 68px;
   left: 16px;
   z-index: 10;
   display: flex;

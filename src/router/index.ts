@@ -12,6 +12,11 @@ function ph(title: string) {
   }
 }
 
+// 文搜图默认 tab：所有场景统一进「人员」
+function imageSearchDefaultPath(): string {
+  return '/image-search/person'
+}
+
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -56,13 +61,13 @@ const routes: RouteRecordRaw[] = [
         meta: {
           tabs: [
             { key: 'wall', label: '监控墙', path: '/video/wall' },
-            { key: 'device', label: '视频设备管理', path: '/video/device' }
+            { key: 'device', label: '监控设备管理', path: '/video/device' }
           ]
         },
         children: [
           { path: '', redirect: '/video/wall' },
           { path: 'wall', name: 'video-wall', component: () => import('@/views/video/WallView.vue'), meta: { title: '监控墙' } },
-          { path: 'device', name: 'video-device', ...ph('视频设备管理') }
+          { path: 'device', name: 'video-device', ...ph('监控设备管理') }
         ]
       },
 
@@ -72,16 +77,20 @@ const routes: RouteRecordRaw[] = [
         component: SubTabLayout,
         meta: {
           tabs: [
-            { key: 'text', label: '文搜图', path: '/image-search/text' },
+            { key: 'text', label: '文搜图', path: '/image-search/text', scenarios: ['general', 'security'] },
             { key: 'person', label: '人员', path: '/image-search/person' },
-            { key: 'vehicle', label: '车辆', path: '/image-search/vehicle' }
+            { key: 'vehicle', label: '车辆', path: '/image-search/vehicle', scenarios: ['general', 'security', 'commercial'] },
+            { key: 'person-track', label: '人员轨迹', path: '/image-search/person-track', scenarios: ['elderly'] },
+            { key: 'key-person', label: '重点人员跟踪', path: '/image-search/key-person', scenarios: ['elderly'] }
           ]
         },
         children: [
-          { path: '', redirect: '/image-search/text' },
+          { path: '', redirect: () => ({ path: imageSearchDefaultPath() }) },
           { path: 'text', name: 'image-text', component: () => import('@/views/image-search/TextSearchView.vue'), meta: { title: '文搜图' } },
-          { path: 'person', name: 'image-person', ...ph('人员') },
-          { path: 'vehicle', name: 'image-vehicle', ...ph('车辆') }
+          { path: 'person', name: 'image-person', component: () => import('@/views/image-search/TextSearchView.vue'), meta: { title: '人员' } },
+          { path: 'vehicle', name: 'image-vehicle', ...ph('车辆') },
+          { path: 'person-track', name: 'image-person-track', ...ph('人员轨迹') },
+          { path: 'key-person', name: 'image-key-person', ...ph('重点人员跟踪') }
         ]
       },
 
@@ -91,14 +100,88 @@ const routes: RouteRecordRaw[] = [
         component: SubTabLayout,
         meta: {
           tabs: [
-            { key: 'analysis', label: '客流分析', path: '/flow/analysis' },
-            { key: 'point', label: '客流点位管理', path: '/flow/point' }
+            { key: 'analysis', label: '客流趋势分析', path: '/flow/analysis' },
+            { key: 'heat', label: '区域人员热力图', path: '/flow/heat' },
+            { key: 'point', label: '客流点位管理', path: '/flow/point' },
+            { key: 'heat-point', label: '热力图点位管理', path: '/flow/heat-point' }
           ]
         },
         children: [
           { path: '', redirect: '/flow/analysis' },
-          { path: 'analysis', name: 'flow-analysis', component: () => import('@/views/flow/TrendView.vue'), meta: { title: '客流分析' } },
-          { path: 'point', name: 'flow-point', component: () => import('@/views/flow/PointView.vue'), meta: { title: '客流点位管理' } }
+          { path: 'analysis', name: 'flow-analysis', component: () => import('@/views/flow/TrendView.vue'), meta: { title: '客流趋势分析' } },
+          { path: 'heat', name: 'flow-heat', ...ph('区域人员热力图') },
+          { path: 'point', name: 'flow-point', component: () => import('@/views/flow/PointView.vue'), meta: { title: '客流点位管理' } },
+          { path: 'heat-point', name: 'flow-heat-point', ...ph('热力图点位管理') }
+        ]
+      },
+
+      // ===== 车辆分析（商业体）=====
+      {
+        path: 'vehicle',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'trend', label: '车流趋势', path: '/vehicle/trend' },
+            { key: 'heat', label: '区域车辆热力图', path: '/vehicle/heat' },
+            { key: 'point', label: '车流点位管理', path: '/vehicle/point' },
+            { key: 'heat-point', label: '热力图点位管理', path: '/vehicle/heat-point' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/vehicle/trend' },
+          { path: 'trend', name: 'vehicle-trend', ...ph('车流趋势') },
+          { path: 'heat', name: 'vehicle-heat', ...ph('区域车辆热力图') },
+          { path: 'point', name: 'vehicle-point', ...ph('车流点位管理') },
+          { path: 'heat-point', name: 'vehicle-heat-point', ...ph('热力图点位管理') }
+        ]
+      },
+
+      // ===== 安防态势（商业体）=====
+      {
+        path: 'security-posture',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'situation', label: '空间安防态势', path: '/security-posture/situation' },
+            { key: 'staff', label: '安保人员行为分析', path: '/security-posture/staff' },
+            { key: 'space', label: '空间管理', path: '/security-posture/space' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/security-posture/situation' },
+          { path: 'situation', name: 'sp-situation', component: () => import('@/views/space/SituationView.vue'), meta: { title: '空间安防态势' } },
+          { path: 'staff', name: 'sp-staff', ...ph('安保人员行为分析') },
+          { path: 'space', name: 'sp-space', component: () => import('@/views/space/AreaView.vue'), meta: { title: '空间管理' } }
+        ]
+      },
+
+      // ===== 工单（商业体）=====
+      {
+        path: 'work-order',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'list', label: '工单列表', path: '/work-order/list' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/work-order/list' },
+          { path: 'list', name: 'work-order-list', ...ph('工单列表') }
+        ]
+      },
+
+      // ===== 能耗分析（商业体）=====
+      {
+        path: 'energy',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'analysis', label: '能耗分析', path: '/energy/analysis' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/energy/analysis' },
+          { path: 'analysis', name: 'energy-analysis', ...ph('能耗分析') }
         ]
       },
 
@@ -185,7 +268,8 @@ const routes: RouteRecordRaw[] = [
             { key: 'role', label: '角色', path: '/system/role' },
             { key: 'org', label: '组织', path: '/system/org' },
             { key: 'msg-template', label: '消息模版', path: '/system/msg-template' },
-            { key: 'msg-channel', label: '消息渠道', path: '/system/msg-channel' }
+            { key: 'msg-channel', label: '消息渠道', path: '/system/msg-channel' },
+            { key: 'elderly-space', label: '空间管理', path: '/system/elderly-space', scenarios: ['elderly'] }
           ]
         },
         children: [
@@ -195,7 +279,62 @@ const routes: RouteRecordRaw[] = [
           { path: 'role', name: 'system-role', ...ph('角色') },
           { path: 'org', name: 'system-org', ...ph('组织') },
           { path: 'msg-template', name: 'system-msg-template', ...ph('消息模版') },
-          { path: 'msg-channel', name: 'system-msg-channel', ...ph('消息渠道') }
+          { path: 'msg-channel', name: 'system-msg-channel', ...ph('消息渠道') },
+          { path: 'elderly-space', name: 'system-elderly-space', ...ph('空间管理') }
+        ]
+      },
+
+      // ===== 养老场景专属：安防态势（二级 tab）=====
+      {
+        path: 'elderly-security',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'situation', label: '空间安防态势', path: '/elderly-security/situation' },
+            { key: 'bed-situation', label: '老人床位态势', path: '/elderly-security/bed-situation' },
+            { key: 'space', label: '空间管理', path: '/elderly-security/space' },
+            { key: 'bed', label: '老人床位管理', path: '/elderly-security/bed' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/elderly-security/situation' },
+          { path: 'situation', name: 'elderly-security-situation', component: () => import('@/views/elderly/ElderlySecurityView.vue'), meta: { title: '空间安防态势' } },
+          { path: 'bed-situation', name: 'elderly-security-bed-situation', ...ph('老人床位态势') },
+          { path: 'space', name: 'elderly-security-space', ...ph('空间管理') },
+          { path: 'bed', name: 'elderly-security-bed', ...ph('老人床位管理') }
+        ]
+      },
+      // ===== 老人行为分析（含老人档案管理）=====
+      {
+        path: 'elderly-behavior',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'behavior', label: '老人行为分析', path: '/elderly-behavior/analysis' },
+            { key: 'profile', label: '老人档案管理', path: '/elderly-behavior/profile' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/elderly-behavior/analysis' },
+          { path: 'analysis', name: 'elderly-behavior-analysis', component: () => import('@/views/elderly/ElderlyBehaviorView.vue'), meta: { title: '老人行为分析' } },
+          { path: 'profile', name: 'elderly-behavior-profile', ...ph('老人档案管理') }
+        ]
+      },
+
+      // ===== 护工行为分析（含护工档案管理）=====
+      {
+        path: 'elderly-staff',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'behavior', label: '护工行为分析', path: '/elderly-staff/analysis' },
+            { key: 'profile', label: '护工档案管理', path: '/elderly-staff/profile' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/elderly-staff/analysis' },
+          { path: 'analysis', name: 'elderly-staff-analysis', component: () => import('@/views/elderly/ElderlyStaffView.vue'), meta: { title: '护工行为分析' } },
+          { path: 'profile', name: 'elderly-staff-profile', ...ph('护工档案管理') }
         ]
       }
     ]

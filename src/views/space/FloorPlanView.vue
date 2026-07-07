@@ -108,273 +108,156 @@ function handleDragLeave() {
 function readImage(file: File) {
   const reader = new FileReader()
   reader.onload = () => {
+    // 重置美化状态（更换图片时也要走美化流程）
+    props.node.planImageEnhanced = false
+    props.node.planImageOriginal = undefined
+    enhancedFilter.value = ''
     props.node.planImage = reader.result as string
-    // 上传成功后，弹出二次提示询问是否进行 AI 美化
+    // 上传/更换图片后触发美化询问（除非用户勾选了"不再提示"）
     nextTick(() => {
-      enhanceAskVisible.value = true
+      if (!dontAskEnhance.value) {
+        enhanceStage.value = 'asking'
+      }
     })
   }
   reader.readAsDataURL(file)
 }
 
-// ===== AI 美化（弹窗模式：原图 + 多边形区域 + 提示词 + 多轮次）=====
+// ===== AI 白模生成（简化版：询问 → 等待 → 结果）=====
+// 弹窗阶段：'idle'(关闭) | 'asking'(询问) | 'processing'(处理中) | 'result'(结果展示)
+const enhanceStage = ref<'idle' | 'asking' | 'processing' | 'result'>('idle')
+// "不再提示"勾选（组件内记忆，刷新后重置）
+const dontAskEnhance = ref(false)
+// 询问弹窗内的勾选状态
+const askDontShow = ref(false)
 
-// 上传后的二次提示弹窗（确认 → 进入美化大弹窗）
-const enhanceAskVisible = ref(false)
+// 白模生成结果（mock：CSS filter 模拟）
+const enhancedFilter = ref('')
 
-// 用户确认美化：关闭询问 → 打开美化大弹窗
-function confirmEnhanceAsk() {
-  enhanceAskVisible.value = false
-  enhanceModalVisible.value = true
-}
-
-// 用户暂不美化
-function cancelEnhanceAsk() {
-  enhanceAskVisible.value = false
-}
-
-// 区域标记（多边形）
-interface EnhanceRegion {
-  id: string
-  points: { x: number; y: number }[]  // 0~100 百分比
-  label: string
-  closed: boolean
-}
-
-// 美化生成轮次
-interface EnhanceVersion {
-  id: string
-  filter: string   // 模拟美化的 CSS filter
-  prompt: string
-  regionCount: number
-  createdAt: number
-}
-
-// 弹窗开关
-const enhanceModalVisible = ref(false)
-// 当前生成中的 loading
-const enhancing = ref(false)
-// 所有轮次（最新在末尾）
-const enhanceVersions = ref<EnhanceVersion[]>([])
-// 当前选中的轮次 id
-const currentVersionId = ref<string>('')
-// 提示词
-const enhancePrompt = ref('')
-
-// 用户绘制的区域（多边形）
-const enhanceRegions = ref<EnhanceRegion[]>([])
-// 正在绘制的多边形（未闭合）
-const drawingPoints = ref<{ x: number; y: number }[]>([])
-const isDrawing = ref(false)
-// 选中的区域 id
-const selectedRegionId = ref<string>('')
-// 鼠标当前位置（绘制时实时显示橡皮筋线）
-const cursorPos = reactive({ x: 0, y: 0 })
-
-// 当前选中的轮次
-const currentVersion = computed(() => enhanceVersions.value.find(v => v.id === currentVersionId.value))
-
-// 当前应用的 filter（来自选中轮次）
-const currentFilter = computed(() => currentVersion.value?.filter || 'none')
-
-// 已闭合区域的汇总文案
-const regionsSummary = computed(() => {
-  const closed = enhanceRegions.value.filter(r => r.closed)
-  if (closed.length === 0) return ''
-  return closed.map((r, i) => `${toCircledNumber(i + 1)}${r.label}`).join('  ')
-})
-
-// 打开美化弹窗
+// 工具栏按钮入口
 function openEnhanceModal() {
-  enhanceModalVisible.value = true
-}
-
-// 弹窗打开时的初始化：备份原图，重置区域和轮次
-watch(enhanceModalVisible, (open) => {
-  if (open) {
-    // 备份原图（仅首次打开时）
-    if (!props.node.planImageOriginal) {
-      props.node.planImageOriginal = props.node.planImage
-    }
-    // 重置绘制状态
-    enhanceRegions.value = []
-    drawingPoints.value = []
-    isDrawing.value = false
-    selectedRegionId.value = ''
-    enhancePrompt.value = ''
-    // 保留之前已有的轮次（如果有）
-  }
-})
-
-// ===== 多边形绘制 =====
-// 进入绘制模式
-function startDrawRegion() {
-  isDrawing.value = true
-  drawingPoints.value = []
-  selectedRegionId.value = ''
-}
-
-// 画布点击：添加顶点 / 选中区域
-function onEnhanceCanvasClick(e: MouseEvent) {
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  const x = ((e.clientX - rect.left) / rect.width) * 100
-  const y = ((e.clientY - rect.top) / rect.height) * 100
-  if (x < 0 || x > 100 || y < 0 || y > 100) return
-
-  if (isDrawing.value) {
-    drawingPoints.value.push({ x, y })
+  // 已美化过 → 直接展示结果（让用户重新生成/替换/取消）
+  if (props.node.planImageEnhanced) {
+    enhancedFilter.value = currentFilter.value
+    enhanceStage.value = 'result'
+  } else {
+    enhanceStage.value = 'asking'
   }
 }
 
-// 鼠标移动：更新橡皮筋预览线终点
-function onEnhanceCanvasMove(e: MouseEvent) {
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  cursorPos.x = ((e.clientX - rect.left) / rect.width) * 100
-  cursorPos.y = ((e.clientY - rect.top) / rect.height) * 100
-}
-
-// 双击 / 回车：闭合当前多边形
-function closeCurrentPolygon() {
-  if (!isDrawing.value || drawingPoints.value.length < 3) return
-  const idx = enhanceRegions.value.filter(r => r.closed).length + 1
-  enhanceRegions.value.push({
-    id: 'r-' + Date.now(),
-    points: [...drawingPoints.value],
-    label: `区域${idx}`,
-    closed: true
-  })
-  drawingPoints.value = []
-  isDrawing.value = false
-}
-
-// 取消正在绘制的多边形
-function cancelDrawRegion() {
-  drawingPoints.value = []
-  isDrawing.value = false
-}
-
-// 删除某个区域
-function deleteRegion(region: EnhanceRegion) {
-  enhanceRegions.value = enhanceRegions.value.filter(r => r.id !== region.id)
-  if (selectedRegionId.value === region.id) selectedRegionId.value = ''
-}
-
-// 清除所有区域
-function clearAllRegions() {
-  enhanceRegions.value = []
-  drawingPoints.value = []
-  isDrawing.value = false
-  selectedRegionId.value = ''
-}
-
-// 选中区域
-function selectRegion(region: EnhanceRegion) {
-  if (isDrawing.value) return
-  selectedRegionId.value = selectedRegionId.value === region.id ? '' : region.id
-}
-
-// 弹窗键盘事件：Enter 闭合、Esc 取消绘制/关闭弹窗、Delete 删除选中区域
-function onEnhanceKeydown(e: KeyboardEvent) {
-  if (!enhanceModalVisible.value) return
-  if (e.key === 'Enter' && isDrawing.value) {
-    e.preventDefault()
-    closeCurrentPolygon()
-  } else if (e.key === 'Escape') {
-    if (isDrawing.value) {
-      cancelDrawRegion()
-    }
-  } else if (e.key === 'Delete' || e.key === 'Backspace') {
-    if (selectedRegionId.value && !isDrawing.value) {
-      e.preventDefault()
-      const region = enhanceRegions.value.find(r => r.id === selectedRegionId.value)
-      if (region) deleteRegion(region)
-    }
+// 上传后自动询问
+// 询问：开始美化 → 进入处理中
+function startEnhance() {
+  enhanceStage.value = 'processing'
+  // 备份原图（仅首次）
+  if (!props.node.planImageOriginal) {
+    props.node.planImageOriginal = props.node.planImage
   }
-}
-
-// 计算多边形 svg points 字符串
-function pointsToStr(points: { x: number; y: number }[]): string {
-  return points.map(p => `${p.x},${p.y}`).join(' ')
-}
-
-// 编号转圈号（1→① 2→②...）
-function toCircledNumber(n: number): string {
-  const map = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩']
-  return map[n - 1] || String(n)
-}
-
-// 计算多边形质心（用于放编号角标）
-function regionCentroid(points: { x: number; y: number }[]): { x: number; y: number } {
-  if (points.length === 0) return { x: 50, y: 50 }
-  const sx = points.reduce((s, p) => s + p.x, 0)
-  const sy = points.reduce((s, p) => s + p.y, 0)
-  return { x: sx / points.length, y: sy / points.length }
-}
-
-// ===== 多轮次生成 =====
-// 生成新一轮（mock：用原图 + 随机 filter 模拟）
-function generateVersion() {
-  if (enhancing.value) return
-  enhancing.value = true
-  // 根据 prompt 长度和区域数微调 filter，让多轮视觉上有差异
-  const seed = (enhancePrompt.value.length + enhanceRegions.value.filter(r => r.closed).length * 7 + enhanceVersions.value.length * 13) % 100
-  const sat = 1.2 + (seed % 30) / 100         // 1.20~1.49
-  const con = 1.1 + ((seed * 3) % 16) / 100    // 1.10~1.25
-  const bri = 1.0 + ((seed * 5) % 11) / 100    // 1.00~1.10
-  const hue = -10 + ((seed * 7) % 16)          // -10~+5
-  const filter = `saturate(${sat.toFixed(2)}) contrast(${con.toFixed(2)}) brightness(${bri.toFixed(2)}) hue-rotate(${hue}deg)`
-  // 模拟 AI 处理耗时
+  // mock：随机 filter + 2 秒处理
+  const seed = Math.floor(Math.random() * 100)
+  const sat = (1.25 + (seed % 25) / 100).toFixed(2)
+  const con = (1.12 + ((seed * 3) % 16) / 100).toFixed(2)
+  const bri = (1.02 + ((seed * 5) % 11) / 100).toFixed(2)
+  const hue = -10 + ((seed * 7) % 16)
+  enhancedFilter.value = `saturate(${sat}) contrast(${con}) brightness(${bri}) hue-rotate(${hue}deg)`
   setTimeout(() => {
-    const version: EnhanceVersion = {
-      id: 'v-' + Date.now(),
-      filter,
-      prompt: enhancePrompt.value,
-      regionCount: enhanceRegions.value.filter(r => r.closed).length,
-      createdAt: Date.now()
-    }
-    enhanceVersions.value.push(version)
-    selectVersion(version)
-    enhancing.value = false
-  }, 1800)
+    enhanceStage.value = 'result'
+  }, 2200)
 }
 
-// 选中某个轮次
-function selectVersion(v: EnhanceVersion) {
-  currentVersionId.value = v.id
-  applyVersion(v)
+// 询问：暂不美化
+function cancelAsking() {
+  if (askDontShow.value) dontAskEnhance.value = true
+  askDontShow.value = false
+  enhanceStage.value = 'idle'
 }
 
-// 把某个轮次应用到画布
-function applyVersion(_v: EnhanceVersion) {
-  // 生成即生效：直接更新画布显示（用 planImageOriginal + 该轮 filter）
-  props.node.planImage = props.node.planImageOriginal
-  props.node.planImageEnhanced = true
-  // filter 通过 currentFilter computed 在模板上应用
+// 大图预览：'original' 看原图，'enhanced' 看美化后
+const largePreviewVisible = ref(false)
+const largePreviewTab = ref<'original' | 'enhanced'>('enhanced')
+// 大图缩放/平移
+const lpScale = ref(1)
+const lpX = ref(0)
+const lpY = ref(0)
+const lpPanning = ref(false)
+const lpPanStart = reactive({ x: 0, y: 0, tx: 0, ty: 0 })
+
+function openLargePreview(tab: 'original' | 'enhanced') {
+  largePreviewTab.value = tab
+  // 重置缩放
+  lpScale.value = 1
+  lpX.value = 0
+  lpY.value = 0
+  largePreviewVisible.value = true
 }
 
-// 底部三按钮
-// 重新生成 = generateVersion
-function onRegenerate() {
-  generateVersion()
+function lpZoomIn() {
+  lpScale.value = Math.min(5, +(lpScale.value + 0.2).toFixed(2))
+}
+function lpZoomOut() {
+  lpScale.value = Math.max(0.5, +(lpScale.value - 0.2).toFixed(2))
+  if (lpScale.value === 1) { lpX.value = 0; lpY.value = 0 }
+}
+function lpReset() {
+  lpScale.value = 1
+  lpX.value = 0
+  lpY.value = 0
+}
+function lpOnWheel(e: WheelEvent) {
+  e.preventDefault()
+  if (e.deltaY < 0) lpZoomIn()
+  else lpZoomOut()
+}
+function lpOnPanStart(e: MouseEvent) {
+  lpPanning.value = true
+  lpPanStart.x = e.clientX
+  lpPanStart.y = e.clientY
+  lpPanStart.tx = lpX.value
+  lpPanStart.ty = lpY.value
+}
+function lpOnPanMove(e: MouseEvent) {
+  if (!lpPanning.value) return
+  lpX.value = lpPanStart.tx + (e.clientX - lpPanStart.x)
+  lpY.value = lpPanStart.ty + (e.clientY - lpPanStart.y)
+}
+function lpOnPanEnd() {
+  lpPanning.value = false
 }
 
-// 保存：关闭弹窗，保留当前画布状态
-function onEnhanceSave() {
-  enhanceModalVisible.value = false
-}
-
-// 取消：还原到打开弹窗前的状态
-function onEnhanceCancel() {
-  // 还原原图
+// 结果：取消 → 还原原图并关闭
+function cancelEnhance() {
   if (props.node.planImageOriginal) {
     props.node.planImage = props.node.planImageOriginal
   }
   props.node.planImageEnhanced = false
-  // 清空轮次（取消等于放弃所有生成结果）
-  enhanceVersions.value = []
-  currentVersionId.value = ''
-  enhanceModalVisible.value = false
+  enhancedFilter.value = ''
+  enhanceStage.value = 'idle'
 }
+
+// 结果：重新生成 → 回到处理中（再随机一次 filter）
+function regenerateEnhance() {
+  enhanceStage.value = 'processing'
+  const seed = Math.floor(Math.random() * 1000)
+  const sat = (1.25 + (seed % 25) / 100).toFixed(2)
+  const con = (1.12 + ((seed * 7) % 16) / 100).toFixed(2)
+  const bri = (1.02 + ((seed * 11) % 11) / 100).toFixed(2)
+  const hue = -10 + ((seed * 13) % 16)
+  enhancedFilter.value = `saturate(${sat}) contrast(${con}) brightness(${bri}) hue-rotate(${hue}deg)`
+  setTimeout(() => {
+    enhanceStage.value = 'result'
+  }, 2200)
+}
+
+// 结果：替换为平面图 → 应用白模生成结果到画布并关闭
+function applyEnhance() {
+  props.node.planImage = props.node.planImageOriginal
+  props.node.planImageEnhanced = true
+  // currentFilter 通过 enhancedFilter 应用
+  enhanceStage.value = 'idle'
+}
+
+// 当前画布应用的 filter（来自最后一次美化）
+const currentFilter = computed(() => props.node.planImageEnhanced ? enhancedFilter.value : 'none')
 
 // 注册/卸载弹窗键盘监听（与下方 onKeydown 合并到同一 onMounted/onUnmounted）
 
@@ -487,33 +370,23 @@ function cancelDrawer() {
 const viewMode = ref<'view' | 'place'>('view')
 const pendingDevice = ref<BoundDevice | null>(null)
 
-// 物联设备：点选
-function chooseDevice(d: BoundDevice) {
-  if (markedDeviceIds.value.has(d.id)) return
-  if (pendingDevice.value?.id === d.id) {
-    pendingDevice.value = null
-    viewMode.value = 'view'
-    return
-  }
-  pendingDevice.value = d
-  viewMode.value = 'place'
+// 物联设备：点击无操作（仅支持拖拽放置）
+function chooseDevice(_d: BoundDevice) {
+  // 仅拖拽，单击不触发任何行为
 }
 
-// 视频设备：点选卡片（拿到对应 BoundDevice）
+// 视频设备：点击卡片 → 弹窗播放实时视频流
+const playModalVisible = ref(false)
+const playTarget = ref<{ name: string; thumb?: string; status: 'online' | 'offline' } | null>(null)
+
 function chooseVideoCam(_gw: VideoGwGroup, cam: VideoCamItem) {
-  if (markedDeviceIds.value.has(cam.id)) return
-  // 再次点同一摄像头 → 取消
-  if (pendingDevice.value?.id === cam.id) {
-    pendingDevice.value = null
-    viewMode.value = 'view'
-    return
+  // 已标记的也可以播放（查看实时画面）
+  playTarget.value = {
+    name: cam.name,
+    thumb: cam.thumb,
+    status: cam.status
   }
-  pendingDevice.value = {
-    id: cam.id, name: cam.name, type: 'video',
-    status: cam.status, icon: 'i-ant-design-video-camera-outlined',
-    thumb: cam.thumb, gateway: _gw.name
-  }
-  viewMode.value = 'place'
+  playModalVisible.value = true
 }
 
 function cancelPlace() {
@@ -521,27 +394,17 @@ function cancelPlace() {
   pendingDevice.value = null
 }
 
-// ===== 画布点击：放置标记 =====
+// ===== 画布点击：仅用于取消 marker 选中（不再放置）=====
 const canvasRef = ref<HTMLDivElement | null>(null)
 
-function onCanvasClick(e: MouseEvent) {
-  if (viewMode.value !== 'place' || !pendingDevice.value) return
-  if (!canvasRef.value) return
-  const rect = canvasRef.value.getBoundingClientRect()
-  // 相对画布百分比，画布是 contain 模式，但 markers 层与图片层同尺寸
-  const x = ((e.clientX - rect.left) / rect.width) * 100
-  const y = ((e.clientY - rect.top) / rect.height) * 100
-  if (x < 0 || x > 100 || y < 0 || y > 100) return
-
-  placeMarker(pendingDevice.value, x, y)
-
-  // 单设备单标记语义：放置后该设备变为已标记，自动取消选中并退出 place 模式
-  // （如需连续放置多个不同设备，可在抽屉里继续点选下一个）
-  pendingDevice.value = null
-  viewMode.value = 'view'
+function onCanvasClick(_e: MouseEvent) {
+  // 点击画布空白处：取消当前选中的 marker
+  if (selectedMarkerDeviceId.value) {
+    selectedMarkerDeviceId.value = ''
+  }
 }
 
-// 公共：放置一个标记到指定百分比坐标（写入草稿）
+// 公共：放置一个标记到指定百分比坐标（写入草稿，由拖拽 drop 调用）
 function placeMarker(d: BoundDevice, x: number, y: number) {
   const marker: PlanMarker = {
     id: `${d.id}-${Date.now()}`,
@@ -721,12 +584,8 @@ const markerStat = computed(() => {
   }
 })
 
-// 取消 place 模式的 Esc 快捷键 + 弹窗内的 Enter/Esc/Delete
+// Esc 取消 place 模式
 function onKeydown(e: KeyboardEvent) {
-  if (enhanceModalVisible.value) {
-    onEnhanceKeydown(e)
-    return
-  }
   if (e.key === 'Escape' && viewMode.value === 'place') {
     cancelPlace()
   }
@@ -777,14 +636,14 @@ onUnmounted(() => {
             <i class="i-ant-design-picture-outlined" />
             <span>更换图片</span>
           </button>
-          <!-- AI 美化（紧跟更换图片） -->
+          <!-- 白模生成（紧跟更换图片） -->
           <button
             class="tool-btn enhance-btn"
             :class="{ enhanced: node.planImageEnhanced }"
             @click="openEnhanceModal"
           >
-            <i class="i-ant-design-highlight-filled" />
-            <span>{{ node.planImageEnhanced ? '重新美化' : 'AI 美化' }}</span>
+            <i class="i-lucide-wand-sparkles" />
+            <span>{{ node.planImageEnhanced ? '重新生成白模' : '白模生成' }}</span>
           </button>
           <div class="zoom-group">
             <button class="zoom-btn" title="缩小" @click="zoomOut">
@@ -802,9 +661,9 @@ onUnmounted(() => {
         </div>
         <div class="toolbar-right">
           <template v-if="drawerOpen">
-            <span v-if="viewMode === 'place'" class="placing-hint">
-              <i class="i-ant-design-environment-outlined" />
-              点击画布放置：{{ pendingDevice?.name }}
+            <span class="placing-hint">
+              <i class="i-ant-design drag-outlined" />
+              拖拽设备到画布进行标记
             </span>
             <button class="tool-btn" @click="cancelDrawer">
               <i class="i-ant-design-close-outlined" />
@@ -830,7 +689,7 @@ onUnmounted(() => {
         <div
           ref="canvasRef"
           class="plan-canvas"
-          :class="{ placing: viewMode === 'place', panning: isPanning, 'drawer-open': drawerOpen, 'drag-active': dragGhostVisible }"
+          :class="{ panning: isPanning, 'drawer-open': drawerOpen, 'drag-active': dragGhostVisible }"
           @wheel="onWheel"
           @mousedown="onPanStart"
           @mousemove="onPanMove"
@@ -966,7 +825,13 @@ onUnmounted(() => {
                   </div>
                 </div>
               </div>
-              <div v-if="filteredVideoGws.length === 0" class="empty-list">暂无可选摄像头</div>
+              <div v-if="filteredVideoGws.length === 0" class="drawer-empty">
+                <i class="i-ant-design-video-camera-outlined drawer-empty-icon" />
+                <p class="drawer-empty-title">
+                  {{ addSearchKey ? '没有找到匹配的摄像头' : '暂无可标记的摄像头' }}
+                </p>
+                <p v-if="!addSearchKey" class="drawer-empty-hint">请先在「绑定设备管理」中绑定视频设备</p>
+              </div>
             </div>
 
             <!-- 物联设备：扁平列表 -->
@@ -998,7 +863,13 @@ onUnmounted(() => {
                 <i v-if="markedDeviceIds.has(d.id)" class="i-ant-design-environment-filled row-marked-icon" />
                 <i v-else-if="pendingDevice?.id === d.id" class="i-ant-design-check-circle-filled row-check" />
               </div>
-              <div v-if="filteredIotDevices.length === 0" class="empty-list">暂无可选设备</div>
+              <div v-if="filteredIotDevices.length === 0" class="drawer-empty">
+                <i class="i-ant-design-api-outlined drawer-empty-icon" />
+                <p class="drawer-empty-title">
+                  {{ addSearchKey ? '没有找到匹配的设备' : '暂无可标记的物联设备' }}
+                </p>
+                <p v-if="!addSearchKey" class="drawer-empty-hint">请先在「绑定设备管理」中绑定物联设备</p>
+              </div>
             </div>
 
             <div class="drawer-footer">
@@ -1020,191 +891,194 @@ onUnmounted(() => {
       <span>{{ dragGhost.name }}</span>
     </div>
 
-    <!-- 上传后二次提示：是否进行 AI 美化 -->
+    <!-- 视频播放弹窗 -->
     <a-modal
-      v-model:open="enhanceAskVisible"
-      :width="440"
+      v-model:open="playModalVisible"
+      :title="playTarget?.name || '视频播放'"
+      :footer="null"
+      :width="800"
+      :body-style="{ padding: '0', background: '#000' }"
+      wrap-class-name="video-player-modal"
+    >
+      <div class="video-player-wrap">
+        <img v-if="playTarget?.thumb" :src="playTarget.thumb" class="video-player-frame" alt="视频流" />
+        <div class="video-player-overlay">
+          <div class="player-controls">
+            <i class="i-ant-design-pause-circle-filled player-play-icon" />
+            <div class="player-progress">
+              <div class="player-progress-bar" />
+            </div>
+            <span class="player-time">实时</span>
+          </div>
+        </div>
+        <div class="video-player-info">
+          <span class="player-name">{{ playTarget?.name }}</span>
+          <span class="player-status" :class="playTarget?.status">{{ playTarget?.status === 'online' ? '● LIVE' : '● 离线' }}</span>
+        </div>
+      </div>
+    </a-modal>
+
+    <!-- 白模生成弹窗（询问 / 处理中 / 结果 三态） -->
+    <a-modal
+      :open="enhanceStage !== 'idle'"
+      :width="enhanceStage === 'result' ? 880 : 440"
       :footer="null"
       :closable="false"
+      :mask-closable="false"
       centered
+      @cancel="enhanceStage === 'result' ? cancelEnhance() : cancelAsking()"
     >
-      <div class="enhance-ask">
+      <!-- 询问阶段 -->
+      <div v-if="enhanceStage === 'asking'" class="enhance-ask">
         <div class="ask-icon-wrap">
-          <i class="i-ant-design-highlight-filled ask-icon" />
+          <i class="i-lucide-wand-sparkles ask-icon" />
         </div>
-        <h3 class="ask-title">是否用 AI 美化平面图？</h3>
+        <h3 class="ask-title">是否用 AI 根据平面图生成白模？</h3>
         <p class="ask-desc">
-          检测到原始平面图。AI 美化能自动增强色彩、提升清晰度，并支持在原图上标记重点区域、用提示词描述需求，让平面图更直观易读。
+          AI 会自动根据您上传的原始平面图来生成白模，生成后的白模会替换原有平面图进行展示。处理过程约需 2 秒。
         </p>
         <div class="ask-actions">
-          <button class="ask-btn secondary" @click="cancelEnhanceAsk">暂不美化</button>
-          <button class="ask-btn primary" @click="confirmEnhanceAsk">
-            <i class="i-ant-design-highlight-filled" />
-            <span>开始美化</span>
+          <button class="ask-btn secondary" @click="cancelAsking">暂不生成</button>
+          <button class="ask-btn primary" @click="startEnhance">
+            <i class="i-lucide-wand-sparkles" />
+            <span>开始生成</span>
+          </button>
+        </div>
+        <label class="ask-dont-show">
+          <a-checkbox v-model:checked="askDontShow" />
+          <span>不再提示，后续上传或更换图片时不自动询问</span>
+        </label>
+      </div>
+
+      <!-- 处理中阶段 -->
+      <div v-else-if="enhanceStage === 'processing'" class="enhance-processing">
+        <i class="i-lucide-wand-sparkles processing-spin" />
+        <h3 class="processing-title">AI 白模生成中</h3>
+        <p class="processing-sub">正在根据平面图构建白模，请稍候...</p>
+        <div class="processing-progress">
+          <div class="progress-bar" />
+        </div>
+      </div>
+
+      <!-- 结果阶段 -->
+      <div v-else-if="enhanceStage === 'result'" class="enhance-result">
+        <div class="result-header">
+          <h3 class="result-title">白模生成结果预览</h3>
+          <span class="result-tip">如不满意可重新生成，或直接取消还原原图</span>
+        </div>
+        <div class="result-compare">
+          <div class="compare-item">
+            <div class="compare-label">原图</div>
+            <div class="compare-img-wrap" @click="openLargePreview('original')">
+              <img :src="node.planImageOriginal" class="compare-img" draggable="false" alt="原图" />
+              <div class="zoom-hint">
+                <i class="i-ant-design-zoom-in-outlined" />
+                <span>点击查看大图</span>
+              </div>
+            </div>
+          </div>
+          <i class="i-ant-design-arrow-right-outlined compare-arrow" />
+          <div class="compare-item">
+            <div class="compare-label highlighted">AI 生成白模</div>
+            <div class="compare-img-wrap" @click="openLargePreview('enhanced')">
+              <img
+                :src="node.planImageOriginal"
+                class="compare-img"
+                :style="{ filter: enhancedFilter }"
+                draggable="false"
+                alt="白模生成结果"
+              />
+              <div class="zoom-hint">
+                <i class="i-ant-design-zoom-in-outlined" />
+                <span>点击查看大图</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="result-actions">
+          <button class="result-btn cancel" @click="cancelEnhance">
+            <i class="i-ant-design-close-outlined" />
+            <span>取消</span>
+          </button>
+          <button class="result-btn regenerate" @click="regenerateEnhance">
+            <i class="i-ant-design-reload-outlined" />
+            <span>重新生成</span>
+          </button>
+          <button class="result-btn apply" @click="applyEnhance">
+            <i class="i-ant-design-check-outlined" />
+            <span>替换为平面图</span>
           </button>
         </div>
       </div>
     </a-modal>
 
-    <!-- AI 美化大弹窗 -->
+    <!-- 大图预览弹窗 -->
     <a-modal
-      v-model:open="enhanceModalVisible"
-      title="AI 美化平面图"
-      :width="900"
+      :open="largePreviewVisible"
+      :width="1000"
       :footer="null"
+      :closable="true"
       centered
-      :mask-closable="false"
-      wrap-class-name="enhance-modal-wrap"
+      wrap-class-name="large-preview-modal"
+      @cancel="largePreviewVisible = false"
     >
-      <div class="enhance-modal">
-        <!-- 主体：左侧画布 + 右侧轮次列表 -->
-        <div class="enhance-body">
-          <!-- 左侧：原图 + 多边形标记 -->
-          <div class="enhance-canvas-section">
-            <div
-              class="enhance-canvas"
-              :class="{ drawing: isDrawing }"
-              @click="onEnhanceCanvasClick"
-              @mousemove="onEnhanceCanvasMove"
-              @dblclick="closeCurrentPolygon"
-            >
-              <img
-                :src="node.planImageOriginal || node.planImage"
-                class="enhance-origin-img"
-                :style="{ filter: currentFilter }"
-                draggable="false"
-                alt="原图"
-              />
-              <!-- SVG 层：绘制多边形 -->
-              <svg class="enhance-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <!-- 已闭合区域 -->
-                <polygon
-                  v-for="region in enhanceRegions.filter(r => r.closed)"
-                  :key="region.id"
-                  :points="pointsToStr(region.points)"
-                  :class="['region-poly', { selected: selectedRegionId === region.id }]"
-                  @click.stop="selectRegion(region)"
-                />
-                <!-- 正在绘制的多边形（含橡皮筋预览线） -->
-                <polyline
-                  v-if="drawingPoints.length > 0"
-                  :points="pointsToStr(drawingPoints.length > 0 ? [...drawingPoints, cursorPos] : [])"
-                  class="region-draft-line"
-                />
-                <!-- 已绘制的顶点 -->
-                <circle
-                  v-for="(p, i) in drawingPoints"
-                  :key="'dp' + i"
-                  :cx="p.x"
-                  :cy="p.y"
-                  :r="0.8"
-                  class="region-vertex"
-                />
-              </svg>
-              <!-- 区域编号角标 -->
-              <div
-                v-for="(region, idx) in enhanceRegions.filter(r => r.closed)"
-                :key="'badge' + region.id"
-                class="region-badge"
-                :class="{ selected: selectedRegionId === region.id }"
-                :style="{ left: regionCentroid(region.points).x + '%', top: regionCentroid(region.points).y + '%' }"
-                @click.stop="selectRegion(region)"
-              >
-                {{ toCircledNumber(idx + 1) }}
-                <span class="badge-label">{{ region.label }}</span>
-                <i v-if="selectedRegionId === region.id" class="badge-del i-ant-design-close-outlined" @click.stop="deleteRegion(region)" />
-              </div>
-              <!-- 绘制中提示 -->
-              <div v-if="isDrawing" class="drawing-hint">
-                <i class="i-ant-design-edit-outlined" />
-                <span v-if="drawingPoints.length === 0">点击原图添加顶点，开始绘制区域</span>
-                <span v-else>已添加 {{ drawingPoints.length }} 个顶点，双击或回车闭合（Esc 取消）</span>
-              </div>
-            </div>
-
-            <!-- 左侧底部工具条 -->
-            <div class="regions-bar">
-              <button class="region-btn" :class="{ active: isDrawing }" @click="startDrawRegion">
-                <i class="i-ant-design-plus-outlined" />
-                <span>标记区域</span>
-              </button>
-              <button class="region-btn" :disabled="enhanceRegions.length === 0" @click="clearAllRegions">
-                <i class="i-ant-design-clear-outlined" />
-                <span>清除全部</span>
-              </button>
-              <span v-if="regionsSummary" class="regions-summary">已标记：{{ regionsSummary }}</span>
-            </div>
-          </div>
-
-          <!-- 右侧：轮次列表 -->
-          <div class="enhance-versions">
-            <div class="versions-header">
-              <span>生成轮次</span>
-              <span class="versions-count">{{ enhanceVersions.length }}</span>
-            </div>
-
-            <!-- 生成中 loading -->
-            <div v-if="enhancing" class="versions-loading">
-              <i class="i-ant-design-highlight-filled versions-spin" />
-              <span>AI 生成中...</span>
-            </div>
-
-            <!-- 空状态 -->
-            <div v-else-if="enhanceVersions.length === 0" class="versions-empty">
-              <i class="i-ant-design-picture-outlined" />
-              <p>暂无生成结果</p>
-              <p class="empty-sub">输入提示词、标记区域后，点击下方"重新生成"</p>
-            </div>
-
-            <!-- 轮次列表（最新在顶部） -->
-            <div class="versions-list scroll-thin">
-              <div
-                v-for="v in [...enhanceVersions].reverse()"
-                :key="v.id"
-                class="version-item"
-                :class="{ active: currentVersionId === v.id }"
-                @click="selectVersion(v)"
-              >
-                <div class="version-thumb">
-                  <img :src="node.planImageOriginal" :style="{ filter: v.filter }" alt="缩略图" />
-                </div>
-                <div class="version-meta">
-                  <span class="version-title">第 {{ enhanceVersions.indexOf(v) + 1 }} 轮</span>
-                  <span class="version-prompt">{{ v.prompt || '未输入提示词' }}</span>
-                  <span class="version-regions">{{ v.regionCount }} 个区域</span>
-                </div>
-                <i v-if="currentVersionId === v.id" class="i-ant-design-check-circle-filled version-check" />
-              </div>
-            </div>
-          </div>
+      <div class="large-preview">
+        <!-- 切换 tab -->
+        <div class="large-preview-tabs">
+          <button
+            class="lp-tab"
+            :class="{ active: largePreviewTab === 'original' }"
+            @click="largePreviewTab = 'original'"
+          >
+            原图
+          </button>
+          <button
+            class="lp-tab"
+            :class="{ active: largePreviewTab === 'enhanced' }"
+            @click="largePreviewTab = 'enhanced'"
+          >
+            AI 生成白模
+          </button>
         </div>
-
-        <!-- 提示词输入 -->
-        <div class="enhance-prompt-section">
-          <label class="prompt-label">
-            <i class="i-ant-design-message-outlined" />
-            <span>美化提示词</span>
-          </label>
-          <a-textarea
-            v-model:value="enhancePrompt"
-            placeholder="描述你想要的美化效果，例如：增强色彩饱和度，让线条更清晰，添加柔和阴影，整体偏暖色调..."
-            :rows="2"
-            class="enhance-prompt-input"
+        <!-- 大图画布（支持缩放/拖拽） -->
+        <div
+          class="large-preview-body"
+          :class="{ panning: lpPanning }"
+          @wheel="lpOnWheel"
+          @mousedown="lpOnPanStart"
+          @mousemove="lpOnPanMove"
+          @mouseup="lpOnPanEnd"
+          @mouseleave="lpOnPanEnd"
+        >
+          <img
+            v-show="largePreviewTab === 'original'"
+            :src="node.planImageOriginal"
+            class="lp-img"
+            :style="{ transform: `translate(${lpX}px, ${lpY}px) scale(${lpScale})` }"
+            draggable="false"
+            alt="原图"
           />
-        </div>
-
-        <!-- 底部三按钮 -->
-        <div class="enhance-footer">
-          <button class="enhance-action-btn secondary" @click="onEnhanceCancel">
-            取消
-          </button>
-          <button class="enhance-action-btn outline" :disabled="enhanceVersions.length === 0" @click="onEnhanceSave">
-            保存
-          </button>
-          <button class="enhance-action-btn primary" :disabled="enhancing" @click="onRegenerate">
-            <i class="i-ant-design-highlight-filled" />
-            <span>{{ enhancing ? '生成中...' : (enhanceVersions.length === 0 ? '开始美化' : '重新生成') }}</span>
-          </button>
+          <img
+            v-show="largePreviewTab === 'enhanced'"
+            :src="node.planImageOriginal"
+            class="lp-img"
+            :style="{ filter: enhancedFilter, transform: `translate(${lpX}px, ${lpY}px) scale(${lpScale})` }"
+            draggable="false"
+            alt="白模生成结果"
+          />
+          <!-- 缩放控件 -->
+          <div class="lp-controls">
+            <button class="lp-ctrl" title="缩小" @click="lpZoomOut">
+              <i class="i-ant-design-minus-outlined" />
+            </button>
+            <span class="lp-scale">{{ Math.round(lpScale * 100) }}%</span>
+            <button class="lp-ctrl" title="放大" @click="lpZoomIn">
+              <i class="i-ant-design-plus-outlined" />
+            </button>
+            <button class="lp-ctrl" title="重置" @click="lpReset">
+              <i class="i-ant-design-aim-outlined" />
+            </button>
+          </div>
         </div>
       </div>
     </a-modal>
@@ -1405,10 +1279,10 @@ onUnmounted(() => {
   gap: 4px;
   height: 28px;
   padding: 0 10px;
-  background: #fff7e6;
-  border: 1px solid #ffd591;
+  background: #e6f7ff;
+  border: 1px solid #91d5ff;
   border-radius: 6px;
-  color: #d46b08;
+  color: #096dd9;
   font-size: 13px;
 
   i {
@@ -1837,7 +1711,7 @@ onUnmounted(() => {
     font-size: 11px;
     flex-shrink: 0;
 
-    &.online { color: #52c41a; }
+    &.online { color: $color-online; }
     &.offline { color: #bfbfbf; }
   }
 
@@ -1849,7 +1723,7 @@ onUnmounted(() => {
     text-align: center;
     font-size: 12px;
     color: #fff;
-    background: #52c41a;
+    background: $color-primary;
     border-radius: 50%;
     flex-shrink: 0;
     box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85);
@@ -1874,7 +1748,7 @@ onUnmounted(() => {
   to { transform: rotate(360deg); }
 }
 
-/* ===== AI 美化按钮（魔法棒渐变紫） ===== */
+/* ===== 白模生成按钮（魔法棒渐变紫） ===== */
 .tool-btn.enhance-btn {
   border: 1px solid #d9cfff;
   background: linear-gradient(135deg, #f5f0ff, #ece7ff);
@@ -1910,8 +1784,8 @@ onUnmounted(() => {
     }
 
     &:hover:not(:disabled) {
-      background: #52c41a;
-      border-color: #52c41a;
+      background: $color-online;
+      border-color: $color-online;
       color: #fff;
     }
   }
@@ -1922,7 +1796,10 @@ onUnmounted(() => {
   50% { filter: drop-shadow(0 0 5px rgba(110, 75, 255, 0.7)); }
 }
 
-/* ===== 上传后二次提示弹窗 ===== */
+
+/* ===== 白模生成弹窗（询问 / 处理中 / 结果）===== */
+
+/* —— 询问阶段 —— */
 .enhance-ask {
   text-align: center;
   padding: 12px 8px 4px;
@@ -1968,6 +1845,23 @@ onUnmounted(() => {
     justify-content: center;
   }
 
+  /* 不再提示 复选框 */
+  .ask-dont-show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 14px;
+    font-size: 12px;
+    color: $text-tertiary;
+    cursor: pointer;
+    user-select: none;
+
+    span {
+      line-height: 1.5;
+    }
+  }
+
   .ask-btn {
     flex: 1;
     height: 36px;
@@ -2006,452 +1900,325 @@ onUnmounted(() => {
   }
 }
 
-/* ===== AI 美化大弹窗 ===== */
-.enhance-modal {
-  display: flex;
-  flex-direction: column;
-}
+/* —— 处理中阶段 —— */
+.enhance-processing {
+  text-align: center;
+  padding: 30px 8px 20px;
 
-.enhance-body {
-  display: flex;
-  gap: 16px;
-  height: 420px;
-}
-
-/* 左侧画布区 */
-.enhance-canvas-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-}
-
-.enhance-canvas {
-  flex: 1;
-  position: relative;
-  background: #1a1a2e;
-  border-radius: 8px;
-  overflow: hidden;
-  cursor: crosshair;
-
-  &.drawing {
-    cursor: crosshair;
+  .processing-spin {
+    font-size: 48px;
+    color: $color-primary;
+    margin-bottom: 18px;
+    display: inline-block;
+    animation: enhance-spin 1.4s linear infinite;
   }
 
-  .enhance-origin-img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    pointer-events: none;
-    transition: filter 0.4s ease;
+  .processing-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: $text-base;
+    margin: 0 0 6px;
   }
 
-  .enhance-svg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
+  .processing-sub {
+    font-size: 13px;
+    color: $text-tertiary;
+    margin: 0 0 18px;
   }
 
-  /* 多边形填充与边框 */
-  :deep(.region-poly) {
-    fill: rgba(110, 75, 255, 0.18);
-    stroke: $color-primary;
-    stroke-width: 0.4;
-    stroke-dasharray: none;
-    cursor: pointer;
-    pointer-events: auto;
-    transition: fill 0.15s;
+  .processing-progress {
+    width: 80%;
+    margin: 0 auto;
+    height: 4px;
+    background: $border-color-card;
+    border-radius: 2px;
+    overflow: hidden;
 
-    &:hover {
-      fill: rgba(110, 75, 255, 0.28);
-    }
-
-    &.selected {
-      fill: rgba(110, 75, 255, 0.35);
-      stroke: $color-primary-hover;
-      stroke-width: 0.6;
+    .progress-bar {
+      height: 100%;
+      width: 40%;
+      background: linear-gradient(90deg, $color-primary, $color-primary-hover);
+      border-radius: 2px;
+      animation: enhance-loading 1.6s ease-in-out infinite;
     }
   }
+}
 
-  :deep(.region-draft-line) {
-    fill: none;
-    stroke: $color-primary;
-    stroke-width: 0.4;
-    stroke-dasharray: 1 1;
-    pointer-events: none;
+@keyframes enhance-loading {
+  0% { width: 10%; transform: translateX(-20%); }
+  50% { width: 60%; }
+  100% { width: 80%; transform: translateX(140%); }
+}
+
+@keyframes enhance-spin {
+  from { transform: rotate(0); }
+  to { transform: rotate(360deg); }
+}
+
+/* —— 结果阶段 —— */
+.enhance-result {
+  padding: 8px 4px 4px;
+
+  .result-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 16px;
+
+    .result-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: $text-base;
+      margin: 0;
+    }
+
+    .result-tip {
+      font-size: 12px;
+      color: $text-tertiary;
+    }
   }
 
-  :deep(.region-vertex) {
-    fill: #fff;
-    stroke: $color-primary;
-    stroke-width: 0.3;
-    pointer-events: none;
-  }
-
-  /* 区域编号角标 */
-  .region-badge {
-    position: absolute;
-    transform: translate(-50%, -50%);
+  .result-compare {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 8px 2px 6px;
-    background: rgba(110, 75, 255, 0.85);
-    color: #fff;
-    font-size: 12px;
-    border-radius: 12px;
-    cursor: pointer;
-    pointer-events: auto;
-    white-space: nowrap;
-    z-index: 2;
+    gap: 12px;
+    margin-bottom: 20px;
 
-    .badge-label {
-      font-size: 11px;
-      max-width: 80px;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .compare-item {
+      flex: 1;
+      min-width: 0;
     }
 
-    .badge-del {
+    .compare-label {
       font-size: 12px;
-      cursor: pointer;
-      padding: 1px;
+      color: $text-tertiary;
+      margin-bottom: 6px;
 
-      &:hover {
-        color: #ffccc7;
+      &.highlighted {
+        color: $color-primary;
+        font-weight: 500;
       }
     }
 
-    &.selected {
-      background: $color-primary-hover;
-      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+    .compare-img-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #1a1a2e;
+      border: 1px solid $border-color-card;
+      cursor: zoom-in;
+      transition: border-color 0.15s, box-shadow 0.15s;
+
+      &:hover {
+        border-color: $color-primary;
+        box-shadow: 0 4px 12px rgba(110, 75, 255, 0.15);
+
+        .zoom-hint {
+          opacity: 1;
+        }
+      }
+
+      /* hover 时显示的"点击查看大图"提示 */
+      .zoom-hint {
+        position: absolute;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background: rgba(0, 0, 0, 0.65);
+        color: #fff;
+        font-size: 11px;
+        border-radius: 12px;
+        opacity: 0;
+        transition: opacity 0.15s;
+        pointer-events: none;
+        white-space: nowrap;
+
+        i {
+          font-size: 12px;
+        }
+      }
+    }
+
+    .compare-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .compare-arrow {
+      font-size: 20px;
+      color: $text-muted;
+      flex-shrink: 0;
     }
   }
 
-  /* 绘制中提示条 */
-  .drawing-hint {
-    position: absolute;
-    bottom: 12px;
-    left: 50%;
-    transform: translateX(-50%);
+  .result-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 14px;
+    border-top: 1px solid $border-color-card;
+  }
+
+  .result-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    background: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    font-size: 12px;
-    border-radius: 16px;
-    pointer-events: none;
-    z-index: 3;
+    gap: 4px;
+    height: 34px;
+    padding: 0 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
 
-    i {
-      font-size: 13px;
+    i { font-size: 14px; }
+
+    &.cancel {
+      border: 1px solid $border-color-input;
+      background: #fff;
+      color: $text-secondary;
+
+      &:hover {
+        border-color: $text-muted;
+        color: $text-base;
+      }
+    }
+
+    &.regenerate {
+      border: 1px solid $color-primary;
+      background: #fff;
       color: $color-primary;
+
+      &:hover {
+        background: $color-primary-bg;
+      }
+    }
+
+    &.apply {
+      border: none;
+      background: linear-gradient(135deg, $color-primary, $color-primary-hover);
+      color: #fff;
+
+      &:hover {
+        opacity: 0.9;
+      }
     }
   }
 }
 
-/* 左侧底部工具条 */
-.regions-bar {
+/* —— 大图预览弹窗 —— */
+.large-preview {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  min-height: 32px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px;
+}
 
-  .region-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    height: 28px;
-    padding: 0 10px;
-    border: 1px solid $border-color-input;
-    border-radius: 6px;
-    background: #fff;
+.large-preview-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: #f5f6f8;
+  border-radius: 6px;
+  align-self: flex-start;
+
+  .lp-tab {
+    padding: 4px 16px;
+    border: none;
+    background: transparent;
     color: $text-secondary;
-    font-size: 12px;
+    font-size: 13px;
     cursor: pointer;
+    border-radius: 4px;
     font-family: inherit;
+    transition: all 0.15s;
 
-    i { font-size: 13px; }
-
-    &:hover:not(:disabled) {
-      border-color: $color-primary;
+    &:hover {
       color: $color-primary;
     }
 
     &.active {
-      background: $color-primary;
-      border-color: $color-primary;
-      color: #fff;
+      background: #fff;
+      color: $color-primary;
+      box-shadow: 0 1px 3px rgba(20, 22, 30, 0.08);
     }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-  }
-
-  .regions-summary {
-    font-size: 12px;
-    color: $text-tertiary;
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 }
 
-/* 右侧轮次列表 */
-.enhance-versions {
-  width: 220px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  background: #fafbfc;
+.large-preview-body {
+  position: relative;
+  width: 100%;
+  height: 70vh;
+  background: #1a1a2e;
   border-radius: 8px;
-  border: 1px solid $border-color-card;
-}
-
-.versions-header {
+  overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: $text-base;
-  border-bottom: 1px solid $border-color-card;
-
-  .versions-count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 20px;
-    height: 20px;
-    padding: 0 6px;
-    background: $color-primary-bg;
-    color: $color-primary;
-    font-size: 11px;
-    border-radius: 10px;
-  }
-}
-
-.versions-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 30px 12px;
-  color: $color-primary;
-  font-size: 12px;
-
-  .versions-spin {
-    font-size: 28px;
-    animation: enhance-spin 1.5s linear infinite;
-  }
-}
-
-.versions-empty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  text-align: center;
-  color: $text-muted;
+  cursor: grab;
+  user-select: none;
 
-  i {
-    font-size: 36px;
-    margin-bottom: 8px;
-    opacity: 0.5;
+  &.panning {
+    cursor: grabbing;
   }
 
-  p {
-    font-size: 12px;
-    margin: 0 0 4px;
+  .lp-img {
+    max-width: 96%;
+    max-height: 96%;
+    object-fit: contain;
+    display: block;
+    pointer-events: none;
+    transition: transform 0.05s linear;
   }
 
-  .empty-sub {
-    font-size: 11px;
-    color: $text-muted;
-    line-height: 1.5;
-  }
-}
-
-.versions-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 6px;
-}
-
-.version-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-bottom: 6px;
-  border: 1px solid transparent;
-  transition: all 0.15s;
-
-  &:hover {
-    background: #fff;
-  }
-
-  &.active {
-    background: #fff;
-    border-color: $color-primary;
-    box-shadow: 0 0 0 1px rgba(110, 75, 255, 0.15);
-  }
-
-  .version-thumb {
-    width: 56px;
-    height: 42px;
-    border-radius: 4px;
-    overflow: hidden;
-    background: #1a1a2e;
-    flex-shrink: 0;
-
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-  }
-
-  .version-meta {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    min-width: 0;
-
-    .version-title {
-      font-size: 12px;
-      font-weight: 500;
-      color: $text-base;
-    }
-
-    .version-prompt {
-      font-size: 11px;
-      color: $text-tertiary;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .version-regions {
-      font-size: 10px;
-      color: $text-muted;
-    }
-  }
-
-  .version-check {
-    font-size: 14px;
-    color: $color-primary;
-    flex-shrink: 0;
-  }
-}
-
-/* 提示词输入 */
-.enhance-prompt-section {
-  margin-top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-
-  .prompt-label {
+  /* 缩放控件（右下角悬浮） */
+  .lp-controls {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
-    color: $text-secondary;
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 6px;
+    backdrop-filter: blur(4px);
+  }
+
+  .lp-ctrl {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 4px;
 
     i {
       font-size: 13px;
-      color: $color-primary;
     }
-  }
-
-  .enhance-prompt-input {
-    :deep(textarea) {
-      resize: none;
-    }
-  }
-}
-
-/* 底部三按钮 */
-.enhance-footer {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid $border-color-card;
-}
-
-.enhance-action-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 34px;
-  padding: 0 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.15s;
-
-  i { font-size: 14px; }
-
-  &.secondary {
-    border: 1px solid $border-color-input;
-    background: #fff;
-    color: $text-secondary;
 
     &:hover {
-      border-color: $text-muted;
-      color: $text-base;
+      background: rgba(255, 255, 255, 0.15);
     }
   }
 
-  &.outline {
-    border: 1px solid $color-primary;
-    background: #fff;
-    color: $color-primary;
-
-    &:hover:not(:disabled) {
-      background: $color-primary-bg;
-    }
-
-    &:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-  }
-
-  &.primary {
-    border: none;
-    background: linear-gradient(135deg, $color-primary, $color-primary-hover);
-    color: #fff;
-
-    &:hover:not(:disabled) {
-      opacity: 0.9;
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
+  .lp-scale {
+    min-width: 42px;
+    text-align: center;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.85);
   }
 }
 
@@ -2562,7 +2329,7 @@ onUnmounted(() => {
         text-align: center;
         font-size: 16px;
         color: #fff;
-        background: #52c41a;
+        background: $color-primary;
         border-radius: 50%;
         box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
       }
@@ -2612,8 +2379,8 @@ onUnmounted(() => {
   flex-shrink: 0;
 
   &.online {
-    color: #52c41a;
-    background: rgba(82, 196, 26, 0.1);
+    color: $color-online;
+    background: $color-online-bg;
   }
 
   &.offline {
@@ -2659,6 +2426,36 @@ onUnmounted(() => {
       opacity: 0.4;
       cursor: not-allowed;
     }
+  }
+}
+
+/* 抽屉空状态 */
+.drawer-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 20px;
+  text-align: center;
+
+  .drawer-empty-icon {
+    font-size: 40px;
+    color: $text-muted;
+    opacity: 0.4;
+    margin-bottom: 12px;
+  }
+
+  .drawer-empty-title {
+    font-size: 13px;
+    color: $text-secondary;
+    margin: 0 0 4px;
+  }
+
+  .drawer-empty-hint {
+    font-size: 11px;
+    color: $text-muted;
+    margin: 0;
+    line-height: 1.5;
   }
 }
 
@@ -2724,6 +2521,97 @@ onUnmounted(() => {
   /* 物联设备：紫色 */
   &.iot i {
     color: $color-primary;
+  }
+}
+
+/* ===== 视频播放弹窗 ===== */
+.video-player-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  overflow: hidden;
+
+  .video-player-frame {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .video-player-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, transparent 30%, transparent 70%, rgba(0, 0, 0, 0.6) 100%);
+
+    .player-controls {
+      position: absolute;
+      bottom: 12px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      pointer-events: auto;
+
+      .player-play-icon {
+        font-size: 28px;
+        color: #fff;
+        cursor: pointer;
+      }
+
+      .player-progress {
+        flex: 1;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 2px;
+        overflow: hidden;
+
+        .player-progress-bar {
+          height: 100%;
+          width: 60%;
+          background: $color-primary;
+          border-radius: 2px;
+        }
+      }
+
+      .player-time {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.85);
+      }
+    }
+  }
+
+  .video-player-info {
+    position: absolute;
+    top: 12px;
+    left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    .player-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    }
+
+    .player-status {
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 3px;
+
+      &.online {
+        color: #95de64;
+        background: rgba(43, 179, 163, 0.2);
+      }
+
+      &.offline {
+        color: #d9d9d9;
+        background: rgba(0, 0, 0, 0.3);
+      }
+    }
   }
 }
 </style>

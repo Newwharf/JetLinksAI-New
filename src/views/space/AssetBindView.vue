@@ -11,9 +11,12 @@ import cam3Img from '@/assets/text-search/result-03.jpg'
 import cam4Img from '@/assets/text-search/result-04.jpg'
 import cam5Img from '@/assets/text-search/result-05.jpg'
 
-// ===== 当前空间信息（从父组件传入或模拟） =====
-const spaceName = '研发部办公区'
-const spacePath = '物联网产业园区/E栋/4F/研发部办公区'
+// ===== Props：当前空间 =====
+const props = defineProps<{
+  spaceId: string
+  spaceName: string
+  spacePath: string
+}>()
 
 // ===== 分类 tab =====
 const activeCategory = ref<'video' | 'iot'>('video')
@@ -21,9 +24,13 @@ const activeCategory = ref<'video' | 'iot'>('video')
 // ===== 搜索 =====
 const searchKey = ref('')
 
-// 当前列表
+// 当前空间的设备（按 spaceId 过滤全局数据）
+const spaceVideos = computed(() => videoDevices.value.filter(d => d.spaceId === props.spaceId))
+const spaceIots = computed(() => iotDevices.value.filter(d => d.spaceId === props.spaceId))
+
+// 当前列表（搜索过滤）
 const currentList = computed(() => {
-  const source = activeCategory.value === 'video' ? videoDevices.value : iotDevices.value
+  const source = activeCategory.value === 'video' ? spaceVideos.value : spaceIots.value
   if (!searchKey.value.trim()) return source
   const key = searchKey.value.toLowerCase()
   return source.filter(d =>
@@ -33,9 +40,9 @@ const currentList = computed(() => {
   )
 })
 
-// 设备总数
-const videoTotal = computed(() => videoDevices.value.length)
-const iotTotal = computed(() => iotDevices.value.length)
+// 设备总数（当前空间）
+const videoTotal = computed(() => spaceVideos.value.length)
+const iotTotal = computed(() => spaceIots.value.length)
 
 // 全选
 const allSelected = computed(() => currentList.value.length > 0 && currentList.value.every(d => d.selected))
@@ -244,7 +251,7 @@ function handleAddSave() {
           videoDevices.value.push({
             id: c.id, name: c.name, icon: 'i-ant-design-video-camera-outlined',
             brand: '-', model: '-', product: c.name, group: '智能识别',
-            gateway: g.name, status: c.status, thumb: c.thumb
+            gateway: g.name, status: c.status, thumb: c.thumb, spaceId: props.spaceId
           })
           c.selected = false
         }
@@ -256,7 +263,7 @@ function handleAddSave() {
         if (d.selected) {
           iotDevices.value.push({
             id: d.id, name: d.name, icon: d.icon, brand: d.brand, model: d.model,
-            product: d.product, group: d.group, gateway: g.name, status: d.status
+            product: d.product, group: d.group, gateway: g.name, status: d.status, spaceId: props.spaceId
           })
           d.selected = false
         }
@@ -389,7 +396,16 @@ function handleAddSave() {
             </td>
           </tr>
           <tr v-if="currentList.length === 0">
-            <td :colspan="activeCategory === 'iot' ? 8 : 5" class="empty-row">暂无已绑定设备</td>
+            <td :colspan="activeCategory === 'iot' ? 8 : 5" class="empty-row">
+              <div class="empty-state">
+                <i class="i-ant-design-api-outlined empty-state-icon" />
+                <p class="empty-state-title">暂无已绑定的{{ activeCategory === 'video' ? '视频' : '物联' }}设备</p>
+                <button class="empty-add-btn" @click="addBindModalVisible = true">
+                  <i class="i-ant-design-plus-outlined" />
+                  <span>添加绑定设备</span>
+                </button>
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -437,54 +453,64 @@ function handleAddSave() {
 
       <!-- 视频设备：卡片列表 -->
       <div v-if="activeCategory === 'video'" class="add-modal-body scroll-thin">
-        <div v-for="gw in filteredOptionalVideo" :key="gw.id" class="opt-gw-group">
-          <!-- 网关头（含状态） -->
-          <div class="opt-gw-header" @click="gw.expanded = !gw.expanded">
-            <i class="i-ant-design-cluster-outlined opt-gw-icon" :style="{ color: gw.status === 'online' ? '#6e4bff' : '#bfbfbf' }" />
-            <span class="opt-gw-name">{{ gw.name }}</span>
-            <span class="opt-gw-model">{{ gw.model }}</span>
-            <span class="gw-status-tag" :class="gw.status">{{ gw.status === 'online' ? '在线' : '离线' }}</span>
-            <span class="opt-gw-count">{{ gw.cameras.length }} 个通道</span>
-            <i class="opt-gw-arrow" :class="gw.expanded ? 'i-ant-design-caret-down-filled' : 'i-ant-design-caret-right-filled'" />
-          </div>
-          <!-- 摄像头卡片网格 -->
-          <div v-if="gw.expanded" class="opt-cam-grid">
-            <div
-              v-for="cam in gw.cameras"
-              :key="cam.id"
-              class="opt-cam-card"
-              :class="{ selected: cam.selected, disabled: cam.boundSpace }"
-            >
-              <div class="opt-cam-thumb">
-                <img :src="cam.thumb" alt="截帧" />
-                <!-- 已绑定角标（右上角） -->
-                <div v-if="cam.boundSpace" class="opt-cam-bound-corner">
-                  <i class="i-ant-design-lock-outlined" />
-                  <span>已绑定</span>
+        <template v-if="filteredOptionalVideo.length > 0">
+          <div v-for="gw in filteredOptionalVideo" :key="gw.id" class="opt-gw-group">
+            <!-- 网关头（含状态） -->
+            <div class="opt-gw-header" @click="gw.expanded = !gw.expanded">
+              <i class="i-ant-design-cluster-outlined opt-gw-icon" :style="{ color: gw.status === 'online' ? '#6e4bff' : '#bfbfbf' }" />
+              <span class="opt-gw-name">{{ gw.name }}</span>
+              <span class="opt-gw-model">{{ gw.model }}</span>
+              <span class="gw-status-tag" :class="gw.status">{{ gw.status === 'online' ? '在线' : '离线' }}</span>
+              <span class="opt-gw-count">{{ gw.cameras.length }} 个通道</span>
+              <i class="opt-gw-arrow" :class="gw.expanded ? 'i-ant-design-caret-down-filled' : 'i-ant-design-caret-right-filled'" />
+            </div>
+            <!-- 摄像头卡片网格 -->
+            <div v-if="gw.expanded" class="opt-cam-grid">
+              <div
+                v-for="cam in gw.cameras"
+                :key="cam.id"
+                class="opt-cam-card"
+                :class="{ selected: cam.selected, disabled: cam.boundSpace }"
+              >
+                <div class="opt-cam-thumb">
+                  <img :src="cam.thumb" alt="截帧" />
+                  <!-- 已绑定角标（右上角） -->
+                  <div v-if="cam.boundSpace" class="opt-cam-bound-corner">
+                    <i class="i-ant-design-lock-outlined" />
+                    <span>已绑定</span>
+                  </div>
+                  <!-- 播放按钮（始终显示，最上层） -->
+                  <div class="opt-cam-play-btn">
+                    <i class="i-ant-design-caret-right-filled" />
+                  </div>
                 </div>
-                <!-- 播放按钮（始终显示，最上层） -->
-                <div class="opt-cam-play-btn">
-                  <i class="i-ant-design-caret-right-filled" />
+                <div class="opt-cam-info">
+                  <a-checkbox
+                    :checked="!!cam.selected"
+                    :disabled="!!cam.boundSpace"
+                    @change="() => { cam.selected = !cam.selected }"
+                  >
+                    <span class="opt-cam-name">{{ cam.name }}</span>
+                  </a-checkbox>
+                  <span class="opt-cam-status" :class="cam.status">{{ cam.status === 'online' ? '在线' : '离线' }}</span>
                 </div>
-              </div>
-              <div class="opt-cam-info">
-                <a-checkbox
-                  :checked="!!cam.selected"
-                  :disabled="!!cam.boundSpace"
-                  @change="() => { cam.selected = !cam.selected }"
-                >
-                  <span class="opt-cam-name">{{ cam.name }}</span>
-                </a-checkbox>
-                <span class="opt-cam-status" :class="cam.status">{{ cam.status === 'online' ? '在线' : '离线' }}</span>
-              </div>
-              <!-- 绑定位置 -->
-              <div v-if="cam.boundSpace" class="opt-cam-bound">
-                <i class="i-ant-design-environment-outlined" />
+                <!-- 绑定位置 -->
+                <div v-if="cam.boundSpace" class="opt-cam-bound">
+                  <i class="i-ant-design-environment-outlined" />
                 <span>{{ cam.boundSpace }}</span>
               </div>
               <div v-else class="opt-cam-bound unbound">未绑定</div>
             </div>
           </div>
+        </div>
+        </template>
+        <!-- 视频空状态 -->
+        <div v-else class="add-empty">
+          <i class="i-ant-design-video-camera-outlined add-empty-icon" />
+          <p class="add-empty-title">
+            {{ addSearchKey ? '没有找到匹配的摄像头' : '暂无可选摄像头' }}
+          </p>
+          <p v-if="!addSearchKey" class="add-empty-hint">请先在物联中心接入摄像头设备</p>
         </div>
       </div>
 
@@ -558,6 +584,18 @@ function handleAddSave() {
                   </tr>
                 </template>
               </template>
+              <!-- 物联空状态 -->
+              <tr v-if="filteredOptionalIot.length === 0">
+                <td colspan="7" class="opt-iot-empty">
+                  <div class="add-empty">
+                    <i class="i-ant-design-api-outlined add-empty-icon" />
+                    <p class="add-empty-title">
+                      {{ addSearchKey ? '没有找到匹配的设备' : '暂无可选物联设备' }}
+                    </p>
+                    <p v-if="!addSearchKey" class="add-empty-hint">请先在物联中心接入物联设备</p>
+                  </div>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -913,8 +951,8 @@ function handleAddSave() {
   line-height: 1.4;
 
   &.online {
-    color: #52c41a;
-    background: rgba(82, 196, 26, 0.1);
+    color: $color-online;
+    background: $color-online-bg;
   }
 
   &.offline {
@@ -994,10 +1032,92 @@ function handleAddSave() {
 
 /* 空状态 */
 .empty-row {
+  padding: 0;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+
+  .empty-state-icon {
+    font-size: 44px;
+    color: $text-muted;
+    opacity: 0.4;
+    margin-bottom: 14px;
+  }
+
+  .empty-state-title {
+    font-size: 14px;
+    color: $text-secondary;
+    margin: 0 0 6px;
+    font-weight: 500;
+  }
+
+  /* 空状态里的添加按钮 */
+  .empty-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 6px;
+    background: $color-primary;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    margin-top: 4px;
+    transition: all 0.15s;
+
+    i {
+      font-size: 13px;
+    }
+
+    &:hover {
+      background: $color-primary-hover;
+    }
+
+    &:active {
+      transform: scale(0.97);
+    }
+  }
+}
+
+/* 添加绑定弹窗空状态 */
+.add-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 20px;
   text-align: center;
-  color: $text-tertiary;
-  padding: 40px 0;
-  font-size: 14px;
+
+  .add-empty-icon {
+    font-size: 40px;
+    color: $text-muted;
+    opacity: 0.4;
+    margin-bottom: 12px;
+  }
+
+  .add-empty-title {
+    font-size: 13px;
+    color: $text-secondary;
+    margin: 0 0 4px;
+  }
+
+  .add-empty-hint {
+    font-size: 12px;
+    color: $text-muted;
+    margin: 0;
+  }
+}
+
+.opt-iot-empty {
+  padding: 0;
 }
 
 /* 解绑提示 */
@@ -1088,7 +1208,7 @@ function handleAddSave() {
 
     .add-bind-item-status {
       font-size: 12px;
-      color: #52c41a;
+      color: $color-online;
     }
   }
 }
@@ -1117,8 +1237,8 @@ function handleAddSave() {
   border-radius: 3px;
 
   &.online {
-    color: #52c41a;
-    background: rgba(82, 196, 26, 0.1);
+    color: $color-online;
+    background: $color-online-bg;
   }
 
   &.offline {
@@ -1303,8 +1423,8 @@ function handleAddSave() {
   border-radius: 3px;
 
   &.online {
-    color: #52c41a;
-    background: rgba(82, 196, 26, 0.1);
+    color: $color-online;
+    background: $color-online-bg;
   }
 
   &.offline {
