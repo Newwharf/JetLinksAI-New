@@ -68,3 +68,19 @@ body {
     }
   }
 }
+
+/* a-tree-select 下拉树的缩进调小（紧凑）*/
+.ant-select-tree {
+  .ant-select-tree-list-holder-inner {
+    .ant-select-tree-treenode {
+      padding-inline-start: 4px !important;
+    }
+    .ant-select-tree-node-content-wrapper {
+      padding-inline-start: 2px !important;
+    }
+    /* 让缩进单元变小 */
+    .ant-select-tree-indent-unit {
+      width: 8px !important;
+    }
+  }
+}

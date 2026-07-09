@@ -5,6 +5,7 @@
  */
 import { iotDevices, videoDevices } from './devices.mock'
 import type { DeviceItem, VideoItem } from './devices.mock'
+import VideoPlayerModal from '@/components/VideoPlayerModal.vue'
 import cam1Img from '@/assets/text-search/result-01.jpg'
 import cam2Img from '@/assets/text-search/result-02.jpg'
 import cam3Img from '@/assets/text-search/result-03.jpg'
@@ -627,32 +628,8 @@ function handleAddSave() {
       </div>
     </a-modal>
 
-    <!-- 视频播放弹窗 -->
-    <a-modal
-      v-model:open="playModalVisible"
-      :title="playTarget?.name || '视频播放'"
-      :footer="null"
-      :width="800"
-      :body-style="{ padding: '0', background: '#000' }"
-      wrap-class-name="video-player-modal"
-    >
-      <div class="video-player-wrap">
-        <img v-if="playTarget?.thumb" :src="playTarget.thumb" class="video-player-frame" alt="视频流" />
-        <div class="video-player-overlay">
-          <div class="player-controls">
-            <i class="i-ant-design-pause-circle-filled player-play-icon" />
-            <div class="player-progress">
-              <div class="player-progress-bar" />
-            </div>
-            <span class="player-time">实时</span>
-          </div>
-        </div>
-        <div class="video-player-info">
-          <span class="player-name">{{ playTarget?.name }}</span>
-          <span class="player-status" :class="playTarget?.status">{{ playTarget?.status === 'online' ? '● LIVE' : '● 离线' }}</span>
-        </div>
-      </div>
-    </a-modal>
+    <!-- 视频播放弹窗（共享组件） -->
+    <VideoPlayerModal v-model:open="playModalVisible" :target="playTarget" />
   </div>
 </template>
 
@@ -1571,95 +1548,4 @@ function handleAddSave() {
   }
 }
 
-/* 视频播放弹窗 */
-.video-player-wrap {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #000;
-  overflow: hidden;
-}
-
-.video-player-frame {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.video-player-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 12px 16px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.video-player-info {
-  position: absolute;
-  top: 12px;
-  left: 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  .player-name {
-    font-size: 14px;
-    color: #fff;
-    font-weight: 500;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
-  }
-
-  .player-status {
-    font-size: 12px;
-    font-family: monospace;
-
-    &.online {
-      color: #ff4d4f;
-    }
-
-    &.offline {
-      color: #999;
-    }
-  }
-}
-
-.player-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  .player-play-icon {
-    font-size: 24px;
-    color: #fff;
-    cursor: pointer;
-
-    &:hover {
-      color: #6e4bff;
-    }
-  }
-
-  .player-progress {
-    flex: 1;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
-    overflow: hidden;
-
-    .player-progress-bar {
-      width: 100%;
-      height: 100%;
-      background: #6e4bff;
-    }
-  }
-
-  .player-time {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.8);
-    font-family: monospace;
-  }
-}
 </style>

@@ -1,333 +1,422 @@
 <script setup lang="ts">
 /**
  * 老人行为分析
- * 顶部：异常行为统计（类型分布 + 趋势）
- * 左侧：老人列表（可搜索筛选）
- * 右侧：选中老人的行为时间轴 + 详细信息
+ * 布局：横向3列 × 纵向2行（上矮下高）
+ *  上排：告警趋势 / 类型分布 / 房间分布（各自带时间筛选，可钻取）
+ *  下排：左=告警排行（老人/类型/房间 三维度tab，可钻取）+ 右=老人明细（侧边栏树+搜索 → 行为统计）
  */
+import { useRouter } from 'vue-router'
 import ECharts from '@/components/ECharts.vue'
+import BehaviorDrillModal from './BehaviorDrillModal.vue'
+import {
+  buildEvents,
+  buildTrendOption,
+  buildPieOption,
+  buildRoomOption,
+  filterByRange,
+  rankByPerson,
+  rankByType,
+  rankByRoom,
+  buildElderlyTree,
+  buildBehaviorStatsOption,
+  behaviorTypes,
+  timeRanges,
+  rankMedalColors,
+  rankBarColors,
+  personInfoMap,
+  type BehaviorEvent
+} from './behavior.mock'
 
-// ===== 异常行为类型 =====
-const behaviorTypes = [
-  { key: 'fall', label: '跌倒', color: '#ff4d4f', icon: 'i-ant-design-alert-outlined', count: 8, trend: '+2' },
-  { key: 'wander', label: '长时间徘徊', color: '#fa8c16', icon: 'i-ant-design-sync-outlined', count: 15, trend: '+5' },
-  { key: 'not-return', label: '夜间未归寝', color: '#722ed1', icon: 'i-ant-design-home-outlined', count: 3, trend: '-1' },
-  { key: 'exit', label: '离开安全区域', color: '#13c2c2', icon: 'i-ant-design-export-outlined', count: 6, trend: '+1' },
-  { key: 'abnormal', label: '异常静止', color: '#8c8c8c', icon: 'i-ant-design-pause-circle-outlined', count: 4, trend: '0' }
-]
+const allEvents = ref<BehaviorEvent[]>(buildEvents())
 
-// 近7日趋势数据
-const trendOption = {
-  tooltip: { trigger: 'axis' },
-  legend: { data: ['跌倒', '徘徊', '未归寝', '越界'], bottom: 0, textStyle: { fontSize: 11 } },
-  grid: { top: 20, left: 40, right: 20, bottom: 40 },
-  xAxis: { type: 'category', data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'], axisLabel: { fontSize: 11 } },
-  yAxis: { type: 'value', axisLabel: { fontSize: 11 } },
-  series: [
-    { name: '跌倒', type: 'line', smooth: true, data: [2, 1, 3, 1, 2, 4, 3], itemStyle: { color: '#ff4d4f' } },
-    { name: '徘徊', type: 'line', smooth: true, data: [3, 4, 2, 5, 3, 4, 2], itemStyle: { color: '#fa8c16' } },
-    { name: '未归寝', type: 'line', smooth: true, data: [0, 1, 0, 1, 1, 0, 0], itemStyle: { color: '#722ed1' } },
-    { name: '越界', type: 'line', smooth: true, data: [1, 0, 2, 1, 1, 0, 1], itemStyle: { color: '#13c2c2' } }
-  ]
-}
+// ===== 上排：三个图表各自的时间筛选 =====
+const trendRange = ref('近7天')
+const pieRange = ref('近7天')
+const roomRange = ref('近7天')
 
-// 类型分布饼图
-const pieOption = {
-  tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-  legend: { bottom: 0, textStyle: { fontSize: 11 } },
-  series: [{
-    type: 'pie',
-    radius: ['40%', '70%'],
-    center: ['50%', '42%'],
-    label: { show: false },
-    data: behaviorTypes.map(t => ({ value: t.count, name: t.label, itemStyle: { color: t.color } }))
-  }]
-}
+const trendEvents = computed(() => filterByRange(allEvents.value, trendRange.value))
+const pieEvents = computed(() => filterByRange(allEvents.value, pieRange.value))
+const roomEvents = computed(() => filterByRange(allEvents.value, roomRange.value))
 
-// ===== 老人列表 =====
-interface ElderPerson {
-  id: string
-  name: string
-  age: number
-  gender: '男' | '女'
-  room: string
-  floor: string
-  careLevel: '自理' | '半护' | '全护'
-  alertCount: number
-  lastAlert: string
-  avatar?: string
-}
+const trendOption = computed(() => buildTrendOption(trendEvents.value))
+const pieOption = computed(() => buildPieOption(pieEvents.value))
+const roomOption = computed(() => buildRoomOption(roomEvents.value))
 
-const persons = ref<ElderPerson[]>([
-  { id: 'p1', name: '张奶奶', age: 82, gender: '女', room: '302', floor: '3号楼2层', careLevel: '半护', alertCount: 3, lastAlert: '跌倒 - 2分钟前' },
-  { id: 'p2', name: '李爷爷', age: 78, gender: '男', room: '305', floor: '3号楼2层', careLevel: '全护', alertCount: 2, lastAlert: '夜间未归寝 - 15分钟前' },
-  { id: 'p3', name: '王奶奶', age: 85, gender: '女', room: '401', floor: '5号楼3层', careLevel: '全护', alertCount: 4, lastAlert: '长时间徘徊 - 45分钟前' },
-  { id: 'p4', name: '赵爷爷', age: 76, gender: '男', room: '203', floor: '3号楼1层', careLevel: '自理', alertCount: 1, lastAlert: '离开安全区域 - 2小时前' },
-  { id: 'p5', name: '刘奶奶', age: 80, gender: '女', room: '408', floor: '5号楼3层', careLevel: '半护', alertCount: 0, lastAlert: '无' },
-  { id: 'p6', name: '陈爷爷', age: 79, gender: '男', room: '210', floor: '3号楼1层', careLevel: '半护', alertCount: 1, lastAlert: '异常静止 - 3小时前' },
-  { id: 'p7', name: '孙奶奶', age: 88, gender: '女', room: '502', floor: '5号楼4层', careLevel: '全护', alertCount: 2, lastAlert: '跌倒 - 昨天' }
-])
+// ===== 下排左：告警排行 =====
+const rankTab = ref<'person' | 'type' | 'room'>('person')
+const rankRange = ref('近7天')
+const rankEvents = computed(() => filterByRange(allEvents.value, rankRange.value))
 
-const searchKey = ref('')
-const filteredPersons = computed(() => {
-  if (!searchKey.value.trim()) return persons.value
-  const k = searchKey.value.toLowerCase()
-  return persons.value.filter(p => p.name.toLowerCase().includes(k) || p.room.includes(k))
+const rankData = computed(() => {
+  if (rankTab.value === 'person') return rankByPerson(rankEvents.value)
+  if (rankTab.value === 'type') return rankByType(rankEvents.value)
+  return rankByRoom(rankEvents.value)
 })
 
+const rankMax = computed(() => Math.max(1, ...rankData.value.map(r => r.count)))
+
+const rankTabMeta = [
+  { key: 'person', label: '按老人' },
+  { key: 'type', label: '按事件类型' },
+  { key: 'room', label: '按房间' }
+] as const
+
+// ===== 下排右：老人明细 =====
+const elderlyTree = buildElderlyTree()
+const treeSearchKey = ref('')
 // 选中老人
-const selectedPersonId = ref<string>('p1')
-const selectedPerson = computed(() => persons.value.find(p => p.id === selectedPersonId.value))
+const selectedPersonId = ref('p1')
 
-// 选中老人的行为时间轴
-interface TimelineEvent {
-  id: string
-  time: string
-  date: string
-  type: string
-  typeKey: string
-  desc: string
-  location: string
-  level: 'urgent' | 'warning' | 'info'
-  handled: boolean
+// 过滤树（前端 mock：用关键字过滤展示，简化处理）
+const filteredTree = computed(() => {
+  if (!treeSearchKey.value.trim()) return elderlyTree
+  const k = treeSearchKey.value.trim()
+  return elderlyTree.map(b => ({
+    ...b,
+    children: b.children!.map(r => ({
+      ...r,
+      children: r.children!.filter(p => p.label.includes(k) || r.label.includes(k))
+    })).filter(r => r.children!.length > 0)
+  })).filter(b => b.children!.length > 0)
+})
+
+// 右侧：行为统计（天数切换）
+const statDays = ref<number>(7)
+const statDaysOptions = [
+  { value: 7, label: '近7天' },
+  { value: 14, label: '近14天' },
+  { value: 30, label: '近30天' }
+]
+const statEvents = computed(() => {
+  const from = Date.now() - statDays.value * 86400000
+  return allEvents.value.filter(e => e.timestamp >= from)
+})
+const behaviorStatsOption = computed(() =>
+  buildBehaviorStatsOption(selectedPersonId.value, statEvents.value, statDays.value)
+)
+
+// 选中老人完整信息（从 personInfoMap 取）
+const selectedPersonInfo = computed(() => personInfoMap[selectedPersonId.value] || null)
+
+// 排行名次颜色：1/2/3 名用奖牌色，其余序号灰
+function rankNoBg(i: number): string {
+  if (i < 3) return rankMedalColors[i]
+  return '#f0f0f0'
+}
+function rankNoColor(i: number): string {
+  if (i < 3) return '#fff'
+  return '#9aa1ab'
+}
+// 进度条颜色：第4名起循环色
+function rankBarColor(i: number, itemColor?: string): string {
+  if (i < 3) return rankMedalColors[i]
+  if (itemColor) return itemColor
+  return rankBarColors[(i - 3) % rankBarColors.length]
 }
 
-const personTimelines: Record<string, TimelineEvent[]> = {
-  p1: [
-    { id: 't1', time: '14:32', date: '今天', type: '跌倒', typeKey: 'fall', desc: 'AI识别到老人在走廊跌倒，已躺地30秒', location: '3号楼-2层-走廊', level: 'urgent', handled: false },
-    { id: 't2', time: '11:15', date: '今天', type: '长时间徘徊', typeKey: 'wander', desc: '在活动室区域徘徊超过20分钟', location: '3号楼-2层-活动室', level: 'warning', handled: true },
-    { id: 't3', time: '09:48', date: '今天', type: '正常活动', typeKey: 'normal', desc: '正常前往餐厅就餐', location: '3号楼-1层-餐厅', level: 'info', handled: true },
-    { id: 't4', time: '22:30', date: '昨天', type: '夜间未归寝', typeKey: 'not-return', desc: '就寝时间未返回寝室', location: '3号楼-2层-走廊', level: 'warning', handled: true },
-    { id: 't5', time: '15:20', date: '昨天', type: '跌倒', typeKey: 'fall', desc: '卫生间跌倒，护工2分钟到达', location: '3号楼-2层-卫生间', level: 'urgent', handled: true },
-    { id: 't6', time: '10:00', date: '昨天', type: '正常活动', typeKey: 'normal', desc: '参加晨间活动', location: '3号楼-1层-活动厅', level: 'info', handled: true }
-  ],
-  p2: [
-    { id: 't1', time: '23:00', date: '今天', type: '夜间未归寝', typeKey: 'not-return', desc: '就寝时间未返回寝室', location: '3号楼-2层-305室', level: 'urgent', handled: false }
-  ],
-  p3: [
-    { id: 't1', time: '14:00', date: '今天', type: '长时间徘徊', typeKey: 'wander', desc: '在5号楼2层楼道徘徊超过30分钟', location: '5号楼-2层-楼道', level: 'warning', handled: false }
-  ]
+function onTreeSelect(value: string) {
+  // 只在选择叶子节点（老人）时切换
+  if (value.startsWith('p')) selectedPersonId.value = value
 }
 
-const currentTimeline = computed(() => personTimelines[selectedPersonId.value] || [])
+const router = useRouter()
+function goProfile() {
+  router.push('/elderly-behavior/profile')
+}
 
-const levelColor = { urgent: '#ff4d4f', warning: '#fa8c16', info: '#1890ff' }
-const careLevelColor = { '自理': '#52c41a', '半护': '#fa8c16', '全护': '#ff4d4f' }
+// ===== 钻取弹窗 =====
+const drillVisible = ref(false)
+const drillPreset = ref<{
+  timeRange?: string
+  typeKey?: string
+  personId?: string
+  room?: string
+}>({})
+
+function openDrill(preset: { timeRange?: string; typeKey?: string; personId?: string; room?: string }) {
+  drillPreset.value = preset
+  drillVisible.value = true
+}
+
+// 告警趋势图点击：某天某类型
+function onTrendClick(params: any) {
+  const seriesName = params.seriesName  // 如 "跌倒"
+  const typeKey = behaviorTypes.find(t => t.label === seriesName)?.key
+  openDrill({ timeRange: trendRange.value, typeKey })
+}
+
+// 类型分布饼图点击
+function onPieClick(params: any) {
+  const typeName = params.name
+  const typeKey = behaviorTypes.find(t => t.label === typeName)?.key
+  openDrill({ timeRange: pieRange.value, typeKey })
+}
+
+// 房间分布柱状图点击
+function onRoomClick(params: any) {
+  const room = params.name
+  openDrill({ timeRange: roomRange.value, room })
+}
+
+// 行为统计堆叠条形图点击：钻取选中老人的该类型告警
+function onStatsClick(params: any) {
+  const seriesName = params.seriesName  // 事件类型名
+  const typeKey = behaviorTypes.find(t => t.label === seriesName)?.key
+  openDrill({ timeRange: statDays.value === 7 ? '近7天' : statDays.value === 14 ? '近14天' : '近30天', typeKey, personId: selectedPersonId.value })
+}
+
+// 排行点击
+function onRankClick(r: { key: string }) {
+  if (rankTab.value === 'person') {
+    // 按老人维度：跳转到老人档案管理页
+    router.push('/elderly-behavior/profile')
+  } else if (rankTab.value === 'type') {
+    openDrill({ timeRange: rankRange.value, typeKey: r.key })
+  } else if (rankTab.value === 'room') {
+    openDrill({ timeRange: rankRange.value, room: r.key })
+  }
+}
 </script>
 
 <template>
-  <div class="elderly-behavior">
-    <!-- 顶部：统计 + 图表 -->
-    <div class="behavior-stats">
-      <!-- 异常行为类型卡片 -->
-      <div class="type-cards">
-        <div v-for="t in behaviorTypes" :key="t.key" class="type-card">
-          <div class="type-icon" :style="{ background: t.color + '15', color: t.color }">
-            <i :class="t.icon" />
-          </div>
-          <div class="type-info">
-            <span class="type-count">{{ t.count }}</span>
-            <span class="type-label">{{ t.label }}</span>
-          </div>
-          <span class="type-trend" :class="{ up: t.trend.startsWith('+'), down: t.trend.startsWith('-'), zero: t.trend === '0' }">
-            {{ t.trend }}
-          </span>
+  <div class="eb-page">
+    <!-- ===== 上排：三个图表（横向3列，较矮）===== -->
+    <div class="eb-top">
+      <!-- 趋势 -->
+      <div class="chart-card">
+        <div class="chart-head">
+          <span class="chart-title">告警事件趋势</span>
+          <a-select v-model:value="trendRange" :options="timeRanges.map(r => ({ value: r, label: r }))" size="small" class="range-sel" />
         </div>
+        <ECharts :option="trendOption" class="chart-body" @chart-click="onTrendClick" />
       </div>
-
-      <!-- 图表区 -->
-      <div class="chart-row">
-        <div class="chart-card">
-          <div class="chart-title">异常行为趋势（近7日）</div>
-          <ECharts :option="trendOption" class="chart" />
+      <!-- 类型分布 -->
+      <div class="chart-card">
+        <div class="chart-head">
+          <span class="chart-title">告警类型分布</span>
+          <a-select v-model:value="pieRange" :options="timeRanges.map(r => ({ value: r, label: r }))" size="small" class="range-sel" />
         </div>
-        <div class="chart-card small">
-          <div class="chart-title">行为类型分布</div>
-          <ECharts :option="pieOption" class="chart" />
+        <ECharts :option="pieOption" class="chart-body" @chart-click="onPieClick" />
+      </div>
+      <!-- 房间分布 -->
+      <div class="chart-card">
+        <div class="chart-head">
+          <span class="chart-title">房间告警分布</span>
+          <a-select v-model:value="roomRange" :options="timeRanges.map(r => ({ value: r, label: r }))" size="small" class="range-sel" />
         </div>
+        <ECharts :option="roomOption" class="chart-body" @chart-click="onRoomClick" />
       </div>
     </div>
 
-    <!-- 主体：左老人列表 + 右时间轴 -->
-    <div class="behavior-body">
-      <!-- 左侧：老人列表 -->
-      <div class="person-section">
-        <div class="section-header">
-          <span class="section-title">老人列表（{{ filteredPersons.length }}）</span>
+    <!-- ===== 下排：左排行 + 右明细（占2列）===== -->
+    <div class="eb-bottom">
+      <!-- 左：告警排行 -->
+      <div class="rank-panel">
+        <div class="panel-head">
+          <div class="panel-title-row">
+            <span class="panel-title">告警事件排行</span>
+            <a-select v-model:value="rankRange" :options="timeRanges.map(r => ({ value: r, label: r }))" size="small" class="range-sel" />
+          </div>
+          <div class="rank-tabs">
+            <button
+              v-for="t in rankTabMeta"
+              :key="t.key"
+              class="rank-tab"
+              :class="{ active: rankTab === t.key }"
+              @click="rankTab = t.key"
+            >{{ t.label }}</button>
+          </div>
         </div>
-        <div class="person-search">
-          <a-input v-model:value="searchKey" placeholder="搜索姓名或房间号" allow-clear>
-            <template #prefix><i class="i-ant-design-search-outlined" /></template>
-          </a-input>
-        </div>
-        <div class="person-list scroll-thin">
+        <div class="rank-list scroll-thin">
           <div
-            v-for="p in filteredPersons"
-            :key="p.id"
-            class="person-card"
-            :class="{ selected: selectedPersonId === p.id }"
-            @click="selectedPersonId = p.id"
+            v-for="(r, i) in rankData"
+            :key="r.key"
+            class="rank-item"
+            :class="{ clickable: rankTab === 'person' || rankTab === 'type' || rankTab === 'room' }"
+            @click="onRankClick(r)"
           >
-            <div class="person-avatar" :class="p.gender">{{ p.name.charAt(0) }}</div>
-            <div class="person-info">
-              <div class="person-name-row">
-                <span class="person-name">{{ p.name }}</span>
-                <span class="person-age">{{ p.age }}岁</span>
+            <span class="rank-no" :style="{ background: rankNoBg(i), color: rankNoColor(i) }">{{ i + 1 }}</span>
+            <!-- 老人头像 / 类型图标 -->
+            <div v-if="r.avatar" class="rank-avatar">
+              <img :src="r.avatar" alt="" />
+            </div>
+            <div v-else-if="r.icon" class="rank-type-icon" :style="{ background: (r.color || '#6e4bff') + '18', color: r.color || '#6e4bff' }">
+              <i :class="r.icon" />
+            </div>
+            <div v-else class="rank-room-icon">
+              <i class="i-ant-design-home-outlined" />
+            </div>
+            <div class="rank-main">
+              <div class="rank-label-row">
+                <span class="rank-label">{{ r.label }}</span>
+                <span v-if="r.sub" class="rank-sub">{{ r.sub }}</span>
               </div>
-              <div class="person-meta">
-                <span>{{ p.room }}室</span>
-                <span class="care-tag" :style="{ color: careLevelColor[p.careLevel], background: careLevelColor[p.careLevel] + '15' }">{{ p.careLevel }}</span>
-              </div>
-              <div class="person-alert" :class="{ has: p.alertCount > 0 }">
-                <i class="i-ant-design-alert-outlined" />
-                <span>{{ p.lastAlert }}</span>
+              <div class="rank-bar-wrap">
+                <div class="rank-bar" :style="{ width: (r.count / rankMax * 100) + '%', background: rankBarColor(i, r.color) }" />
               </div>
             </div>
-            <span v-if="p.alertCount > 0" class="alert-badge">{{ p.alertCount }}</span>
+            <span class="rank-count">{{ r.count }}</span>
           </div>
+          <div v-if="rankData.length === 0" class="rank-empty">暂无数据</div>
         </div>
       </div>
 
-      <!-- 右侧：行为时间轴 -->
-      <div class="timeline-section">
-        <div class="section-header" v-if="selectedPerson">
-          <div class="person-detail-header">
-            <div class="detail-avatar" :class="selectedPerson.gender">{{ selectedPerson.name.charAt(0) }}</div>
-            <div>
-              <div class="detail-name">{{ selectedPerson.name }}（{{ selectedPerson.age }}岁）</div>
-              <div class="detail-meta">
-                <span>{{ selectedPerson.gender }}</span>
-                <span>{{ selectedPerson.room }}室</span>
-                <span>{{ selectedPerson.floor }}</span>
-                <span class="care-tag" :style="{ color: careLevelColor[selectedPerson.careLevel], background: careLevelColor[selectedPerson.careLevel] + '15' }">{{ selectedPerson.careLevel }}</span>
-              </div>
-            </div>
+      <!-- 右：老人明细（占2列）-->
+      <div class="detail-panel">
+        <!-- 侧边栏：老人树 -->
+        <aside class="elder-sidebar">
+          <div class="sidebar-head">老人列表</div>
+          <div class="sidebar-search">
+            <a-input v-model:value="treeSearchKey" placeholder="搜索姓名/房间" allow-clear size="small">
+              <template #prefix><i class="i-ant-design-search-outlined" /></template>
+            </a-input>
           </div>
-        </div>
-        <div class="timeline-content scroll-thin">
-          <div class="timeline">
-            <div
-              v-for="(ev, idx) in currentTimeline"
-              :key="ev.id"
-              class="timeline-item"
-              :class="ev.level"
+          <div class="sidebar-tree scroll-thin">
+            <a-tree
+              :tree-data="filteredTree"
+              :selected-keys="[selectedPersonId]"
+              :default-expand-all="true"
+              :show-line="false"
+              @select="(_k: any, info: any) => onTreeSelect(info.node.value)"
             >
-              <div class="timeline-axis">
-                <div class="axis-dot" :style="{ background: levelColor[ev.level] }" />
-                <div v-if="idx < currentTimeline.length - 1" class="axis-line" />
+              <template #title="node">
+                <span class="tree-node" :class="node.nodeType">
+                  <i v-if="node.nodeType === 'room'" class="tree-icon i-ant-design-home-outlined" />
+                  <img v-else-if="node.nodeType === 'person'" class="tree-avatar" :class="node.gender" :src="node.photo" alt="" />
+                  <span class="tree-label">{{ node.label }}</span>
+                  <span v-if="node.subLabel" class="tree-sub">{{ node.subLabel }}</span>
+                </span>
+              </template>
+            </a-tree>
+          </div>
+        </aside>
+
+        <!-- 明细内容 -->
+        <div class="detail-content">
+          <!-- 老人详细信息卡 -->
+          <div v-if="selectedPersonInfo" class="person-info-card">
+            <div class="pi-avatar" :class="selectedPersonInfo.gender">
+              <img :src="selectedPersonInfo.photo" alt="老人照片" />
+            </div>
+            <div class="pi-main">
+              <div class="pi-name-row">
+                <span class="pi-name">{{ selectedPersonInfo.name }}</span>
+                <span class="pi-tag" :class="selectedPersonInfo.gender">{{ selectedPersonInfo.gender }}</span>
+                <span class="pi-age">{{ selectedPersonInfo.age }}岁</span>
               </div>
-              <div class="timeline-card">
-                <div class="timeline-card-header">
-                  <span class="ev-type-tag" :style="{ background: levelColor[ev.level] + '15', color: levelColor[ev.level] }">{{ ev.type }}</span>
-                  <span class="ev-time">{{ ev.date }} {{ ev.time }}</span>
-                  <span v-if="ev.handled" class="ev-status handled">已处理</span>
-                  <span v-else class="ev-status pending">待处理</span>
-                </div>
-                <p class="ev-desc">{{ ev.desc }}</p>
-                <div class="ev-location"><i class="i-ant-design-environment-outlined" />{{ ev.location }}</div>
+              <div class="pi-location">
+                <span class="pi-loc-item"><i class="i-ant-design-environment-outlined" />{{ selectedPersonInfo.building }}</span>
+                <span class="pi-loc-item"><i class="i-ant-design-home-outlined" />{{ selectedPersonInfo.room }}</span>
+                <span class="pi-loc-item"><i class="i-ant-design-bed-outlined" />{{ selectedPersonInfo.bedNo }}</span>
               </div>
             </div>
-            <div v-if="currentTimeline.length === 0" class="timeline-empty">
-              <i class="i-ant-design-calendar-outlined" />
-              <p>该老人暂无行为记录</p>
+            <!-- 备注区域 -->
+            <div v-if="selectedPersonInfo.remark" class="pi-remark-area">
+              <span class="pi-remark-label">备注</span>
+              <p class="pi-remark-text">{{ selectedPersonInfo.remark }}</p>
             </div>
+            <!-- 档案详情按钮 -->
+            <button class="pi-detail-btn" @click="goProfile">
+              <i class="i-ant-design-profile-outlined" />档案详情
+            </button>
+          </div>
+
+          <!-- 行为统计工具栏 -->
+          <div class="detail-toolbar">
+            <span class="stat-title">行为统计</span>
+            <a-select
+              v-model:value="statDays"
+              :options="statDaysOptions"
+              size="small"
+              class="stat-days-sel"
+              :field-names="{ label: 'label', value: 'value' }"
+            />
+          </div>
+
+          <!-- 行为统计：横向堆叠条形图 -->
+          <div class="stat-chart-wrap">
+            <ECharts :option="behaviorStatsOption" class="stat-chart" @chart-click="onStatsClick" />
           </div>
         </div>
       </div>
     </div>
+
+    <!-- 钻取弹窗 -->
+    <BehaviorDrillModal
+      v-model:open="drillVisible"
+      :events="allEvents"
+      :preset="drillPreset"
+    />
   </div>
 </template>
 
 <style scoped lang="scss">
 @use '@/styles/variables' as *;
 
-.elderly-behavior {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+.eb-page {
+  display: grid;
+  grid-template-rows: 240px 1fr;
   gap: 12px;
+  height: 100%;
+  padding: 12px 16px;
   overflow: hidden;
 }
 
-/* ===== 顶部统计 ===== */
-.behavior-stats {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.type-cards {
+/* ===== 上排图表 ===== */
+.eb-top {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-}
-
-.type-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  background: #fff;
-  border: 1px solid $border-color-card;
-  border-radius: 10px;
-
-  .type-icon {
-    width: 38px; height: 38px;
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    i { font-size: 20px; }
-  }
-  .type-info { flex: 1; display: flex; flex-direction: column; }
-  .type-count { font-size: 22px; font-weight: 700; color: $text-base; }
-  .type-label { font-size: 11px; color: $text-tertiary; }
-
-  .type-trend {
-    font-size: 12px;
-    font-weight: 600;
-    &.up { color: #ff4d4f; }
-    &.down { color: #52c41a; }
-    &.zero { color: $text-muted; }
-  }
-}
-
-.chart-row {
-  display: flex;
-  gap: 12px;
+  min-height: 0;
 }
 
 .chart-card {
-  flex: 1;
   background: #fff;
   border: 1px solid $border-color-card;
-  border-radius: 10px;
-  padding: 12px 16px;
+  border-radius: 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
 
-  &.small { flex: 0 0 320px; }
+.chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  flex-shrink: 0;
 
   .chart-title {
     font-size: 13px;
     font-weight: 600;
     color: $text-base;
-    margin-bottom: 4px;
   }
-  .chart { height: 200px; }
 }
 
-/* ===== 主体 ===== */
-.behavior-body {
+.range-sel {
+  width: 90px;
+  :deep(.ant-select-selector) {
+    border-radius: 4px !important;
+    font-size: 12px;
+  }
+}
+
+.chart-body {
   flex: 1;
-  display: flex;
+  min-height: 0;
+}
+
+/* ===== 下排 ===== */
+.eb-bottom {
+  display: grid;
+  grid-template-columns: 320px 1fr;
   gap: 12px;
   min-height: 0;
 }
 
-/* 老人列表 */
-.person-section {
-  width: 320px;
-  flex-shrink: 0;
+/* 左：排行 */
+.rank-panel {
   background: #fff;
   border: 1px solid $border-color-card;
   border-radius: 12px;
@@ -336,191 +425,675 @@ const careLevelColor = { '自理': '#52c41a', '半护': '#fa8c16', '全护': '#f
   overflow: hidden;
 }
 
-.section-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid $border-color-card;
+.panel-head {
+  display: flex;
+  flex-direction: column;
   flex-shrink: 0;
-
-  .section-title { font-size: 14px; font-weight: 600; color: $text-base; }
 }
 
-.person-search { padding: 10px 12px; border-bottom: 1px solid $border-color-card; }
-
-.person-list { flex: 1; overflow-y: auto; padding: 8px; }
-
-.person-card {
+.panel-title-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  justify-content: space-between;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid $border-color-card;
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-base;
+}
+
+.rank-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 8px 12px;
+  border-bottom: 1px solid $border-color-card;
+}
+
+.rank-tab {
+  padding: 3px 10px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-secondary;
   cursor: pointer;
-  margin-bottom: 4px;
-  border: 1px solid transparent;
+  border-radius: 4px;
+  font-family: inherit;
   transition: all 0.15s;
 
-  &:hover { background: $bg-hover; }
-  &.selected { background: $color-primary-bg; border-color: $color-primary; }
+  &:hover { color: $color-primary; }
+  &.active { background: $color-primary-bg; color: $color-primary; }
 }
 
-.person-avatar {
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
-  font-weight: 500;
-  color: #fff;
-  flex-shrink: 0;
-
-  &.女 { background: linear-gradient(135deg, #ff85c0, #eb2f96); }
-  &.男 { background: linear-gradient(135deg, #69b1ff, #1677ff); }
-}
-
-.person-info { flex: 1; min-width: 0; }
-.person-name-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 2px; }
-.person-name { font-size: 14px; font-weight: 500; color: $text-base; }
-.person-age { font-size: 11px; color: $text-tertiary; }
-.person-meta { display: flex; gap: 6px; align-items: center; font-size: 11px; color: $text-muted; margin-bottom: 2px; }
-
-.care-tag { padding: 1px 6px; border-radius: 3px; font-size: 10px; }
-
-.person-alert {
-  display: flex; align-items: center; gap: 3px;
-  font-size: 11px;
-  color: $text-muted;
-
-  &.has { color: #fa8c16; }
-  i { font-size: 10px; }
-}
-
-.alert-badge {
-  min-width: 18px; height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  background: #ff4d4f;
-  color: #fff;
-  font-size: 10px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-
-/* 时间轴 */
-.timeline-section {
+.rank-list {
   flex: 1;
-  background: #fff;
-  border: 1px solid $border-color-card;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  padding: 8px 12px;
 }
 
-.person-detail-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  .detail-avatar {
-    width: 44px; height: 44px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px; font-weight: 500; color: #fff;
-    &.女 { background: linear-gradient(135deg, #ff85c0, #eb2f96); }
-    &.男 { background: linear-gradient(135deg, #69b1ff, #1677ff); }
-  }
-
-  .detail-name { font-size: 16px; font-weight: 600; color: $text-base; }
-  .detail-meta { display: flex; gap: 8px; font-size: 12px; color: $text-tertiary; margin-top: 2px; }
-}
-
-.timeline-content { flex: 1; overflow-y: auto; padding: 20px 24px; }
-
-.timeline { position: relative; }
-
-.timeline-item {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 4px;
-
-  &:last-child { margin-bottom: 0; }
-}
-
-.timeline-axis {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 12px;
-  flex-shrink: 0;
-
-  .axis-dot {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    border: 2px solid #fff;
-    box-shadow: 0 0 0 1px currentColor;
-    margin-top: 6px;
-    flex-shrink: 0;
-  }
-
-  .axis-line {
-    flex: 1;
-    width: 2px;
-    background: $border-color-card;
-    margin: 2px 0;
-  }
-}
-
-.timeline-card {
-  flex: 1;
-  padding: 10px 14px;
-  background: #fafbfc;
-  border: 1px solid $border-color-card;
-  border-radius: 8px;
-  margin-bottom: 8px;
-}
-
-.timeline-card-header {
+.rank-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+
+  &:last-child { border-bottom: none; }
 }
 
-.ev-type-tag {
+.rank-no {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  color: $text-tertiary;
   font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 4px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* 老人头像 */
+.rank-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid $border-color-card;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+/* 事件类型图标 */
+.rank-type-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  i { font-size: 16px; }
+}
+
+/* 房间图标 */
+.rank-room-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #f5f5f5;
+  color: $text-muted;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  i { font-size: 15px; }
+}
+
+.rank-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.rank-label-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.rank-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: $text-base;
+}
+
+.rank-sub {
+  font-size: 10px;
+  color: $text-muted;
+}
+
+.rank-bar-wrap {
+  height: 5px;
+  background: #f5f5f5;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.rank-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.rank-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: $text-base;
+  min-width: 24px;
+  text-align: right;
+}
+
+.rank-empty {
+  text-align: center;
+  padding: 40px;
+  color: $text-muted;
+  font-size: 13px;
+}
+
+/* 右：明细 */
+.detail-panel {
+  display: flex;
+  gap: 0;
+  background: #fff;
+  border: 1px solid $border-color-card;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.elder-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid $border-color-card;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-head {
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-base;
+  border-bottom: 1px solid $border-color-card;
+}
+
+.sidebar-search {
+  padding: 8px 10px;
+  border-bottom: 1px solid $border-color-card;
+}
+
+.sidebar-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 6px;
+
+  :deep(.ant-tree) {
+    font-size: 12px;
+  }
+  /* 缩进调到最小 */
+  :deep(.ant-tree-indent-unit) {
+    width: 8px !important;
+    min-width: 8px !important;
+  }
+  :deep(.ant-tree-switcher) {
+    width: 16px !important;
+    min-width: 16px !important;
+  }
+  :deep(.ant-tree-treenode) {
+    padding-top: 1px;
+    padding-bottom: 1px;
+  }
+  :deep(.ant-tree .ant-tree-node-content-wrapper) {
+    padding: 2px 4px;
+    flex: 1;
+  }
+  :deep(.ant-tree .ant-tree-node-content-wrapper.ant-tree-node-selected) {
+    background: $color-primary-bg;
+  }
+}
+
+/* 自定义树节点 */
+.tree-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+
+  .tree-icon {
+    font-size: 13px;
+    color: $text-muted;
+    flex-shrink: 0;
+  }
+
+  /* 老人圆头像 */
+  .tree-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid $border-color-card;
+  }
+
+  .tree-label {
+    font-size: 12px;
+    color: $text-base;
+    white-space: nowrap;
+  }
+
+  .tree-sub {
+    font-size: 10px;
+    color: $text-muted;
+    margin-left: 2px;
+    white-space: nowrap;
+  }
+
+  &.person .tree-label {
+    font-weight: 500;
+  }
+}
+
+.detail-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid $border-color-card;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.stat-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-base;
+}
+
+.stat-days-sel {
+  width: 100px;
+  :deep(.ant-select-selector) { border-radius: 4px !important; font-size: 12px; }
+}
+
+/* 行为统计图表 */
+.stat-chart-wrap {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 12px;
+  overflow: hidden;
+}
+
+.stat-chart {
+  width: 100%;
+  height: 100%;
+}
+
+/* 老人详细信息卡 */
+.person-info-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid $border-color-card;
+  flex-shrink: 0;
+}
+
+.pi-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px $border-color-card;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.pi-main {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pi-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pi-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: $text-base;
+}
+
+.pi-tag {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-weight: 500;
+
+  &.男 { background: #e6f4ff; color: #1677ff; }
+  &.女 { background: #fff0f6; color: #eb2f96; }
+}
+
+.pi-age {
+  font-size: 12px;
+  color: $text-tertiary;
+}
+
+.pi-location {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.pi-loc-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: $text-secondary;
+  white-space: nowrap;
+
+  i { font-size: 12px; color: $text-muted; }
+}
+
+/* 备注区域（右侧） */
+.pi-remark-area {
+  flex: 1;
+  min-width: 0;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.pi-remark-label {
+  font-size: 11px;
+  color: $text-muted;
   font-weight: 500;
 }
 
-.ev-time { font-size: 12px; color: $text-tertiary; }
+.pi-remark-text {
+  font-size: 12px;
+  color: $text-tertiary;
+  line-height: 1.4;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
-.ev-status {
+/* 档案详情按钮 */
+.pi-detail-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid $color-primary;
+  border-radius: 6px;
+  background: $color-primary-bg;
+  color: $color-primary;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+  align-self: center;
+  margin-left: auto;
+  transition: all 0.15s;
+
+  i { font-size: 13px; }
+  &:hover { background: $color-primary; color: #fff; }
+}
+
+/* 排行项可点击 */
+.rank-item.clickable {
+  cursor: pointer;
+  &:hover {
+    background: #faf9ff;
+  }
+}
+
+/* 时间轴 */
+.timeline-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+}
+
+.tl-item {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 2px;
+  &:last-child { margin-bottom: 0; }
+}
+
+.tl-axis {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 10px;
+  flex-shrink: 0;
+
+  .tl-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+  .tl-line {
+    flex: 1;
+    width: 2px;
+    background: $border-color-card;
+    margin: 1px 0;
+  }
+}
+
+.tl-card {
+  flex: 1;
+  padding: 8px 12px;
+  background: #fafbfc;
+  border: 1px solid $border-color-card;
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.tl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+/* 事件卡片正文：缩略图 + 信息 */
+.tl-body {
+  display: flex;
+  gap: 10px;
+}
+
+.tl-snap {
+  position: relative;
+  width: 96px;
+  height: 64px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #1a1a2e;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.tl-snap-tag {
+  position: absolute;
+  left: 3px;
+  bottom: 3px;
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tl-body-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tl-type {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.tl-time { font-size: 11px; color: $text-tertiary; }
+
+.tl-status {
   margin-left: auto;
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 3px;
-  &.handled { background: #f6ffed; color: #52c41a; }
+  &.done { background: #f6ffed; color: #52c41a; }
   &.pending { background: #fff7e6; color: #fa8c16; }
 }
 
-.ev-desc {
-  font-size: 13px;
+.tl-desc {
+  font-size: 12px;
   color: $text-secondary;
-  line-height: 1.6;
+  line-height: 1.5;
   margin: 0 0 4px;
 }
 
-.ev-location {
-  display: flex; align-items: center; gap: 3px;
-  font-size: 11px; color: $text-muted;
+.tl-loc {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: $text-muted;
   i { font-size: 11px; }
 }
 
-.timeline-empty {
+.tl-empty {
   text-align: center;
-  padding: 60px;
-  color: $text-tertiary;
-  i { font-size: 40px; opacity: 0.4; margin-bottom: 8px; }
-  p { font-size: 13px; margin: 0; }
+  padding: 50px;
+  color: $text-muted;
+  i { font-size: 36px; opacity: 0.4; }
+  p { font-size: 13px; margin: 8px 0 0; }
+}
+
+/* 预测 */
+.predict-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.predict-card {
+  padding: 12px 14px;
+  background: #fafbfc;
+  border: 1px solid $border-color-card;
+  border-left: 3px solid;
+  border-radius: 8px;
+
+  &.high { border-left-color: #ff4d4f; }
+  &.medium { border-left-color: #fa8c16; }
+  &.low { border-left-color: #52c41a; }
+}
+
+.predict-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.predict-type {
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-base;
+}
+
+.predict-risk-tag {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.predict-prob-bar {
+  /* 固定宽度，保证所有卡片进度条等长、起止对齐 */
+  width: 180px;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 0 8px 0 auto;
+}
+
+.predict-prob-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.predict-prob-text {
+  font-size: 14px;
+  font-weight: 700;
+  min-width: 36px;
+  text-align: right;
+}
+
+.predict-desc {
+  font-size: 12px;
+  color: $text-secondary;
+  line-height: 1.5;
+  margin: 0 0 6px;
+}
+
+.predict-suggest {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: $color-primary;
+  background: $color-primary-bg;
+  padding: 5px 10px;
+  border-radius: 5px;
+  i { font-size: 13px; }
 }
 </style>

@@ -58,6 +58,19 @@ $menu-item-margin: 2px;
 $home-composer-h: 110px;
 
 // ============================================
+// SaaS 外壳 - 蓝色调(工作台/顶栏,与项目内紫色体系区分)
+// 外壳 = 蓝,项目内 = 紫
+// ============================================
+$saas-primary: #3b82f6;          // 主蓝
+$saas-primary-hover: #5095f8;    // hover 浅蓝
+$saas-primary-active: #2f6fe0;   // active 深蓝
+$saas-primary-bg: #e8f1ff;       // 浅蓝选中/悬浮背景
+$saas-hero-bg-start: #eaf2ff;    // Hero 渐变起点(浅蓝)
+$saas-hero-bg-end: #f5f9ff;      // Hero 渐变终点(更浅)
+$saas-header-bg-start: #eaf2ff;  // 顶栏渐变起点
+$saas-header-bg-end: #ffffff;    // 顶栏渐变终点
+
+// ============================================
 // 视频墙 - 深色剧院风(从 cloud-uat.jetlinks.cn 实测)
 // ============================================
 $video-stage-bg-start: #23262b; // 渐变起点(深灰)

@@ -33,8 +33,9 @@ const tabs = computed<TabItem[]>(() => {
 const activeTab = computed(() => {
   const layoutPath = layoutRoute.value?.path || ''
   const fullPath = route.path
-  const rest = fullPath.replace(layoutPath, '')
-  return rest.replace(/^\//, '')
+  const rest = fullPath.replace(layoutPath, '').replace(/^\//, '')
+  // 详情子路由形如 "person-profile/:id"，只取第一段以匹配 tab key
+  return rest.split('/')[0]
 })
 
 // 如果当前路由是 layout 根路径（无子路径），或当前 tab 在场景下不可见，
@@ -43,8 +44,10 @@ watchEffect(() => {
   if (tabs.value.length === 0) return
   const layoutPath = layoutRoute.value?.path || ''
   const rest = route.path.replace(layoutPath, '').replace(/^\//, '')
+  // 详情子路由形如 "person-profile/:id"，取第一段判断所属 tab
+  const tabKey = rest.split('/')[0]
   // 根路径 或 当前 tab 不在可见列表 → 跳第一个
-  if (!rest || !tabs.value.some(t => t.key === rest)) {
+  if (!tabKey || !tabs.value.some(t => t.key === tabKey)) {
     const first = tabs.value[0]
     if (first && route.path !== first.path) {
       router.replace(first.path)

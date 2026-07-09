@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * 文搜图筛选侧栏 - 1:1 复刻 .vbf
- * 260px 宽：筛选头(筛选/重置) + 时间范围 + 人员标签(上衣/裤子颜色/目标身份/人员穿着) + 车辆标签(基础类型/车身颜色/车牌颜色)
+ * 文搜图筛选侧栏（人员专用）
+ * 区域摄像头树 + 时间范围 + 上衣/裤子颜色 + 目标身份多选下拉 + 人员穿着多选下拉
  */
 import {
   upperColors,
@@ -9,27 +9,20 @@ import {
   timeOptions,
   identityChips,
   clothingChips,
-  vehicleTypeChips,
-  vehicleColorChips,
-  plateColorChips
+  cameraTreeData
 } from './mock'
 
+// 时间范围
 const timeValue = ref('全部时间')
 
-// 选中的标签（多选集合）
-const selected = reactive<Set<string>>(new Set())
+// 选中的摄像头（树多选）
+const selectedCameras = ref<string[]>([])
 
-function toggle(chip: string) {
-  if (selected.has(chip)) selected.delete(chip)
-  else selected.add(chip)
-  // 触发响应式
-  selected.add('__force__')
-  selected.delete('__force__')
-}
+// 目标身份（多选 + 可搜索）
+const selectedIdentities = ref<string[]>([])
 
-function isSelected(chip: string) {
-  return selected.has(chip)
-}
+// 人员穿着（多选 + 可搜索）
+const selectedClothing = ref<string[]>([])
 
 // 颜色 chip 选中态
 const selectedColors = reactive<Set<string>>(new Set())
@@ -41,14 +34,12 @@ function toggleColor(title: string) {
 }
 
 function reset() {
-  selected.clear()
-  selectedColors.clear()
   timeValue.value = '全部时间'
+  selectedCameras.value = []
+  selectedIdentities.value = []
+  selectedClothing.value = []
+  selectedColors.clear()
 }
-
-// 更多折叠（人员标签、车辆标签各有一个"更多"）
-const morePersonOpen = ref(false)
-const moreVehicleOpen = ref(false)
 </script>
 
 <template>
@@ -59,152 +50,97 @@ const moreVehicleOpen = ref(false)
       <button class="vbf__reset" @click="reset">重置</button>
     </header>
 
+    <!-- 区域摄像头（树形多选）-->
+    <section class="vbf__section">
+      <h4>区域 / 摄像头</h4>
+      <a-tree-select
+        v-model:value="selectedCameras"
+        :tree-data="cameraTreeData"
+        tree-checkable
+        :show-checked-strategy="'SHOW_CHILD'"
+        placeholder="选择区域或摄像头"
+        allow-clear
+        tree-default-expand-all
+        :max-tag-count="2"
+        class="vbf__select"
+      />
+    </section>
+
     <!-- 时间范围 -->
     <section class="vbf__section">
       <h4>时间范围</h4>
-      <a-select v-model:value="timeValue" class="vbf__select" :options="timeOptions.map(t => ({ value: t, label: t }))" />
+      <a-select
+        v-model:value="timeValue"
+        class="vbf__select"
+        :options="timeOptions.map(t => ({ value: t, label: t }))"
+      />
     </section>
 
     <!-- 人员标签 -->
     <section class="vbf__section vbf__section--tag">
-      <div class="vbf__tag-section">
-        <h4>人员标签</h4>
-        <div class="vbf__tag-sections">
-          <!-- 上衣颜色 -->
-          <div class="vbf__tag-group">
-            <div class="vbf__clothing-row">
-              <div class="vbf__clothing-label">上衣颜色</div>
-              <div class="vbf__chips">
-                <button
-                  v-for="c in upperColors"
-                  :key="c.title"
-                  class="vbf__color-chip"
-                  :class="{ active: selectedColors.has(c.title) }"
-                  :style="{ background: c.bg }"
-                  :title="c.title"
-                  @click="toggleColor(c.title)"
-                />
-              </div>
-            </div>
-            <!-- 裤子颜色 -->
-            <div class="vbf__clothing-row">
-              <div class="vbf__clothing-label">裤子颜色</div>
-              <div class="vbf__chips">
-                <button
-                  v-for="c in lowerColors"
-                  :key="c.title"
-                  class="vbf__color-chip"
-                  :class="{ active: selectedColors.has(c.title) }"
-                  :style="{ background: c.bg }"
-                  :title="c.title"
-                  @click="toggleColor(c.title)"
-                />
-              </div>
-            </div>
-          </div>
+      <h4>人员标签</h4>
 
-          <!-- 目标身份 -->
-          <div class="vbf__tag-group">
-            <div class="vbf__tag-group-title">目标身份</div>
-            <div class="vbf__chips">
-              <button
-                v-for="chip in identityChips"
-                :key="chip"
-                class="vbf__chip"
-                :class="{ active: isSelected(chip) }"
-                @click="toggle(chip)"
-              >
-                {{ chip }}
-              </button>
-            </div>
+      <!-- 上衣颜色 -->
+      <div class="vbf__tag-group">
+        <div class="vbf__clothing-row">
+          <div class="vbf__clothing-label">上衣颜色</div>
+          <div class="vbf__chips">
+            <button
+              v-for="c in upperColors"
+              :key="c.title"
+              class="vbf__color-chip"
+              :class="{ active: selectedColors.has(c.title) }"
+              :style="{ background: c.bg }"
+              :title="c.title"
+              @click="toggleColor(c.title)"
+            />
           </div>
-
-          <!-- 人员穿着 -->
-          <div class="vbf__tag-group">
-            <div class="vbf__tag-group-title">人员穿着</div>
-            <div class="vbf__chips">
-              <button
-                v-for="chip in clothingChips"
-                :key="chip"
-                class="vbf__chip"
-                :class="{ active: isSelected(chip) }"
-                @click="toggle(chip)"
-              >
-                {{ chip }}
-              </button>
-            </div>
-          </div>
-
-          <!-- 更多（人员）-->
-          <div class="vbf__tag-group">
-            <button class="vbf__more" @click="morePersonOpen = !morePersonOpen">
-              <span>更多 (2)</span>
-              <i class="i-ant-design-down-outlined" :class="{ open: morePersonOpen }" />
-            </button>
+        </div>
+        <!-- 裤子颜色 -->
+        <div class="vbf__clothing-row">
+          <div class="vbf__clothing-label">裤子颜色</div>
+          <div class="vbf__chips">
+            <button
+              v-for="c in lowerColors"
+              :key="c.title"
+              class="vbf__color-chip"
+              :class="{ active: selectedColors.has(c.title) }"
+              :style="{ background: c.bg }"
+              :title="c.title"
+              @click="toggleColor(c.title)"
+            />
           </div>
         </div>
       </div>
 
-      <!-- 车辆标签 -->
-      <div class="vbf__tag-section">
-        <h4>车辆标签</h4>
-        <div class="vbf__tag-sections">
-          <!-- 基础类型 -->
-          <div class="vbf__tag-group">
-            <div class="vbf__tag-group-title">基础类型</div>
-            <div class="vbf__chips">
-              <button
-                v-for="chip in vehicleTypeChips"
-                :key="chip"
-                class="vbf__chip"
-                :class="{ active: isSelected(chip) }"
-                @click="toggle(chip)"
-              >
-                {{ chip }}
-              </button>
-            </div>
-          </div>
+      <!-- 目标身份（多选下拉，可搜索）-->
+      <div class="vbf__tag-group">
+        <div class="vbf__tag-group-title">目标身份</div>
+        <a-select
+          v-model:value="selectedIdentities"
+          mode="multiple"
+          show-search
+          allow-clear
+          placeholder="选择或搜索身份标签"
+          :options="identityChips.map(c => ({ value: c, label: c }))"
+          :max-tag-count="3"
+          class="vbf__select"
+        />
+      </div>
 
-          <!-- 车身颜色 -->
-          <div class="vbf__tag-group">
-            <div class="vbf__tag-group-title">车身颜色</div>
-            <div class="vbf__chips">
-              <button
-                v-for="chip in vehicleColorChips"
-                :key="chip"
-                class="vbf__chip"
-                :class="{ active: isSelected(chip) }"
-                @click="toggle(chip)"
-              >
-                {{ chip }}
-              </button>
-            </div>
-          </div>
-
-          <!-- 车牌颜色 -->
-          <div class="vbf__tag-group">
-            <div class="vbf__tag-group-title">车牌颜色</div>
-            <div class="vbf__chips">
-              <button
-                v-for="chip in plateColorChips"
-                :key="chip"
-                class="vbf__chip"
-                :class="{ active: isSelected(chip) }"
-                @click="toggle(chip)"
-              >
-                {{ chip }}
-              </button>
-            </div>
-          </div>
-
-          <!-- 更多（车辆）-->
-          <div class="vbf__tag-group">
-            <button class="vbf__more" @click="moreVehicleOpen = !moreVehicleOpen">
-              <span>更多 (4)</span>
-              <i class="i-ant-design-down-outlined" :class="{ open: moreVehicleOpen }" />
-            </button>
-          </div>
-        </div>
+      <!-- 人员穿着（多选下拉，可搜索）-->
+      <div class="vbf__tag-group">
+        <div class="vbf__tag-group-title">人员穿着</div>
+        <a-select
+          v-model:value="selectedClothing"
+          mode="multiple"
+          show-search
+          allow-clear
+          placeholder="选择或搜索穿着标签"
+          :options="clothingChips.map(c => ({ value: c, label: c }))"
+          :max-tag-count="3"
+          class="vbf__select"
+        />
       </div>
     </section>
   </aside>
@@ -213,7 +149,7 @@ const moreVehicleOpen = ref(false)
 <style scoped lang="scss">
 @use '@/styles/variables' as *;
 
-/* 侧栏容器：260px（UAT: bg color(srgb 0.9986 0.9983 1), border color(srgb 0.9216 0.9294 0.9412 / 0.78)）*/
+/* 侧栏容器 */
 .vbf {
   width: 260px;
   flex-shrink: 0;
@@ -232,6 +168,8 @@ const moreVehicleOpen = ref(false)
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(235, 237, 239, 0.78);
 
   h3 {
     margin: 0;
@@ -262,8 +200,9 @@ const moreVehicleOpen = ref(false)
   gap: 10px;
 
   &--tag {
-    gap: 0;
+    gap: 14px;
     padding-top: 14px;
+    border-top: 1px solid rgba(235, 237, 239, 0.78);
   }
 
   > h4 {
@@ -280,33 +219,18 @@ const moreVehicleOpen = ref(false)
   :deep(.ant-select-selector) {
     border-radius: 6px !important;
     border-color: rgb(235, 237, 240) !important;
+    min-height: 32px;
   }
 }
 
-/* tag-section */
-.vbf__tag-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-
-  & + .vbf__tag-section {
-    padding-top: 12px;
-  }
-}
-
-.vbf__tag-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
+/* tag group */
 .vbf__tag-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-/* 颜色行（上衣/裤子）*/
+/* 颜色行 */
 .vbf__clothing-row {
   display: flex;
   flex-direction: column;
@@ -319,34 +243,11 @@ const moreVehicleOpen = ref(false)
   color: $text-muted;
 }
 
-/* chip 容器：自动换行 */
+/* chip 容器 */
 .vbf__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-/* 文字 chip */
-.vbf__chip {
-  padding: 6px 12px;
-  background: rgb(246, 244, 255);
-  color: $text-secondary;
-  font-size: 13px;
-  border: 1px solid rgb(235, 237, 240);
-  border-radius: 12px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.15s;
-
-  &:hover {
-    border-color: $color-primary;
-  }
-
-  &.active {
-    background: $color-primary;
-    border-color: $color-primary;
-    color: #fff;
-  }
 }
 
 /* 颜色 chip：18x18 圆形 */
@@ -366,31 +267,6 @@ const moreVehicleOpen = ref(false)
 
   &.active {
     box-shadow: 0 0 0 2px $color-primary;
-  }
-}
-
-/* 更多按钮：虚线边框（UAT: bg color(srgb 0.9972 0.9965 1)）*/
-.vbf__more {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 10px 12px;
-  background: rgb(254, 253, 255);
-  color: $text-secondary;
-  font-size: 13px;
-  border: 1px dashed rgba(235, 237, 239, 0.8);
-  border-radius: 12px;
-  cursor: pointer;
-  font-family: inherit;
-
-  i {
-    font-size: 12px;
-    transition: transform 0.2s;
-
-    &.open {
-      transform: rotate(180deg);
-    }
   }
 }
 </style>

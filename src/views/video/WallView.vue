@@ -16,6 +16,7 @@ import {
   type AreaTreeNode,
   type GatewayGroup
 } from './video.mock'
+import VideoPlayerModal from '@/components/VideoPlayerModal.vue'
 
 // ===== 监控墙数据模型 =====
 interface MonitorWall {
@@ -119,13 +120,24 @@ const cellCount = computed(() => Number(activeLayout.value))
 interface Cell {
   index: number
   camera: typeof videoCameras[number] | null
+  alarm?: boolean
 }
+
+// 当前有告警事件的摄像头 id 集合（mock：东门摄像头 + 南门摄像头）
+// 后续对接告警中心后，这里改为由告警事件驱动
+const alarmCamIds = ref<Set<string>>(new Set(['vc-rd-1', 'vc-2f-2']))
+
 const cells = computed<Cell[]>(() => {
   const arr: Cell[] = []
   const map = currentCellMap.value
   for (let i = 0; i < cellCount.value; i++) {
     const camId = map[i]
-    arr.push({ index: i, camera: camId ? (cameraMap.value.get(camId) || null) : null })
+    const camera = camId ? (cameraMap.value.get(camId) || null) : null
+    arr.push({
+      index: i,
+      camera,
+      alarm: !!(camera && alarmCamIds.value.has(camera.id))
+    })
   }
   return arr
 })
@@ -347,6 +359,7 @@ function playCamera(camId: string) {
   playModalVisible.value = true
 }
 
+
 // 区域树叶子点击：播放（不阻止 drag）
 function onTreeNodeClick(node: AreaTreeNode) {
   if (node.isLeaf && node.camId) playCamera(node.camId)
@@ -514,12 +527,19 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
 
             <!-- 操作按钮 -->
             <div class="vlw__actions">
-              <!-- 浏览态：全屏 + 默认设置（草稿模式下隐藏） -->
-              <template v-if="!manageMode">
-                <button class="vlw__action" @click="toggleFullscreen">
-                  <i :class="isFullscreen ? 'i-ant-design-fullscreen-exit-outlined' : 'i-ant-design-fullscreen-outlined'" />
-                  <span>{{ isFullscreen ? '退出全屏' : '全屏' }}</span>
+              <!-- 草稿模式：取消 / 保存 -->
+              <template v-if="manageMode">
+                <button class="vlw__action" @click="cancelDraft">
+                  <i class="i-ant-design-close-outlined" />
+                  <span>取消</span>
                 </button>
+                <button class="vlw__action vlw__action--primary" @click="saveDraft">
+                  <i class="i-ant-design-check-outlined" />
+                  <span>保存</span>
+                </button>
+              </template>
+              <!-- 浏览模式：默认设置 + 管理视频（全屏时隐藏） -->
+              <template v-else-if="!isFullscreen">
                 <button
                   v-if="!activeWall?.isDefault"
                   class="vlw__action"
@@ -538,27 +558,23 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
                   <i class="i-ant-design-star-filled" />
                   <span>取消默认</span>
                 </button>
-              </template>
-              <!-- 草稿模式：取消 / 保存 -->
-              <template v-if="manageMode">
-                <button class="vlw__action" @click="cancelDraft">
-                  <i class="i-ant-design-close-outlined" />
-                  <span>取消</span>
-                </button>
-                <button class="vlw__action vlw__action--primary" @click="saveDraft">
-                  <i class="i-ant-design-check-outlined" />
-                  <span>保存</span>
+                <button
+                  class="vlw__action"
+                  title="勾选通道"
+                  @click="enterManageMode"
+                >
+                  <i class="i-ant-design-video-camera-add-outlined" />
+                  <span>管理视频</span>
                 </button>
               </template>
-              <!-- 浏览模式：管理视频入口 -->
+              <!-- 全屏按钮：仅浏览模式显示（草稿模式隐藏） -->
               <button
-                v-else
+                v-if="!manageMode"
                 class="vlw__action"
-                title="勾选通道"
-                @click="enterManageMode"
+                @click="toggleFullscreen"
               >
-                <i class="i-ant-design-video-camera-add-outlined" />
-                <span>管理视频</span>
+                <i :class="isFullscreen ? 'i-ant-design-fullscreen-exit-outlined' : 'i-ant-design-fullscreen-outlined'" />
+                <span>{{ isFullscreen ? '退出全屏' : '全屏' }}</span>
               </button>
             </div>
           </div>
@@ -576,8 +592,10 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
                   class="vmpg__cell"
                   :class="{
                     'is-playing': cell.camera,
-                    'is-drop-target': dropTargetIdx === cell.index
+                    'is-drop-target': dropTargetIdx === cell.index,
+                    'is-alarm': cell.alarm
                   }"
+                  @click="!manageMode && cell.camera && playCamera(cell.camera.id)"
                   @dragover="onCellDragOver($event, cell.index)"
                   @dragleave="onCellDragLeave(cell.index)"
                   @drop="onCellDrop($event, cell.index)"
@@ -803,34 +821,8 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
       </template>
     </a-modal>
 
-    <!-- 视频播放弹窗 -->
-    <a-modal
-      v-model:open="playModalVisible"
-      :title="playTarget?.name || '视频播放'"
-      :footer="null"
-      :width="800"
-      :body-style="{ padding: '0', background: '#000' }"
-      wrap-class-name="video-player-modal"
-    >
-      <div class="video-player-wrap">
-        <img v-if="playTarget?.thumb" :src="playTarget.thumb" class="video-player-frame" alt="视频流" />
-        <div class="video-player-overlay">
-          <div class="player-controls">
-            <i class="i-ant-design-pause-circle-filled player-play-icon" />
-            <div class="player-progress">
-              <div class="player-progress-bar" />
-            </div>
-            <span class="player-time">实时</span>
-          </div>
-        </div>
-        <div class="video-player-info">
-          <span class="player-name">{{ playTarget?.name }}</span>
-          <span class="player-status" :class="playTarget?.status">
-            {{ playTarget?.status === 'online' ? '● LIVE' : '● 离线' }}
-          </span>
-        </div>
-      </div>
-    </a-modal>
+    <!-- 视频播放弹窗（共享组件：左直播+时间轴 / 右告警/回放） -->
+    <VideoPlayerModal v-model:open="playModalVisible" :target="playTarget" />
   </div>
 </template>
 
@@ -1258,6 +1250,37 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
   /* 拖入高亮 */
   &.is-drop-target {
     box-shadow: inset 0 0 0 3px rgba(110, 75, 255, 0.7);
+  }
+
+  /* 告警：边缘红光闪烁（伪元素发光层，不受 overflow:hidden 裁切） */
+  &.is-alarm::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    /* 内描边红光 + 外溢红光，呼吸式闪烁 */
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 77, 79, 0.9),
+      inset 0 0 24px rgba(255, 77, 79, 0.35),
+      0 0 18px rgba(255, 77, 79, 0.55);
+    animation: alarm-pulse 1.2s ease-in-out infinite;
+    z-index: 3;
+  }
+}
+
+@keyframes alarm-pulse {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 77, 79, 0.5),
+      inset 0 0 8px rgba(255, 77, 79, 0.12),
+      0 0 4px rgba(255, 77, 79, 0.2);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 4px rgba(255, 77, 79, 1),
+      inset 0 0 44px rgba(255, 77, 79, 0.6),
+      0 0 32px rgba(255, 77, 79, 0.9);
   }
 }
 
@@ -1776,96 +1799,6 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
   }
 }
 
-/* ===== 视频播放弹窗 ===== */
-.video-player-wrap {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #000;
-  overflow: hidden;
-
-  .video-player-frame {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .video-player-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, transparent 30%, transparent 70%, rgba(0, 0, 0, 0.6) 100%);
-
-    .player-controls {
-      position: absolute;
-      bottom: 12px;
-      left: 16px;
-      right: 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      pointer-events: auto;
-
-      .player-play-icon {
-        font-size: 28px;
-        color: #fff;
-        cursor: pointer;
-      }
-
-      .player-progress {
-        flex: 1;
-        height: 3px;
-        background: rgba(255, 255, 255, 0.3);
-        border-radius: 2px;
-        overflow: hidden;
-
-        .player-progress-bar {
-          height: 100%;
-          width: 60%;
-          background: $color-primary;
-          border-radius: 2px;
-        }
-      }
-
-      .player-time {
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.85);
-      }
-    }
-  }
-
-  .video-player-info {
-    position: absolute;
-    top: 12px;
-    left: 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-
-    .player-name {
-      font-size: 14px;
-      font-weight: 500;
-      color: #fff;
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-    }
-
-    .player-status {
-      font-size: 12px;
-      padding: 2px 6px;
-      border-radius: 3px;
-
-      &.online {
-        color: #95de64;
-        background: rgba(43, 179, 163, 0.2);
-      }
-
-      &.offline {
-        color: #d9d9d9;
-        background: rgba(0, 0, 0, 0.3);
-      }
-    }
-  }
-}
 </style>
 
 <!-- 非 scoped 全局样式：覆盖 antd cssinjs 注入的 a-tree 缩进单元宽度 -->

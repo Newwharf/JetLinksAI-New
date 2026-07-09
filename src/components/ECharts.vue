@@ -11,6 +11,10 @@ const props = defineProps<{
   height?: string
 }>()
 
+const emit = defineEmits<{
+  chartClick: [params: any]
+}>()
+
 const elRef = ref<HTMLDivElement | null>(null)
 let chart: echarts.ECharts | null = null
 
@@ -18,6 +22,7 @@ function render() {
   if (!elRef.value) return
   if (!chart) {
     chart = echarts.init(elRef.value)
+    chart.on('click', (params: any) => emit('chartClick', params))
   }
   chart.setOption(props.option, true)
 }

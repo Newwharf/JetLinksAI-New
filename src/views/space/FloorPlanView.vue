@@ -6,6 +6,7 @@
  * 3. 拖拽标记调整位置 / 删除标记 / 缩放与平移画布
  */
 import type { TreeNode } from './AreaView.vue'
+import VideoPlayerModal from '@/components/VideoPlayerModal.vue'
 
 // ===== 标记数据模型 =====
 export interface PlanMarker {
@@ -891,32 +892,8 @@ onUnmounted(() => {
       <span>{{ dragGhost.name }}</span>
     </div>
 
-    <!-- 视频播放弹窗 -->
-    <a-modal
-      v-model:open="playModalVisible"
-      :title="playTarget?.name || '视频播放'"
-      :footer="null"
-      :width="800"
-      :body-style="{ padding: '0', background: '#000' }"
-      wrap-class-name="video-player-modal"
-    >
-      <div class="video-player-wrap">
-        <img v-if="playTarget?.thumb" :src="playTarget.thumb" class="video-player-frame" alt="视频流" />
-        <div class="video-player-overlay">
-          <div class="player-controls">
-            <i class="i-ant-design-pause-circle-filled player-play-icon" />
-            <div class="player-progress">
-              <div class="player-progress-bar" />
-            </div>
-            <span class="player-time">实时</span>
-          </div>
-        </div>
-        <div class="video-player-info">
-          <span class="player-name">{{ playTarget?.name }}</span>
-          <span class="player-status" :class="playTarget?.status">{{ playTarget?.status === 'online' ? '● LIVE' : '● 离线' }}</span>
-        </div>
-      </div>
-    </a-modal>
+    <!-- 视频播放弹窗（共享组件） -->
+    <VideoPlayerModal v-model:open="playModalVisible" :target="playTarget" />
 
     <!-- 白模生成弹窗（询问 / 处理中 / 结果 三态） -->
     <a-modal
@@ -2524,94 +2501,4 @@ onUnmounted(() => {
   }
 }
 
-/* ===== 视频播放弹窗 ===== */
-.video-player-wrap {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #000;
-  overflow: hidden;
-
-  .video-player-frame {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .video-player-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, transparent 30%, transparent 70%, rgba(0, 0, 0, 0.6) 100%);
-
-    .player-controls {
-      position: absolute;
-      bottom: 12px;
-      left: 16px;
-      right: 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      pointer-events: auto;
-
-      .player-play-icon {
-        font-size: 28px;
-        color: #fff;
-        cursor: pointer;
-      }
-
-      .player-progress {
-        flex: 1;
-        height: 3px;
-        background: rgba(255, 255, 255, 0.3);
-        border-radius: 2px;
-        overflow: hidden;
-
-        .player-progress-bar {
-          height: 100%;
-          width: 60%;
-          background: $color-primary;
-          border-radius: 2px;
-        }
-      }
-
-      .player-time {
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.85);
-      }
-    }
-  }
-
-  .video-player-info {
-    position: absolute;
-    top: 12px;
-    left: 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-
-    .player-name {
-      font-size: 14px;
-      font-weight: 500;
-      color: #fff;
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-    }
-
-    .player-status {
-      font-size: 12px;
-      padding: 2px 6px;
-      border-radius: 3px;
-
-      &.online {
-        color: #95de64;
-        background: rgba(43, 179, 163, 0.2);
-      }
-
-      &.offline {
-        color: #d9d9d9;
-        background: rgba(0, 0, 0, 0.3);
-      }
-    }
-  }
-}
 </style>

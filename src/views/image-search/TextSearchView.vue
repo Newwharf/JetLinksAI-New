@@ -5,7 +5,11 @@
  */
 import FilterSidebar from './FilterSidebar.vue'
 import ResultCard from './ResultCard.vue'
-import { buildResults } from './mock'
+import PersonProfileAddModal from './PersonProfileAddModal.vue'
+import { buildResults, type ResultCard as ResultCardData } from './mock'
+import { usePersonProfileStore } from '@/stores/person-profile'
+import { type PersonProfile } from './person-profile.mock'
+import { message } from 'ant-design-vue'
 
 const searchKey = ref('')
 const results = buildResults()
@@ -14,19 +18,48 @@ const results = buildResults()
 const groups = computed(() => [
   { title: '今天', date: '2026.07.02', cards: results }
 ])
+
+// 大图预览
+const previewData = ref<ResultCardData | null>(null)
+const previewVisible = ref(false)
+
+function handlePreview(data: ResultCardData) {
+  previewData.value = data
+  previewVisible.value = true
+}
+
+// 卡片菜单 → 添加到人员档案
+const profileStore = usePersonProfileStore()
+const addProfileVisible = ref(false)
+const addProfilePreset = ref<string[]>([])
+
+function handleMenu(key: string, data: ResultCardData) {
+  if (key === 'add-profile') {
+    addProfilePreset.value = [data.img]
+    addProfileVisible.value = true
+  } else if (key === 'trace') {
+    message.success('已添加到临时轨迹跟踪')
+  }
+}
+
+function handleSubmitProfile(data: Omit<PersonProfile, 'id' | 'createdAt' | 'lastSeenAt' | 'lastSeenCamera' | 'lastSeenArea' | 'eventCount' | 'events' | 'weekHeat'>) {
+  profileStore.addProfile({
+    id: `pf-new-${Date.now()}`,
+    createdAt: '2026-07-08',
+    lastSeenAt: '—',
+    lastSeenCamera: '—',
+    lastSeenArea: '—',
+    eventCount: 0,
+    events: [],
+    weekHeat: Array.from({ length: 7 }, () => new Array(24).fill(0)),
+    ...data
+  })
+  message.success('已添加到人员档案')
+}
 </script>
 
 <template>
   <div class="text-search-page">
-    <!-- 页头 -->
-    <header class="page-header">
-      <div class="page-header__title">
-        <i class="i-ant-design-file-image-outlined page-header__icon" />
-        <h1>文搜图</h1>
-        <span class="page-header__desc">使用自然语言描述检索边缘报警、识别事件与录像库中的关键画面。</span>
-      </div>
-    </header>
-
     <!-- 主体：筛选侧栏 + 内容 -->
     <section class="vbt">
       <FilterSidebar />
@@ -53,12 +86,52 @@ const groups = computed(() => [
               <span>{{ g.date }}</span>
             </header>
             <div class="vbt__grid">
-              <ResultCard v-for="card in g.cards" :key="card.id" :data="card" />
+              <ResultCard v-for="card in g.cards" :key="card.id" :data="card" @preview="handlePreview" @menu="handleMenu" />
             </div>
           </section>
         </div>
       </div>
     </section>
+
+    <!-- 大图预览弹窗 -->
+    <a-modal
+      :open="previewVisible"
+      :width="900"
+      :footer="null"
+      centered
+      @cancel="previewVisible = false"
+    >
+      <div class="preview-modal" v-if="previewData">
+        <div class="preview-img-wrap">
+          <img :src="previewData.img" class="preview-img" alt="大图" />
+          <div
+            v-for="(b, i) in previewData.bboxes"
+            :key="i"
+            class="preview-bbox"
+            :style="{ left: b.x + '%', top: b.y + '%', width: b.w + '%', height: b.h + '%' }"
+          />
+        </div>
+        <div class="preview-meta">
+          <div class="preview-title">{{ previewData.title }}</div>
+          <div class="preview-info">
+            <span class="preview-location">
+              <i class="i-ant-design-environment-outlined" />{{ previewData.location }}
+            </span>
+            <span class="preview-time">
+              <i class="i-ant-design-clock-circle-outlined" />{{ previewData.time }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </a-modal>
+
+    <!-- 添加到人员档案弹窗 -->
+    <PersonProfileAddModal
+      v-model:open="addProfileVisible"
+      :preset-faces="addProfilePreset"
+      @submit="handleSubmitProfile"
+    />
+
   </div>
 </template>
 
@@ -68,48 +141,27 @@ const groups = computed(() => [
 .text-search-page {
   height: 100%;
   background: $bg-page;
-  padding: 0 20px 12px;
-  overflow-y: auto;
-}
-
-/* 页头 */
-.page-header {
+  padding: 12px 20px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0 16px;
-  margin-bottom: 16px;
-}
-
-.page-header__title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  .page-header__icon {
-    font-size: 18px;
-    color: $text-base;
-  }
-
-  h1 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 650;
-    color: $text-base;
-  }
-
-  .page-header__desc {
-    margin-left: 4px;
-    font-size: 14px;
-    color: $text-muted;
-  }
+  overflow: hidden;
 }
 
 /* 主体布局 */
 .vbt {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 16px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* 左侧筛选栏：固定不滚动 */
+.vbt > :first-child {
+  flex-shrink: 0;
+  align-self: flex-start;
+  position: sticky;
+  top: 0;
 }
 
 .vbt__content {
@@ -118,6 +170,7 @@ const groups = computed(() => [
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto;
 }
 
 /* 工具栏 */
@@ -220,5 +273,63 @@ const groups = computed(() => [
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(256px, 1fr));
   gap: 12px;
+}
+
+/* 大图预览弹窗 */
+.preview-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preview-img-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1a1a2e;
+}
+
+.preview-img {
+  width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+  display: block;
+}
+
+.preview-bbox {
+  position: absolute;
+  border: 2px solid rgb(52, 199, 89);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.preview-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preview-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: $text-base;
+}
+
+.preview-info {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: $text-tertiary;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  i {
+    font-size: 13px;
+  }
 }
 </style>
