@@ -475,7 +475,6 @@ const positionColor: Record<string, string> = { '初级护工': '#52c41a', '中�
   align-items: center;
   justify-content: space-between;
   min-height: 32px;
-}
 
   h3 {
     margin: 0;
