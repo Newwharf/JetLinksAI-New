@@ -1,96 +1,80 @@
 <script setup lang="ts">
 /**
- * 新建项目向导（三步）
- * ① 选模板 → ② 填信息（含 Logo 双模式）→ ③ 接入网关（三方式）→ 确认创建
+ * 新建项目弹窗（单步，左右布局）
+ * 左：选择项目模板（可选）；右：填写名称、说明、区域、访问地址、Logo
+ * 选择模板后，未被用户手动修改过的字段自动填入
  */
 import { ref, reactive, computed, watch } from 'vue'
 import { scenarioOptions } from './templates'
-import { gateways, type Project, type Gateway } from './workbench.mock'
+import { type Project } from './workbench.mock'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{
   'update:open': [v: boolean]
-  submit: [project: Project, gatewayId?: string]
+  submit: [project: Project]
 }>()
-
-// ===== 步骤索引 =====
-const current = ref(0)
-const steps = [
-  { title: '选择模板', desc: '选择一个场景模板快速开始' },
-  { title: '填写信息', desc: '完善项目基本信息' },
-  { title: '接入网关', desc: '绑定网关开始采集数据' }
-]
 
 // ===== 表单 =====
 const form = reactive({
-  // 步骤1
   template: '' as string,
-  // 步骤2
   name: '',
   description: '',
   region: '西南1',
   urlSuffix: '',
-  logoMode: 'char' as 'char' | 'image',
-  logoChar: '',
-  logoColor: '#3b82f6',
   logoImg: '' as string,
-  // 步骤3
-  gatewayMode: 'select' as 'select' | 'sn' | 'scan',
-  selectedGatewayId: '' as string,
-  snInput: '',
-  confirmedGateway: null as Gateway | null
+  logoPrompt: '' as string  // AI 生成 Logo 的描述
 })
 
-// Logo 预设色卡
-const logoColors = [
-  '#3b82f6', '#f59e0b', '#10b981', '#8b5cf6',
-  '#ec4899', '#06b6d4', '#ef4444', '#6366f1'
-]
+// 脏字段追踪：记录用户手动修改过的字段，模板填充时跳过这些字段
+const dirty = reactive<Record<string, boolean>>({
+  name: false,
+  description: false,
+  region: false,
+  urlSuffix: false
+})
+// 标记字段为脏（用户输入时触发）
+function markDirty(field: keyof typeof dirty) {
+  dirty[field] = true
+}
+
+// 后缀校验：字母数字连字符，3-20 位
+const suffixValid = computed(() => !form.urlSuffix || /^[a-z0-9-]{3,20}$/i.test(form.urlSuffix))
+const formValid = computed(() => !!form.name.trim() && suffixValid.value)
 
 // 打开时重置
 watch(() => props.open, (v) => {
   if (v) {
-    current.value = 0
     form.template = ''
     form.name = ''
     form.description = ''
     form.region = '西南1'
-    form.urlSuffix = ''
-    form.logoMode = 'char'
-    form.logoChar = ''
-    form.logoColor = '#3b82f6'
+    form.urlSuffix = 'project-' + Math.random().toString(36).slice(2, 6)
     form.logoImg = ''
-    form.gatewayMode = 'select'
-    form.selectedGatewayId = ''
-    form.snInput = ''
-    form.confirmedGateway = null
+    form.logoPrompt = ''
+    Object.keys(dirty).forEach(k => (dirty[k] = false))
+    advancedOpen.value = false
+    createStage.value = 'form'
+    currentStep.value = 0
+    if (createTimer) { clearInterval(createTimer); createTimer = null }
   }
 })
 
-// 名称变化 → 自动更新 logoChar（char 模式且用户未手改时）
-watch(() => form.name, (n) => {
-  if (form.logoMode === 'char' && n) {
-    form.logoChar = n.charAt(0)
-  }
-})
-
-// 模板选中 → 预填名称/logo/色
+// 选择模板 → 仅填充未被用户修改过的字段（空白模板不填充任何内容）
 function selectTemplate(value: string) {
-  form.template = value
-  const t = scenarioOptions.find(o => o.value === value)
-  if (t) {
-    form.name = t.name
-    form.logoChar = t.logo
-    form.logoColor = t.iconColor
-    form.description = t.desc
+  // 切换选中态（再次点击同一模板 = 取消选择）
+  if (form.template === value) {
+    form.template = ''
+    return
   }
+  form.template = value
+  // 空白模板：不填充任何字段
+  if (value === 'blank') return
+  const t = scenarioOptions.find(o => o.value === value)
+  if (!t) return
+  if (!dirty.name) form.name = t.name
+  if (!dirty.description) form.description = t.desc
+  if (!dirty.urlSuffix) form.urlSuffix = t.value + '-' + Math.random().toString(36).slice(2, 6)
 }
-
-// ===== 步骤校验 =====
-const step1Valid = computed(() => !!form.template)
-// 后缀校验：字母数字连字符，3-20 位
-const suffixValid = computed(() => !form.urlSuffix || /^[a-z0-9-]{3,20}$/i.test(form.urlSuffix))
-const step2Valid = computed(() => !!form.name.trim() && suffixValid.value)
 
 // ===== Logo 图片上传（隐藏 input）=====
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -105,425 +89,481 @@ function onFileChange(e: Event) {
   }
   input.value = ''
 }
-function clearLogoImg() {
+function clearLogo() {
   form.logoImg = ''
 }
-// AI 生成（mock）
+
+// AI 生成 Logo（mock：根据描述生成随机占位图）
 function aiGenerateLogo() {
-  if (form.logoMode === 'char') {
-    // 随机换色
-    form.logoColor = logoColors[Math.floor(Math.random() * logoColors.length)]
-  } else {
-    // 随机占位图
-    const seed = Math.floor(Math.random() * 1000)
-    form.logoImg = `https://api.dicebear.com/7.x/shapes/svg?seed=${seed}`
-  }
+  const prompt = form.logoPrompt.trim()
+  const seed = prompt ? prompt : Math.random().toString(36).slice(2, 8)
+  form.logoImg = `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(seed)}`
 }
 
-// ===== 步骤3：网关 =====
-// 未绑定项目的网关（可选择的）
-const unboundGateways = computed(() => gateways.value.filter(g => g.projectId === null))
+// ===== 区域选项 =====
+const regions = ['西南1', '华东1', '华东2', '华北1', '华北2', '华南1', '华南2']
 
-function onSelectGateway(id: string) {
-  form.selectedGatewayId = id
-  const g = unboundGateways.value.find(x => x.id === id)
-  form.confirmedGateway = g || null
+// ===== 高级选项 =====
+const advancedOpen = ref(false)
+
+// 项目模块（基础能力）
+interface ModuleItem {
+  key: string
+  title: string
+  desc: string
+  icon: string
+  iconColor: string
+  enabled: boolean
 }
-
-// SN 查找（mock：匹配现有网关 SN，或返回一个新网关）
-function searchBySn() {
-  const sn = form.snInput.trim()
-  if (!sn) return
-  const found = gateways.value.find(g => g.sn.toLowerCase() === sn.toLowerCase())
-  if (found) {
-    form.confirmedGateway = found
-  } else {
-    // mock 一个新发现的网关
-    form.confirmedGateway = {
-      id: `new-${Date.now()}`,
-      sn,
-      projectId: null,
-      projectName: null,
-      model: 'JetLinks-Edge-2000',
-      cpu: 0,
-      memory: 0,
-      disk: 0,
-      status: 'online'
-    }
-  }
+const modules = reactive<ModuleItem[]>([
+  { key: 'situation', title: '空间态势', desc: '空间资源可视化、设备分布与实时态势', icon: 'i-ant-design-global-outlined', iconColor: '#3b82f6', enabled: true },
+  { key: 'video', title: '物联视联', desc: '监控墙、视频播放、问图检索与设备管理', icon: 'i-ant-design-video-camera-outlined', iconColor: '#8b5cf6', enabled: true },
+  { key: 'alarm', title: '巡检告警中心', desc: '告警事件管理、告警规则与巡检配置', icon: 'i-ant-design-alert-outlined', iconColor: '#ef4444', enabled: true },
+  { key: 'visualization', title: '可视化', desc: '数据看板与数据资产展示', icon: 'i-ant-design-dashboard-outlined', iconColor: '#10b981', enabled: true },
+  { key: 'elderly', title: '养老场景专用', desc: '老人行为分析、护工管理与床位态势', icon: 'i-ant-design-medicine-box-outlined', iconColor: '#ec4899', enabled: false }
+])
+function toggleModule(m: ModuleItem) {
+  m.enabled = !m.enabled
 }
 
-// 扫码（mock）
-function simulateScan() {
-  form.confirmedGateway = {
-    id: `scan-${Date.now()}`,
-    sn: 'JLE-SCAN-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
-    projectId: null,
-    projectName: null,
-    model: 'JetLinks-Edge-3000',
-    cpu: 15,
-    memory: 22,
-    disk: 10,
-    status: 'online'
-  }
-}
+// ===== 创建流程：creating（创建中）→ success（成功）=====
+type CreateStage = 'form' | 'creating' | 'success'
+const createStage = ref<CreateStage>('form')
 
-function clearGateway() {
-  form.confirmedGateway = null
-  form.selectedGatewayId = ''
-  form.snInput = ''
-}
+// 创建步骤
+const createSteps = [
+  '初始化项目资源',
+  '配置访问地址',
+  '应用模板设置',
+  '完成项目创建'
+]
+const currentStep = ref(0)
+let createTimer: ReturnType<typeof setInterval> | null = null
 
-// ===== 步骤导航 =====
-function next() {
-  if (current.value < 2) current.value++
-}
-function prev() {
-  if (current.value > 0) current.value--
-}
+const pendingProject = ref<Project | null>(null)
+
 function close() {
+  // 重置到表单态
+  if (createTimer) { clearInterval(createTimer); createTimer = null }
+  createStage.value = 'form'
+  currentStep.value = 0
   emit('update:open', false)
 }
 
-// ===== 提交 =====
 function confirmCreate() {
-  const id = `p-${Date.now()}`
-  const project: Project = {
-    id,
+  if (!formValid.value) return
+  pendingProject.value = {
+    id: `p-${Date.now()}`,
     name: form.name.trim(),
     region: form.region,
     description: form.description.trim() || '暂无说明',
     subscriptionDays: 30,
     status: 'running',
     alarmCount: 0,
-    iconColor: form.logoMode === 'char' ? form.logoColor : '#3b82f6',
-    iconChar: form.logoMode === 'char' ? (form.logoChar || form.name.charAt(0)) : form.name.charAt(0)
+    iconColor: scenarioOptions.find(o => o.value === form.template)?.iconColor || '#3b82f6',
+    iconChar: form.name.trim().charAt(0)
   }
-  const gwId = form.confirmedGateway?.id
-  emit('submit', project, gwId)
-  emit('update:open', false)
+  // 进入创建中
+  createStage.value = 'creating'
+  currentStep.value = 0
+  // 模拟步骤推进（每 700ms 推进一步）
+  createTimer = setInterval(() => {
+    if (currentStep.value < createSteps.length - 1) {
+      currentStep.value++
+    } else {
+      // 最后一步完成
+      if (createTimer) { clearInterval(createTimer); createTimer = null }
+      createStage.value = 'success'
+    }
+  }, 700)
+}
+
+// 成功后：进入项目
+function enterCreatedProject() {
+  if (pendingProject.value) {
+    emit('submit', pendingProject.value)
+  }
+  close()
+}
+
+// 成功后：不进入，仅关闭（项目仍创建）
+function justClose() {
+  if (pendingProject.value) {
+    emit('submit', pendingProject.value)
+  }
+  close()
 }
 </script>
 
 <template>
   <a-modal
     :open="open"
-    :width="720"
+    :width="createStage === 'form' ? (advancedOpen ? 1220 : 880) : 460"
     centered
     :footer="null"
-    title="新建项目"
+    :closable="createStage === 'form'"
     wrap-class-name="project-wizard-modal"
     @cancel="close"
   >
-    <!-- 步骤指示器 -->
-    <a-steps :current="current" size="small" class="wizard-steps">
-      <a-step v-for="(s, i) in steps" :key="i" :title="s.title" :description="s.desc" />
-    </a-steps>
+    <template #title>
+      <span>{{
+        createStage === 'creating' ? '正在创建项目'
+        : createStage === 'success' ? '创建成功'
+        : '新建项目'
+      }}</span>
+    </template>
 
-    <div class="wizard-body">
-      <!-- ===== 步骤1：选模板 ===== -->
-      <div v-if="current === 0" class="step-panel">
-        <div class="tpl-grid">
+    <!-- ===== 表单态：分隔线 + 左右布局 + footer ===== -->
+    <template v-if="createStage === 'form'">
+      <!-- 标题栏下方：分隔线 -->
+      <div class="pw-topbar">
+        <div class="pw-topbar__line" />
+      </div>
+    <div class="pw-layout">
+      <!-- ===== 左：选择模板 ===== -->
+      <div class="pw-left">
+        <div class="pw-section-title">选择模板</div>
+        <div class="tpl-list">
           <div
             v-for="t in scenarioOptions"
             :key="t.value"
-            class="tpl-card"
+            class="tpl-item"
             :class="{ active: form.template === t.value }"
             @click="selectTemplate(t.value)"
           >
-            <div class="tpl-card__logo" :style="{ background: t.iconColor }">{{ t.logo }}</div>
-            <div class="tpl-card__name">{{ t.label }}</div>
-            <div class="tpl-card__desc">{{ t.desc }}</div>
-            <i v-if="form.template === t.value" class="i-ant-design-check-circle-filled tpl-card__check" />
+            <div class="tpl-item__logo" :style="{ background: t.iconColor }">
+              <i :class="t.icon" style="font-size:18px;color:#fff" />
+            </div>
+            <div class="tpl-item__text">
+              <span class="tpl-item__name">{{ t.label }}</span>
+              <span class="tpl-item__desc">{{ t.desc }}</span>
+            </div>
+            <i v-if="form.template === t.value" class="i-ant-design-check-circle-filled tpl-item__check" />
           </div>
         </div>
       </div>
 
-      <!-- ===== 步骤2：填信息 ===== -->
-      <div v-else-if="current === 1" class="step-panel">
-        <!-- 项目名称 -->
-        <div class="form-row">
-          <label class="form-label"><span class="req">*</span>项目名称</label>
-          <a-input v-model:value="form.name" placeholder="请输入项目名称" :maxlength="30" />
+      <!-- ===== 右：基本信息 ===== -->
+      <div class="pw-right">
+        <div class="pw-right-head">
+          <div class="pw-section-title">基本信息</div>
+          <button class="pw-advanced-btn" :class="{ active: advancedOpen }" @click="advancedOpen = !advancedOpen">
+            <i class="i-ant-design-setting-outlined" />
+            高级选项
+            <i class="i-ant-design-down-outlined pw-advanced-arrow" />
+          </button>
         </div>
 
-        <!-- 项目说明 -->
-        <div class="form-row">
-          <label class="form-label">项目说明</label>
-          <a-textarea
-            v-model:value="form.description"
-            placeholder="请输入项目说明"
-            :rows="2"
-            :maxlength="100"
-          />
-        </div>
-
-        <!-- 项目区域 -->
-        <div class="form-row">
-          <label class="form-label">所在区域</label>
-          <a-select
-            v-model:value="form.region"
-            class="form-select"
-            :options="['西南1','华东1','华东2','华北1','华北2','华南1','华南2'].map(r => ({ value: r, label: r }))"
-          />
-        </div>
-
-        <!-- 访问地址 -->
-        <div class="form-row">
-          <label class="form-label"><span class="req">*</span>项目访问地址</label>
-          <div class="url-wrap">
-            <span class="url-prefix">https://jetlinks.cn/p/</span>
+        <!-- 第一行：项目名称 + 所在区域 -->
+        <div class="pw-row pw-row--2">
+          <div class="pw-field">
+            <label class="pw-label"><span class="req">*</span>项目名称</label>
             <a-input
-              v-model:value="form.urlSuffix"
-              class="url-suffix"
-              placeholder="仅字母、数字、连字符"
+              v-model:value="form.name"
+              placeholder="请输入项目名称"
+              :maxlength="30"
+              @input="markDirty('name')"
             />
           </div>
-          <span v-if="!suffixValid" class="form-error">后缀仅允许字母、数字、连字符（3-20 位）</span>
+          <div class="pw-field">
+            <label class="pw-label">所在区域</label>
+            <a-select
+              v-model:value="form.region"
+              class="pw-field__ctl"
+              :options="regions.map(r => ({ value: r, label: r }))"
+              @change="markDirty('region')"
+            />
+          </div>
         </div>
 
-        <!-- 选择 Logo -->
-        <div class="form-row">
-          <label class="form-label">项目 Logo</label>
-          <div class="logo-area">
-            <!-- 模式切换 -->
-            <div class="logo-modes">
-              <button
-                class="logo-mode-btn"
-                :class="{ active: form.logoMode === 'char' }"
-                @click="form.logoMode = 'char'"
-              >文字 Logo</button>
-              <button
-                class="logo-mode-btn"
-                :class="{ active: form.logoMode === 'image' }"
-                @click="form.logoMode = 'image'"
-              >图片 Logo</button>
-              <button class="logo-ai-btn" @click="aiGenerateLogo">
-                <i class="i-lucide-wand-sparkles" /> AI 生成
-              </button>
-            </div>
+        <!-- 第二行：项目说明 -->
+        <div class="pw-row">
+          <div class="pw-field">
+            <label class="pw-label">项目说明</label>
+            <a-textarea
+              v-model:value="form.description"
+              placeholder="请输入项目说明"
+              :rows="2"
+              :maxlength="100"
+              @input="markDirty('description')"
+            />
+          </div>
+        </div>
 
-            <!-- char 模式 -->
-            <div v-if="form.logoMode === 'char'" class="logo-char-wrap">
-              <div class="logo-preview" :style="{ background: form.logoColor }">
-                {{ form.logoChar || '?' }}
-              </div>
-              <div class="logo-char-edit">
-                <a-input v-model:value="form.logoChar" placeholder="单字" :maxlength="1" class="logo-char-input" />
-                <div class="logo-color-chips">
-                  <button
-                    v-for="c in logoColors"
-                    :key="c"
-                    class="logo-color-chip"
-                    :class="{ active: form.logoColor === c }"
-                    :style="{ background: c }"
-                    @click="form.logoColor = c"
-                  />
-                </div>
-              </div>
+        <!-- 第三行：访问地址 -->
+        <div class="pw-row">
+          <div class="pw-field">
+            <label class="pw-label"><span class="req">*</span>项目访问地址</label>
+            <div class="url-wrap">
+              <span class="url-prefix">https://jetlinks.cn/p/</span>
+              <a-input
+                v-model:value="form.urlSuffix"
+                class="url-suffix"
+                placeholder="仅字母、数字、连字符"
+                @input="markDirty('urlSuffix')"
+              />
             </div>
+            <span v-if="!suffixValid" class="pw-error">后缀仅允许字母、数字、连字符（3-20 位）</span>
+          </div>
+        </div>
 
-            <!-- image 模式 -->
-            <div v-else class="logo-img-wrap">
-              <div v-if="form.logoImg" class="logo-img-preview">
+        <!-- 第四行：Logo（上传 + AI 生成）-->
+        <div class="pw-row">
+          <div class="pw-field">
+            <label class="pw-label">项目 Logo</label>
+            <div class="logo-area">
+              <!-- 上传 -->
+              <div v-if="form.logoImg" class="logo-preview">
                 <img :src="form.logoImg" alt="Logo" />
-                <button class="logo-img-clear" @click="clearLogoImg">
+                <button class="logo-clear" @click="clearLogo">
                   <i class="i-ant-design-close-outlined" />
                 </button>
               </div>
-              <button v-else class="logo-img-upload" @click="triggerUpload">
+              <button v-else class="logo-upload" @click="triggerUpload">
                 <i class="i-ant-design-plus-outlined" />
-                <span>上传图片</span>
+                <span>上传 Logo</span>
               </button>
               <input ref="fileInput" type="file" accept="image/*" hidden @change="onFileChange" />
+
+              <!-- AI 生成输入框（生成按钮内嵌右侧）-->
+              <div class="logo-ai">
+                <a-input
+                  v-model:value="form.logoPrompt"
+                  placeholder="描述 Logo 风格，AI 帮你生成"
+                  @keyup.enter="aiGenerateLogo"
+                >
+                  <template #suffix>
+                    <button
+                      class="logo-ai-btn"
+                      :disabled="!form.logoPrompt.trim()"
+                      @click="aiGenerateLogo"
+                    >
+                      <i class="i-lucide-wand-sparkles" />
+                      生成
+                    </button>
+                  </template>
+                </a-input>
+              </div>
             </div>
           </div>
         </div>
+
       </div>
 
-      <!-- ===== 步骤3：接入网关 ===== -->
-      <div v-else class="step-panel">
-        <!-- 已确认网关 → 展示确认卡 -->
-        <div v-if="form.confirmedGateway" class="gw-confirm">
-          <div class="gw-confirm__title">已选择网关，请确认：</div>
-          <div class="gw-confirm__card">
-            <div class="gw-confirm__row">
-              <span class="gw-confirm__label">SN 号</span>
-              <span class="gw-confirm__val">{{ form.confirmedGateway.sn }}</span>
+      <!-- ===== 右侧第三栏：高级选项-模块展示（点击高级选项后显示）===== -->
+      <div v-if="advancedOpen" class="pw-advanced">
+        <div class="pw-advanced__title">基础能力 · 项目模块</div>
+        <div class="pw-advanced__body">
+          <div
+            v-for="m in modules"
+            :key="m.key"
+            class="mod-item"
+            :class="{ disabled: !m.enabled }"
+          >
+            <a-checkbox :checked="m.enabled" @change="toggleModule(m)" class="mod-item__check" />
+            <div class="mod-item__icon" :style="{ background: m.iconColor }">
+              <i :class="m.icon" />
             </div>
-            <div class="gw-confirm__row">
-              <span class="gw-confirm__label">型号</span>
-              <span class="gw-confirm__val">{{ form.confirmedGateway.model }}</span>
+            <div class="mod-item__text">
+              <a-tooltip :title="m.desc" placement="top">
+                <span class="mod-item__title">{{ m.title }}</span>
+              </a-tooltip>
             </div>
-            <div class="gw-confirm__row">
-              <span class="gw-confirm__label">状态</span>
-              <span class="gw-confirm__val" :class="form.confirmedGateway.status">
-                {{ form.confirmedGateway.status === 'online' ? '在线' : '离线' }}
-              </span>
-            </div>
-          </div>
-          <button class="gw-confirm__reselect" @click="clearGateway">重新选择</button>
-        </div>
-
-        <!-- 未确认 → 三种方式 -->
-        <div v-else>
-          <!-- 方式切换 -->
-          <div class="gw-modes">
-            <button
-              class="gw-mode-btn"
-              :class="{ active: form.gatewayMode === 'select' }"
-              @click="form.gatewayMode = 'select'"
-            >从已有网关选择</button>
-            <button
-              class="gw-mode-btn"
-              :class="{ active: form.gatewayMode === 'sn' }"
-              @click="form.gatewayMode = 'sn'"
-            >输入 SN 号</button>
-            <button
-              class="gw-mode-btn"
-              :class="{ active: form.gatewayMode === 'scan' }"
-              @click="form.gatewayMode = 'scan'"
-            >扫码加入</button>
-          </div>
-
-          <!-- 选择已有 -->
-          <div v-if="form.gatewayMode === 'select'" class="gw-mode-panel">
-            <div v-if="unboundGateways.length" class="gw-pick-list">
-              <div
-                v-for="g in unboundGateways"
-                :key="g.id"
-                class="gw-pick-item"
-                :class="{ active: form.selectedGatewayId === g.id }"
-                @click="onSelectGateway(g.id)"
-              >
-                <i class="i-ant-design-hdd-outlined" />
-                <div class="gw-pick-info">
-                  <span class="gw-pick-sn">{{ g.sn }}</span>
-                  <span class="gw-pick-model">{{ g.model }}</span>
-                </div>
-                <span class="gw-pick-status" :class="g.status">{{ g.status === 'online' ? '在线' : '离线' }}</span>
-              </div>
-            </div>
-            <div v-else class="gw-empty">暂无未绑定项目的网关</div>
-          </div>
-
-          <!-- SN 号 -->
-          <div v-else-if="form.gatewayMode === 'sn'" class="gw-mode-panel">
-            <div class="gw-sn-input">
-              <a-input
-                v-model:value="form.snInput"
-                placeholder="请输入网关 SN 号"
-                @keyup.enter="searchBySn"
-              />
-              <a-button type="primary" :disabled="!form.snInput.trim()" @click="searchBySn">查找</a-button>
-            </div>
-            <p class="gw-hint">输入网关底部的 SN 编号，系统将自动识别并展示网关信息。</p>
-          </div>
-
-          <!-- 扫码 -->
-          <div v-else class="gw-mode-panel">
-            <div class="gw-scan">
-              <div class="gw-scan-frame">
-                <i class="i-ant-design-scan-outlined" />
-              </div>
-              <a-button type="primary" @click="simulateScan">模拟扫码</a-button>
-              <p class="gw-hint">扫描网关机身的二维码即可快速加入</p>
-            </div>
+            <button class="mod-item__usage">
+              <i class="i-ant-design-bar-chart-outlined" />
+            </button>
           </div>
         </div>
-
-        <!-- 跳过提示 -->
-        <div class="gw-skip">无需现在接入，可在项目创建后随时绑定网关</div>
       </div>
     </div>
 
     <!-- 底部按钮 -->
-    <div class="wizard-footer">
+    <div class="pw-footer">
       <a-button @click="close">取消</a-button>
-      <div class="wizard-footer-right">
-        <a-button v-if="current > 0" @click="prev">上一步</a-button>
-        <a-button v-if="current < 2" type="primary" :disabled="current === 0 ? !step1Valid : !step2Valid" @click="next">
-          下一步
-        </a-button>
-        <a-button v-else type="primary" @click="confirmCreate">确认创建</a-button>
-      </div>
+      <a-button type="primary" :disabled="!formValid" @click="confirmCreate">确认创建</a-button>
     </div>
+    </template><!-- /表单态 -->
+
+    <!-- ===== 创建中：加载动画 + 步骤 ===== -->
+    <template v-else-if="createStage === 'creating'">
+      <div class="creating">
+        <div class="creating__spinner">
+          <i class="i-ant-design-loading-outlined" />
+        </div>
+        <div class="creating__title">正在创建「{{ pendingProject?.name }}」</div>
+        <div class="creating__sub">请稍候，系统正在为您初始化项目资源</div>
+        <div class="creating__steps">
+          <div
+            v-for="(s, i) in createSteps"
+            :key="i"
+            class="cs-item"
+            :class="{ done: i < currentStep, active: i === currentStep }"
+          >
+            <span class="cs-icon">
+              <i v-if="i < currentStep" class="i-ant-design-check-circle-filled" />
+              <i v-else-if="i === currentStep" class="i-ant-design-loading-outlined" />
+              <i v-else class="i-ant-design-clock-circle-outlined" />
+            </span>
+            <span class="cs-label">{{ s }}</span>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== 创建成功 ===== -->
+    <template v-else>
+      <div class="success">
+        <div class="success__icon">
+          <i class="i-ant-design-check-circle-filled" />
+        </div>
+        <div class="success__title">项目创建成功！</div>
+        <div class="success__sub">项目「{{ pendingProject?.name }}」已准备就绪</div>
+        <div class="success__actions">
+          <a-button @click="justClose">暂不进入</a-button>
+          <a-button type="primary" @click="enterCreatedProject">立即进入项目</a-button>
+        </div>
+      </div>
+    </template>
   </a-modal>
 </template>
 
 <style scoped lang="scss">
 @use '@/styles/variables' as *;
 
-/* ===== a-steps 样式兜底（因 importStyle:false，antd 默认样式不注入）===== */
-.wizard-steps {
-  margin-bottom: 28px;
+/* ===== 标题栏下方：分隔线 ===== */
+.pw-topbar {
+  margin-bottom: 16px;
+}
 
-  :deep(.ant-steps-item-title) {
-    font-size: 14px;
-    font-weight: 500;
+.pw-topbar__line {
+  height: 1px;
+  background: $border-color-card;
+}
+
+/* 右侧标题行：基本信息 + 高级选项 */
+.pw-right-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+/* 高级选项按钮 */
+.pw-advanced-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid $border-color-card;
+  border-radius: 9999px;
+  background: #fff;
+  font-size: 12px;
+  font-family: inherit;
+  color: $text-secondary;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  i {
+    font-size: 13px;
   }
 
-  :deep(.ant-steps-item-description) {
-    font-size: 12px !important;
-  }
-
-  :deep(.ant-steps-item-icon) {
-    .ant-steps-icon {
-      font-size: 14px;
-    }
-  }
-
-  :deep(.ant-steps-item-finish .ant-steps-item-icon) {
-    background-color: $saas-primary;
+  &:hover,
+  &.active {
     border-color: $saas-primary;
-
-    .ant-steps-icon {
-      color: #fff;
-    }
+    color: $saas-primary;
   }
 
-  :deep(.ant-steps-item-active .ant-steps-item-icon) {
-    background-color: #fff;
-    border-color: $saas-primary;
-
-    .ant-steps-icon {
-      color: $saas-primary;
-    }
+  .pw-advanced-arrow {
+    transition: transform 0.2s;
   }
 
-  :deep(.ant-steps-item-active:not(.ant-steps-item-process) .ant-steps-item-icon) {
-    background-color: $saas-primary;
-  }
-
-  :deep(.ant-steps-item-finish > .ant-steps-item-container > .ant-steps-item-tail::after) {
-    background-color: $saas-primary;
+  &.active .pw-advanced-arrow {
+    transform: rotate(180deg);
   }
 }
 
-.wizard-body {
-  min-height: 320px;
-  max-height: 460px;
-  overflow-y: auto;
+/* ===== 左右布局 ===== */
+.pw-layout {
+  display: flex;
+  gap: 20px;
+  min-height: 420px;
 }
 
-/* ===== 步骤1：模板选择 ===== */
-.tpl-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-.tpl-card {
-  position: relative;
+.pw-left {
+  width: 260px;
+  flex-shrink: 0;
+  border-right: 1px solid $border-color-card;
+  padding-right: 20px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+}
+
+.pw-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pw-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-base;
+  margin-bottom: 14px;
+}
+
+/* 右侧标题在 head 容器内，去掉独立 margin，由 head flex 居中 */
+.pw-right-head .pw-section-title {
+  margin-bottom: 0;
+  line-height: 26px;
+}
+
+/* ===== 模板列表（左）===== */
+.tpl-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  padding: 18px 14px;
+  overflow-y: auto;
+  /* 默认隐藏滚动条 */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+
+  /* hover 时显示滚动条 */
+  &:hover {
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  }
+
+  /* webkit 滚动条 */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 3px;
+    transition: background 0.2s;
+  }
+
+  &:hover::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+  }
+}
+
+.tpl-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
   border: 1px solid $border-color-card;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
-  text-align: center;
   transition: all 0.2s;
 
   &:hover {
@@ -536,47 +576,73 @@ function confirmCreate() {
   }
 }
 
-.tpl-card__logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
+.tpl-item__logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 600;
+  flex-shrink: 0;
 }
 
-.tpl-card__name {
-  font-size: 14px;
+.tpl-item__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tpl-item__name {
+  font-size: 13px;
   font-weight: 600;
   color: $text-base;
 }
 
-.tpl-card__desc {
-  font-size: 12px;
+.tpl-item__desc {
+  font-size: 11px;
   color: $text-muted;
-  line-height: 1.5;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.tpl-card__check {
+.tpl-item__check {
   position: absolute;
   top: 8px;
   right: 8px;
-  font-size: 18px;
+  font-size: 16px;
   color: $saas-primary;
 }
 
-/* ===== 步骤2：表单 ===== */
-.form-row {
+/* ===== 表单（右）===== */
+.pw-row {
+  margin-bottom: 16px;
+
+  &--2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+}
+
+.pw-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 16px;
+
+  &__ctl {
+    width: 100%;
+  }
 }
 
-.form-label {
+.pw-label {
   font-size: 13px;
   font-weight: 500;
   color: $text-secondary;
@@ -587,30 +653,31 @@ function confirmCreate() {
   }
 }
 
-.form-select {
-  width: 100%;
-}
-
-.form-error {
+.pw-error {
   font-size: 12px;
   color: #ff4d4f;
 }
 
-/* 访问地址 */
+/* 访问地址：统一边框容器，内部无缝拼接 */
 .url-wrap {
   display: flex;
-  align-items: center;
-  gap: 0;
+  align-items: stretch;
+  border: 1px solid $border-color-input;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+  transition: border-color 0.2s;
+
+  &:focus-within {
+    border-color: $saas-primary;
+  }
 }
 
 .url-prefix {
-  height: 32px;
-  line-height: 32px;
+  display: flex;
+  align-items: center;
   padding: 0 12px;
   background: $bg-page;
-  border: 1px solid $border-color-input;
-  border-right: none;
-  border-radius: 6px 0 0 6px;
   font-size: 13px;
   color: $text-muted;
   white-space: nowrap;
@@ -619,128 +686,93 @@ function confirmCreate() {
 .url-suffix {
   flex: 1;
 
+  /* 去掉 a-input 的 affix-wrapper 边框和圆角，让外层统一控制 */
+  :deep(.ant-input-affix-wrapper) {
+    border: none;
+    border-radius: 0;
+    box-shadow: none !important;
+  }
+
+  :deep(.ant-input-affix-wrapper-focused) {
+    border: none;
+    box-shadow: none !important;
+  }
+
   :deep(.ant-input) {
-    border-radius: 0 6px 6px 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none !important;
   }
 }
 
-/* Logo 区域 */
+/* Logo 区：上传 + AI 输入 */
 .logo-area {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 12px;
 }
 
-.logo-modes {
-  display: flex;
-  gap: 8px;
-}
+/* AI 生成输入框（与上传按钮等高 64px）*/
+.logo-ai {
+  flex: 1;
 
-.logo-mode-btn,
-.logo-ai-btn {
-  height: 30px;
-  padding: 0 14px;
-  border: 1px solid $border-color-card;
-  border-radius: 6px;
-  background: #fff;
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  color: $text-secondary;
-  transition: all 0.2s;
+  :deep(.ant-input-affix-wrapper) {
+    height: 64px;
+    align-items: flex-end;  /* 内容靠下 */
+    padding: 0 8px 6px 12px;
+  }
 
-  i {
-    font-size: 14px;
+  :deep(.ant-input) {
+    height: 28px;
   }
 }
 
-.logo-mode-btn.active {
-  border-color: $saas-primary;
-  background: $saas-primary-bg;
-  color: $saas-primary;
-}
-
+/* 内嵌生成按钮（输入框右下角）*/
 .logo-ai-btn {
-  border-color: $saas-primary;
-  color: $saas-primary;
   display: flex;
   align-items: center;
   gap: 4px;
+  height: 28px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background: $saas-primary;
+  color: #fff;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 4px;
 
-  &:hover {
-    background: $saas-primary-bg;
+  i {
+    font-size: 13px;
   }
-}
 
-/* char 模式 */
-.logo-char-wrap {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+  &:hover:not(:disabled) {
+    background: $saas-primary-hover;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 }
 
 .logo-preview {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.logo-char-edit {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.logo-char-input {
-  width: 60px;
-}
-
-.logo-color-chips {
-  display: flex;
-  gap: 8px;
-}
-
-.logo-color-chip {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  padding: 0;
-  transition: transform 0.15s;
-
-  &:hover {
-    transform: scale(1.15);
-  }
-
-  &.active {
-    box-shadow: 0 0 0 2px $saas-primary;
-  }
-}
-
-/* image 模式 */
-.logo-img-preview {
   position: relative;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
 
   img {
     width: 100%;
     height: 100%;
-    border-radius: 12px;
+    border-radius: 10px;
     object-fit: cover;
+    border: 1px solid $border-color-card;
   }
 }
 
-.logo-img-clear {
+.logo-clear {
   position: absolute;
   top: -6px;
   right: -6px;
@@ -760,23 +792,23 @@ function confirmCreate() {
   }
 }
 
-.logo-img-upload {
-  width: 56px;
-  height: 56px;
+.logo-upload {
+  width: 64px;
+  height: 64px;
   border: 1px dashed $border-color-input;
-  border-radius: 12px;
+  border-radius: 10px;
   background: $bg-page;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 4px;
   cursor: pointer;
   color: $text-muted;
   font-size: 11px;
 
   i {
-    font-size: 20px;
+    font-size: 22px;
   }
 
   &:hover {
@@ -785,233 +817,275 @@ function confirmCreate() {
   }
 }
 
-/* ===== 步骤3：网关 ===== */
-/* 方式切换 */
-.gw-modes {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.gw-mode-btn {
-  height: 32px;
-  padding: 0 16px;
-  border: 1px solid $border-color-card;
-  border-radius: 9999px;
-  background: #fff;
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  color: $text-secondary;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: $saas-primary;
-    color: $saas-primary;
-  }
-
-  &.active {
-    border-color: $saas-primary;
-    background: $saas-primary-bg;
-    color: $saas-primary;
-  }
-}
-
-.gw-mode-panel {
-  min-height: 120px;
-}
-
-/* 已有网关列表 */
-.gw-pick-list {
+/* ===== 高级选项：第三栏（右侧模块展示）===== */
+.pw-advanced {
+  width: 340px;
+  flex-shrink: 0;
+  padding-left: 20px;
+  border-left: 1px solid $border-color-card;
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
-.gw-pick-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border: 1px solid $border-color-card;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  > i {
-    font-size: 18px;
-    color: $saas-primary;
-  }
-
-  &:hover,
-  &.active {
-    border-color: $saas-primary;
-    background: $saas-primary-bg;
-  }
+.pw-advanced__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-secondary;
+  margin-bottom: 12px;
 }
 
-.gw-pick-info {
+.pw-advanced__body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-
-.gw-pick-sn {
-  font-size: 13px;
-  font-weight: 600;
-  color: $text-base;
-  font-family: 'SF Mono', Menlo, Consolas, monospace;
-}
-
-.gw-pick-model {
-  font-size: 12px;
-  color: $text-muted;
-}
-
-.gw-pick-status {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 9999px;
-
-  &.online {
-    color: $color-online;
-    background: $color-online-bg;
-  }
-
-  &.offline {
-    color: $text-muted;
-    background: $bg-hover;
-  }
-}
-
-/* SN 输入 */
-.gw-sn-input {
-  display: flex;
   gap: 8px;
+  overflow-y: auto;
 }
 
-.gw-hint {
-  margin: 12px 0 0;
-  font-size: 12px;
-  color: $text-muted;
-}
-
-/* 扫码 */
-.gw-scan {
+/* 模块项 */
+.mod-item {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding: 20px 0;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid $border-color-card;
+  border-radius: 8px;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: $saas-primary;
+  }
+
+  &.disabled {
+    opacity: 0.5;
+  }
 }
 
-.gw-scan-frame {
-  width: 120px;
-  height: 120px;
-  border: 2px dashed $border-color-input;
-  border-radius: 12px;
+/* checkbox */
+.mod-item__check {
+  flex-shrink: 0;
+}
+
+.mod-item__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 
   i {
-    font-size: 40px;
-    color: $text-muted;
+    font-size: 18px;
+    color: #fff;
   }
 }
 
-/* 确认卡 */
-.gw-confirm {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.mod-item__text {
+  flex: 1;
+  min-width: 0;
 }
 
-.gw-confirm__title {
-  font-size: 14px;
-  color: $text-secondary;
+.mod-item__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-base;
+  cursor: default;
 }
 
-.gw-confirm__card {
-  background: $bg-page;
-  border: 1px solid $border-color-card;
-  border-radius: 10px;
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.gw-confirm__row {
+/* 用量信息入口（纯图标按钮）*/
+.mod-item__usage {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
+  justify-content: center;
+  border: 1px solid $border-color-card;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
 
-  .gw-confirm__label {
-    width: 60px;
-    font-size: 13px;
+  i {
+    font-size: 14px;
     color: $text-muted;
   }
 
-  .gw-confirm__val {
-    font-size: 13px;
-    color: $text-base;
-    font-weight: 500;
-
-    &.online {
-      color: $color-online;
-    }
-
-    &.offline {
-      color: $text-muted;
-    }
-  }
-}
-
-.gw-confirm__reselect {
-  align-self: flex-start;
-  border: none;
-  background: transparent;
-  color: $saas-primary;
-  font-size: 13px;
-  cursor: pointer;
-  font-family: inherit;
-  padding: 0;
-
   &:hover {
-    opacity: 0.8;
+    border-color: $saas-primary;
+
+    i {
+      color: $saas-primary;
+    }
   }
-}
-
-.gw-empty {
-  text-align: center;
-  padding: 40px 0;
-  color: $text-muted;
-  font-size: 13px;
-}
-
-/* 跳过提示 */
-.gw-skip {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px dashed $border-color-card;
-  text-align: center;
-  font-size: 12px;
-  color: $text-muted;
 }
 
 /* ===== 底部按钮 ===== */
-.wizard-footer {
+.pw-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 20px;
-  padding-top: 16px;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px 0;
   border-top: 1px solid $border-color-card;
 }
 
-.wizard-footer-right {
+/* ===== 创建中 ===== */
+.creating {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0 12px;
+
+  &__spinner {
+    font-size: 48px;
+    color: $saas-primary;
+    margin-bottom: 20px;
+
+    i {
+      animation: pw-spin 1s linear infinite;
+    }
+  }
+
+  &__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: $text-base;
+    margin-bottom: 6px;
+  }
+
+  &__sub {
+    font-size: 13px;
+    color: $text-muted;
+    margin-bottom: 24px;
+  }
+
+  &__steps {
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+}
+
+@keyframes pw-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.cs-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .cs-icon {
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+  }
+
+  .cs-label {
+    font-size: 13px;
+    color: $text-muted;
+    transition: color 0.2s;
+  }
+
+  &.done .cs-icon {
+    color: $color-online;
+
+    i {
+      animation: none;
+    }
+  }
+
+  &.done .cs-label {
+    color: $text-secondary;
+  }
+
+  &.active .cs-icon {
+    color: $saas-primary;
+  }
+
+  &.active .cs-label {
+    color: $text-base;
+    font-weight: 500;
+  }
+}
+
+/* ===== 创建成功 ===== */
+.success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 0 20px;
+
+  &__icon {
+    font-size: 56px;
+    color: $color-online;
+    margin-bottom: 20px;
+  }
+
+  &__title {
+    font-size: 18px;
+    font-weight: 600;
+    color: $text-base;
+    margin-bottom: 8px;
+  }
+
+  &__sub {
+    font-size: 13px;
+    color: $text-muted;
+    margin-bottom: 28px;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 12px;
+  }
+}
+</style>
+
+<!-- 全局样式：补 antd modal header/close 样式（因 importStyle:false 默认样式未注入）-->
+<style lang="scss">
+.project-wizard-modal {
+  /* content 不留内边距，header/body/footer 各自控制间距 */
+  .ant-modal-content {
+    padding: 0;
+  }
+
+  .ant-modal-header {
+    margin-bottom: 0;
+    padding: 12px 24px;
+  }
+
+  .ant-modal-title {
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  /* 关闭按钮：content padding 已归零，top 对齐 header 中点，右边对齐分隔线 */
+  .ant-modal-close {
+    top: 13px;
+    inset-inline-end: 24px;
+  }
+
+  .ant-modal-close-x {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    font-size: 16px;
+  }
+
+  /* body 上下不留额外 padding，由 header/footer 各自控制 */
+  .ant-modal-body {
+    padding: 0 24px;
+  }
 }
 </style>

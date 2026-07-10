@@ -28,17 +28,9 @@ const aiInput = ref('')
 // ===== 新建项目向导 =====
 const wizardOpen = ref(false)
 
-function handleSubmit(project: Project, gatewayId?: string) {
+function handleSubmit(project: Project) {
   // 项目加入列表首位
   projects.value.unshift(project)
-  // 若绑定了网关，更新网关归属
-  if (gatewayId) {
-    const g = gateways.value.find(x => x.id === gatewayId)
-    if (g) {
-      g.projectId = project.id
-      g.projectName = project.name
-    }
-  }
 }
 
 // ===== 我的项目 / 我的网关 列表区 =====
