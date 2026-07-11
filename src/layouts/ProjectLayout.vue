@@ -54,7 +54,16 @@ const ALL_MENUS: Record<string, MenuItem> = {
   'security-space': { key: 'security-space', label: '空间态势', icon: 'i-ant-design-apartment-outlined', path: '/space/situation' },
   'security-video': { key: 'security-video', label: '监控墙', icon: 'i-ant-design-video-camera-outlined', path: '/video/wall' },
   'security-image': { key: 'security-image', label: '文搜图', icon: 'i-ant-design-search-outlined', path: '/image-search/person' },
-  'security-alarm': { key: 'security-alarm', label: '告警', icon: 'i-ant-design-alert-outlined', path: '/alarm/event' }
+  'security-alarm': { key: 'security-alarm', label: '告警', icon: 'i-ant-design-alert-outlined', path: '/alarm/event' },
+  // 工地场景专属菜单
+  'construction-dashboard': { key: 'construction-dashboard', label: '仪表盘', icon: 'i-ant-design-dashboard-outlined', path: '/construction-dashboard' },
+  'construction-posture': { key: 'construction-posture', label: '工地态势', icon: 'i-ant-design-environment-outlined', path: '/construction-posture/overview' },
+  'construction-safety': { key: 'construction-safety', label: '工地安全', icon: 'i-ant-design-safety-outlined', path: '/construction-safety/report' },
+  'construction-image': { key: 'construction-image', label: '文搜图', icon: 'i-ant-design-search-outlined', path: '/construction-image/person' },
+  'construction-video': { key: 'construction-video', label: '视频中心', icon: 'i-ant-design-video-camera-outlined', path: '/construction-video/wall' },
+  'construction-device': { key: 'construction-device', label: '设备中心', icon: 'i-ant-design-api-outlined', path: '/construction-device/overview' },
+  'construction-alarm': { key: 'construction-alarm', label: '告警中心', icon: 'i-ant-design-alert-outlined', path: '/construction-alarm/event' },
+  'construction-model': { key: 'construction-model', label: '模型性能分析', icon: 'i-ant-design-experiment-outlined', path: '/construction-model' }
 }
 
 // 场景 -> 菜单 key 顺序映射
@@ -65,7 +74,9 @@ const SCENARIOS: Record<string, string[]> = {
   commercial: ['dashboard', 'flow', 'vehicle', 'security-posture', 'video', 'image-search', 'alarm', 'visualization', 'work-order', 'energy', 'iot', 'archive'],
   // 公寓场景
   apartment: ['dashboard', 'video', 'space', 'image-search', 'alarm', 'archive'],
-  elderly: ['dashboard', 'elderly-security', 'elderly-behavior', 'elderly-staff', 'video', 'image-search', 'alarm', 'archive']
+  elderly: ['dashboard', 'elderly-security', 'elderly-behavior', 'elderly-staff', 'video', 'image-search', 'alarm', 'archive'],
+  // 工地场景
+  construction: ['construction-dashboard', 'construction-posture', 'construction-safety', 'construction-image', 'construction-video', 'construction-device', 'construction-alarm', 'construction-model', 'archive']
 }
 
 // 当前场景对应的 logo 和项目名
@@ -89,14 +100,12 @@ const menus = computed<MenuItem[]>(() => {
   return keys.map(k => ALL_MENUS[k]).filter(Boolean)
 })
 
-// 切换场景时，如果当前页面不在新菜单中，跳到第一个菜单
+// 切换场景时，跳转到第一个菜单并刷新页面
 watch(currentScenario, () => {
   const firstMenu = menus.value[0]
   if (firstMenu?.path) {
-    const currentKey = activeTopKey.value
-    if (!menus.value.some(m => m.key === currentKey)) {
-      router.push(firstMenu.path)
-    }
+    // 跳转到第一个菜单，并带上 _t 时间戳强制刷新
+    router.push({ path: firstMenu.path, query: { _t: Date.now() } })
   }
 })
 
@@ -251,7 +260,7 @@ function handleMenuClick(m: MenuItem) {
 
       <!-- 主内容区 -->
       <main class="layout-main">
-        <RouterView />
+        <RouterView :key="route.path + (route.query._t as string || '')" />
       </main>
     </div>
   </div>

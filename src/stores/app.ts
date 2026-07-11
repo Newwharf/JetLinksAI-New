@@ -14,7 +14,7 @@ export const useAppStore = defineStore('app', () => {
   }
 
   // 当前场景（决定一级菜单组成 + 二级 tab 过滤）
-  // general | commercial | security | apartment | factory | elderly
+  // general | commercial | security | apartment | factory | elderly | construction
   const scenario = ref<string>('general')
 
   function setScenario(s: string) {

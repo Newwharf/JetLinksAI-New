@@ -3,6 +3,7 @@
  * 通用二级 tab 布局
  * 从父路由 meta.tabs 读取 tab 配置，顶部 tab 栏 + 内容区
  * 支持按场景过滤：tab 配置 scenarios 字段时只在指定场景显示
+ * 支持路由 meta.hideTabs=true 隐藏 tab 栏，改为返回栏（返回按钮 + 标题）
  */
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
@@ -15,15 +16,13 @@ interface TabItem {
   key: string
   label: string
   path: string
-  scenarios?: string[]  // 不填 = 所有场景都显示
+  scenarios?: string[]
 }
 
-// 从匹配链中找到带 tabs 的那一级路由
 const layoutRoute = computed(() => {
   return route.matched.find(r => Array.isArray(r.meta.tabs)) || route.matched[route.matched.length - 2]
 })
 
-// 按当前场景过滤 tab
 const tabs = computed<TabItem[]>(() => {
   const all = (layoutRoute.value?.meta.tabs as TabItem[]) || []
   const sc = appStore.scenario
@@ -34,19 +33,14 @@ const activeTab = computed(() => {
   const layoutPath = layoutRoute.value?.path || ''
   const fullPath = route.path
   const rest = fullPath.replace(layoutPath, '').replace(/^\//, '')
-  // 详情子路由形如 "person-profile/:id"，只取第一段以匹配 tab key
   return rest.split('/')[0]
 })
 
-// 如果当前路由是 layout 根路径（无子路径），或当前 tab 在场景下不可见，
-// 自动跳转到第一个可见 tab
 watchEffect(() => {
   if (tabs.value.length === 0) return
   const layoutPath = layoutRoute.value?.path || ''
   const rest = route.path.replace(layoutPath, '').replace(/^\//, '')
-  // 详情子路由形如 "person-profile/:id"，取第一段判断所属 tab
   const tabKey = rest.split('/')[0]
-  // 根路径 或 当前 tab 不在可见列表 → 跳第一个
   if (!tabKey || !tabs.value.some(t => t.key === tabKey)) {
     const first = tabs.value[0]
     if (first && route.path !== first.path) {
@@ -58,11 +52,16 @@ watchEffect(() => {
 function switchTab(tab: TabItem) {
   router.push(tab.path)
 }
+
+// ===== hideTabs 模式：隐藏 tab 栏，由详情页自行渲染返回栏 =====
+const hideTabs = computed(() => !!route.meta.hideTabs)
 </script>
 
 <template>
   <div class="sub-tab-layout">
-    <div class="sub-tabs">
+    <!-- 隐藏 tab 栏时：不渲染顶部栏，由详情页自行渲染返回栏 -->
+    <!-- 正常 tab 栏 -->
+    <div v-if="!hideTabs" class="sub-tabs">
       <div
         v-for="t in tabs"
         :key="t.key"
@@ -131,6 +130,49 @@ function switchTab(tab: TabItem) {
       border-radius: 1px;
     }
   }
+}
+
+/* 返回栏 */
+.sub-back-bar {
+  height: 44px;
+  background: #fff;
+  border-bottom: 1px solid $border-color-card;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  color: $color-primary;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  border-radius: 6px;
+  transition: background 0.15s;
+
+  i {
+    font-size: 14px;
+  }
+
+  &:hover {
+    background: $color-primary-bg;
+  }
+}
+
+.back-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: $text-base;
 }
 
 .sub-content {

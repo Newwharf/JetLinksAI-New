@@ -381,6 +381,133 @@ const routes: RouteRecordRaw[] = [
           { path: 'analysis', name: 'elderly-staff-analysis', component: () => import('@/views/elderly/ElderlyStaffView.vue'), meta: { title: '护工行为分析' } },
           { path: 'profile', name: 'elderly-staff-profile', component: () => import('@/views/elderly/StaffProfileView.vue'), meta: { title: '护工档案管理' } }
         ]
+      },
+
+      // ==================== 工地场景 ====================
+
+      // ===== 工地仪表盘（无二级 tab）=====
+      {
+        path: 'construction-dashboard',
+        name: 'construction-dashboard',
+        component: () => import('@/views/construction/ConstructionDashboardView.vue'),
+        meta: { title: '仪表盘' }
+      },
+
+      // ===== 工地态势 =====
+      {
+        path: 'construction-posture',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'overview', label: '工地总览', path: '/construction-posture/overview' },
+            { key: 'manage', label: '工地管理', path: '/construction-posture/manage' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-posture/overview' },
+          { path: 'overview', name: 'construction-posture-overview', component: () => import('@/views/construction/ConstructionOverviewView.vue'), meta: { title: '工地总览' } },
+          { path: 'manage', name: 'construction-posture-manage-list', component: () => import('@/views/construction/manage/SiteManageView.vue'), meta: { title: '工地管理' } },
+          { path: 'manage/:id', name: 'construction-posture-manage', component: () => import('@/views/construction/ConstructionDetailView.vue'), meta: { title: '工地详情', hideTabs: true, backPath: '/construction-posture/overview' } }
+        ]
+      },
+
+      // ===== 工地安全 =====
+      {
+        path: 'construction-safety',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'report', label: '工地安全报告', path: '/construction-safety/report' },
+            { key: 'history-incident', label: '历史安全事件', path: '/construction-safety/history-incident' },
+            { key: 'risk-incident', label: '历史风险事件', path: '/construction-safety/risk-incident' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-safety/report' },
+          { path: 'report', name: 'construction-safety-report', component: () => import('@/views/construction/SafetyReportView.vue'), meta: { title: '工地安全报告' } },
+          { path: 'history-incident', name: 'construction-safety-history-incident', component: () => import('@/views/construction/HistoryIncidentView.vue'), meta: { title: '历史安全事件' } },
+          { path: 'risk-incident', name: 'construction-safety-risk-incident', component: () => import('@/views/construction/RiskIncidentView.vue'), meta: { title: '历史风险事件' } }
+        ]
+      },
+
+      // ===== 文搜图（工地）=====
+      {
+        path: 'construction-image',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'person', label: '人员', path: '/construction-image/person' },
+            { key: 'vehicle', label: '车辆', path: '/construction-image/vehicle' },
+            { key: 'profile', label: '人员档案管理', path: '/construction-image/profile' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-image/person' },
+          { path: 'person', name: 'construction-image-person', component: () => import('@/views/image-search/TextSearchView.vue'), meta: { title: '人员' } },
+          { path: 'vehicle', name: 'construction-image-vehicle', component: () => import('@/views/image-search/VehicleSearchView.vue'), meta: { title: '车辆' } },
+          { path: 'profile', name: 'construction-image-profile', component: () => import('@/views/image-search/PersonProfileView.vue'), meta: { title: '人员档案管理' } },
+          { path: 'profile/:id', name: 'construction-image-profile-detail', component: () => import('@/views/image-search/PersonProfileDetailView.vue'), meta: { title: '人员档案详情' } }
+        ]
+      },
+
+      // ===== 视频中心（工地）=====
+      {
+        path: 'construction-video',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'wall', label: '监控墙', path: '/construction-video/wall' },
+            { key: 'manage', label: '视频管理', path: '/construction-video/manage' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-video/wall' },
+          { path: 'wall', name: 'construction-video-wall', component: () => import('@/views/video/WallView.vue'), meta: { title: '监控墙' } },
+          { path: 'manage', name: 'construction-video-manage', component: () => import('@/views/video/DeviceManageView.vue'), meta: { title: '视频管理' } }
+        ]
+      },
+
+      // ===== 设备中心（工地）=====
+      {
+        path: 'construction-device',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'overview', label: '设备总览', path: '/construction-device/overview' },
+            { key: 'health', label: '设备健康', path: '/construction-device/health' },
+            { key: 'manage', label: '设备管理', path: '/construction-device/manage' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-device/overview' },
+          { path: 'overview', name: 'construction-device-overview', ...ph('设备总览') },
+          { path: 'health', name: 'construction-device-health', ...ph('设备健康') },
+          { path: 'manage', name: 'construction-device-manage', ...ph('设备管理') }
+        ]
+      },
+
+      // ===== 告警中心（工地）=====
+      {
+        path: 'construction-alarm',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'event', label: '告警事件', path: '/construction-alarm/event' },
+            { key: 'rule', label: '告警规则', path: '/construction-alarm/rule' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-alarm/event' },
+          { path: 'event', name: 'construction-alarm-event', component: () => import('@/views/alarm/AlarmEventView.vue'), meta: { title: '告警事件' } },
+          { path: 'rule', name: 'construction-alarm-rule', ...ph('告警规则') }
+        ]
+      },
+
+      // ===== 模型性能分析（无二级 tab）=====
+      {
+        path: 'construction-model',
+        name: 'construction-model',
+        ...ph('模型性能分析')
       }
     ]
   }

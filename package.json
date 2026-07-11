@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.1",
+    "@types/leaflet": "^1.9.21",
     "ant-design-vue": "^4.2.6",
     "dayjs": "^1.11.21",
     "echarts": "^6.1.0",
+    "leaflet": "^1.9.4",
     "pinia": "^2.1.7",
     "three": "^0.185.1",
     "vue": "^3.4.31",
