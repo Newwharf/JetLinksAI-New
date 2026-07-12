@@ -405,9 +405,46 @@ export interface EventTrend {
   alert: number[]
 }
 
-// 为每个工地生成趋势数据
+// 事件子类型定义
+export const eventSubTypes: Record<EventType, { label: string; color: string }[]> = {
+  safety: [
+    { label: '未戴安全帽', color: '#ff4d4f' },
+    { label: '未穿反光衣', color: '#ff7875' },
+    { label: '危险区域闯入', color: '#fa541c' },
+    { label: '明火烟雾', color: '#fa8c16' }
+  ],
+  risk: [
+    { label: '基坑变形', color: '#faad14' },
+    { label: '脚手架倾斜', color: '#ffc53d' },
+    { label: '用电过载', color: '#d48806' },
+    { label: '边坡位移', color: '#ad6800' }
+  ],
+  health: [
+    { label: '塔吊振动', color: '#722ed1' },
+    { label: '扬尘超标', color: '#9254de' },
+    { label: '温控异常', color: '#b37feb' },
+    { label: '设备离线', color: '#d3adf7' }
+  ],
+  alert: [
+    { label: '烟雾报警', color: '#fa8c16' },
+    { label: '温度报警', color: '#fa541c' },
+    { label: '水位超限', color: '#ffa940' },
+    { label: '气体超标', color: '#d4380d' }
+  ]
+}
+
+// 子类型趋势数据
+export interface SubTypeTrend {
+  days: string[]
+  /** 子类型标签 */
+  labels: string[]
+  /** 每个子类型每日的数量 */
+  series: { label: string; color: string; data: number[] }[]
+}
+
 const trendDays = ['07-05', '07-06', '07-07', '07-08', '07-09', '07-10', '07-11']
 
+// 兼容旧接口
 function generateTrend(site: ConstructionSite): EventTrend {
   const seed = parseInt(site.id.replace('c', '')) || 1
   const rand = (base: number, variance: number) =>
@@ -429,6 +466,32 @@ export function getSiteTrend(siteId: string): EventTrend {
     trendCache[siteId] = site ? generateTrend(site) : { days: trendDays, safety: [], risk: [], health: [], alert: [] }
   }
   return trendCache[siteId]
+}
+
+// 子类型趋势数据缓存
+const subTypeTrendCache: Record<string, SubTypeTrend> = {}
+
+export function getSubTypeTrend(siteId: string, type: EventType): SubTypeTrend {
+  const cacheKey = `${siteId}-${type}`
+  if (subTypeTrendCache[cacheKey]) return subTypeTrendCache[cacheKey]
+
+  const site = constructionSites.find(s => s.id === siteId)
+  const seed = parseInt(siteId.replace('c', '')) || 1
+  const subs = eventSubTypes[type]
+  const baseCount = site?.events.find(e => e.type === type)?.count || 3
+
+  const series = subs.map((sub, si) => ({
+    label: sub.label,
+    color: sub.color,
+    data: trendDays.map((_, di) => {
+      const val = Math.max(0, Math.round(baseCount / subs.length + Math.sin(seed * 2 + si * 3 + di * 1.5) * (baseCount / 2)))
+      return val
+    })
+  }))
+
+  const result = { days: trendDays, labels: subs.map(s => s.label), series }
+  subTypeTrendCache[cacheKey] = result
+  return result
 }
 
 // ===== 活跃人员列表 =====

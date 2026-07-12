@@ -35,11 +35,10 @@ function nodeIcon(node: TreeNode): string {
 // 只有区节点（level 3）才能新增工地
 const canAddChild = computed(() => props.node.type === 'district')
 
-// 点击节点：工地节点 → 切换右侧详情；省市区节点 → 仅展开/收起
+// 点击节点：所有节点都可选中（高亮），省市区同时切换展开/收起
 function onNodeClick() {
-  if (props.node.type === 'site') {
-    emit('select', props.node.id)
-  } else if (props.node.children?.length) {
+  emit('select', props.node.id)
+  if (props.node.type !== 'site' && props.node.children?.length) {
     emit('toggle', props.node)
   }
 }

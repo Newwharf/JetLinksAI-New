@@ -150,6 +150,14 @@ function getNodePath(id: string): string {
 const selectedId = ref('site-1')
 const selectedNode = computed(() => findNode(treeData.value, selectedId.value))
 
+// 只有选中区级节点才能新增工地
+const canAddSite = computed(() => selectedNode.value?.type === 'district')
+
+function handleAddSite() {
+  if (!canAddSite.value) return
+  openAddModal(selectedId.value)
+}
+
 function selectNode(id: string) {
   selectedId.value = id
   // 选中非工地节点时默认切到基本信息 tab
@@ -509,6 +517,16 @@ function handleSiteEdit(node: TreeNode, data: {
         <div class="list-panel">
           <div class="panel-header">
             <span class="panel-title">工地列表</span>
+            <a-tooltip :title="canAddSite ? '' : '请先选择一个区级节点后，再新增工地'" placement="bottomRight">
+              <button
+                class="add-site-btn"
+                :disabled="!canAddSite"
+                @click="handleAddSite"
+              >
+                <i class="i-ant-design-plus-outlined" />
+                <span>新增</span>
+              </button>
+            </a-tooltip>
           </div>
           <div class="tree-toolbar">
             <a-input v-model:value="searchKey" placeholder="搜索省、市、区或工地" class="tree-search-input">
@@ -769,6 +787,35 @@ function handleSiteEdit(node: TreeNode, data: {
   }
 }
 
+.add-site-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: $color-primary;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+
+  i { font-size: 13px; }
+
+  &:hover:not(:disabled) {
+    background: $color-primary-hover;
+  }
+
+  &:disabled {
+    background: #d9d9d9;
+    color: rgba(0, 0, 0, 0.25);
+    cursor: not-allowed;
+  }
+}
+
 .tree-toolbar {
   display: flex;
   align-items: center;
@@ -848,9 +895,10 @@ function handleSiteEdit(node: TreeNode, data: {
   padding: 16px 20px;
 
   &:has(.floor-plan-view),
-  &:has(.model-3d-view) {
+  &:has(.model-3d-view),
+  &:has(.site-info-view) {
     overflow: hidden;
-    padding: 8px 12px;
+    padding: 16px 20px;
   }
 }
 

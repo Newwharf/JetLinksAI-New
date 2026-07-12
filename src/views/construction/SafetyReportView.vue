@@ -524,7 +524,6 @@ function exportMonthReport() {
             <div class="report-detail__score-area">
               <span class="report-detail__score" :style="{ color: scoreColor(reportDetail.score) }">{{ reportDetail.score }}</span>
               <span class="report-detail__score-unit">分</span>
-              <span class="report-detail__level" :style="{ color: scoreColor(reportDetail.score), background: scoreColor(reportDetail.score) + '20' }">{{ reportDetail.level }}</span>
             </div>
           </div>
           <!-- 内容 -->

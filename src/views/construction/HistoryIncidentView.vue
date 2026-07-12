@@ -263,6 +263,7 @@ function methodColor(m: ResolveMethod): string {
         :scroll="{ x: 1300 }"
         size="middle"
         class="incident-table"
+        :custom-row="(record: HistoryIncident) => ({ onClick: () => openDetail(record) })"
       >
         <a-table-column title="工地名称" data-index="siteName" :width="180" :ellipsis="true">
           <template #default="{ record }">
@@ -585,6 +586,10 @@ function methodColor(m: ResolveMethod): string {
     font-weight: 600;
     color: $text-base;
     border-bottom: 1px solid $border-color-card;
+  }
+
+  :deep(.ant-table-tbody > tr) {
+    cursor: pointer;
   }
 
   :deep(.ant-table-tbody > tr > td) {

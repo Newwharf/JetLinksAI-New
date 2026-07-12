@@ -34,10 +34,12 @@ export interface SiteEditData {
 // ===== 展示用小地图 =====
 const miniMapContainer = ref<HTMLDivElement | null>(null)
 let miniMap: L.Map | null = null
+let mapResizeObserver: ResizeObserver | null = null
 
 function initMiniMap() {
   if (!miniMapContainer.value) return
   if (miniMap) { miniMap.remove(); miniMap = null }
+  if (mapResizeObserver) { mapResizeObserver.disconnect(); mapResizeObserver = null }
 
   const lat = props.node.lat || 30.25
   const lng = props.node.lng || 120.15
@@ -70,6 +72,12 @@ function initMiniMap() {
 
   // 容器尺寸可能还没就绪，强制刷新瓦片
   setTimeout(() => miniMap?.invalidateSize(), 100)
+
+  // 监听容器尺寸变化，自适应地图
+  mapResizeObserver = new ResizeObserver(() => {
+    miniMap?.invalidateSize()
+  })
+  mapResizeObserver.observe(miniMapContainer.value)
 }
 
 onMounted(() => {
@@ -77,6 +85,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (mapResizeObserver) { mapResizeObserver.disconnect(); mapResizeObserver = null }
   if (miniMap) { miniMap.remove(); miniMap = null }
 })
 
@@ -396,6 +405,7 @@ const permittedPersons = computed(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
 }
 
 .hidden-input { display: none; }
@@ -404,6 +414,7 @@ const permittedPersons = computed(() => {
   display: flex;
   gap: 24px;
   padding: 8px 0;
+  flex-shrink: 0;
 }
 
 /* 左侧缩略图 */
@@ -544,6 +555,10 @@ const permittedPersons = computed(() => {
   border: 1px solid $border-color-card;
   border-radius: 10px;
   overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 
   &__head {
     display: flex;
@@ -551,6 +566,7 @@ const permittedPersons = computed(() => {
     justify-content: space-between;
     padding: 12px 16px;
     border-bottom: 1px solid $border-color-card;
+    flex-shrink: 0;
 
     strong {
       font-size: 15px;
@@ -567,7 +583,8 @@ const permittedPersons = computed(() => {
 
 .mini-map {
   width: 100%;
-  height: 450px;
+  flex: 1;
+  min-height: 200px;
   overflow: hidden;
 
   :deep(.mini-marker-pin) {

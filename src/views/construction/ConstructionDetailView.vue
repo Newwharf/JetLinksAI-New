@@ -9,18 +9,23 @@ import * as THREE from 'three'
 import ECharts from '@/components/ECharts.vue'
 import VideoPlayerModal from '@/components/VideoPlayerModal.vue'
 import floorPlanImg from '@/assets/construction/floor-plan.jpg'
+import siteImg1 from '@/assets/construction/site-1.jpg'
+import siteImg2 from '@/assets/construction/site-2.jpg'
+import siteImg3 from '@/assets/construction/site-3.jpg'
+import siteImg4 from '@/assets/construction/site-4.jpg'
+import { videoCameras } from '@/views/video/video.mock'
 import {
   constructionSites,
   eventMeta,
   sizeTypeMeta,
   formatArea,
   getSiteEvents,
-  getSiteTrend,
   getSiteWorkers,
   getSiteModel3D,
   getSiteMarkers,
   markerMeta,
   getScoreReason,
+  getSubTypeTrend,
   type EventType,
   type SiteEvent,
   type SiteMarker
@@ -60,6 +65,36 @@ const previewImage = ref<string | null>(null)
 // ===== 事件类型列表 =====
 const eventTypes: EventType[] = ['safety', 'risk', 'health', 'alert']
 
+// ===== 左栏：视频墙 =====
+const siteThumbs = [siteImg1, siteImg2, siteImg3, siteImg4]
+const siteCameraNames = [
+  '工地东门', '工地南门', '工地西门', '工地北门',
+  '塔吊作业区', '基坑监测区', '材料堆放区', '施工楼层',
+  '钢筋加工棚', '临时用电区'
+]
+const siteCameras = computed(() => {
+  const seed = site.value ? parseInt(site.value.id.replace('c', '')) || 1 : 1
+  const count = 6
+  const result = []
+  for (let i = 0; i < count; i++) {
+    const cam = videoCameras[(seed * 2 + i) % videoCameras.length]
+    result.push({
+      id: `site-cam-${i}`,
+      name: siteCameraNames[(seed + i) % siteCameraNames.length],
+      status: cam.status,
+      thumb: siteThumbs[(seed + i) % siteThumbs.length],
+      gateway: cam.gateway,
+      areaPath: cam.areaPath
+    })
+  }
+  return result
+})
+
+function playCamera(cam: typeof videoCameras[number]) {
+  videoTarget.value = { name: cam.name, thumb: cam.thumb, status: cam.status }
+  videoModalOpen.value = true
+}
+
 // ===== 左栏：事件列表 =====
 const eventListTab = ref<EventType>('safety')
 const eventListEvents = computed(() =>
@@ -79,18 +114,37 @@ function scrollTabs(dir: 'left' | 'right') {
 
 // ===== 中栏下：事件趋势 =====
 const trendTab = ref<EventType>('safety')
-const trendData = computed(() => site.value ? getSiteTrend(site.value.id) : null)
+const trendSubData = computed(() =>
+  site.value ? getSubTypeTrend(site.value.id, trendTab.value) : null
+)
 const trendOption = computed(() => {
-  if (!trendData.value) return {}
-  const t = trendData.value
-  const color = eventMeta[trendTab.value].color
-  const data = t[trendTab.value]
+  if (!trendSubData.value) return {}
+  const t = trendSubData.value
   return {
-    tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#f0f4f8', borderWidth: 1, borderRadius: 8, padding: [10, 14], textStyle: { color: '#111418', fontSize: 12 }, axisPointer: { type: 'line', lineStyle: { color, type: 'dashed', width: 1 } } },
-    grid: { left: 40, right: 16, top: 16, bottom: 32 },
+    tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#f0f4f8', borderWidth: 1, borderRadius: 8, padding: [10, 14], textStyle: { color: '#111418', fontSize: 12 } },
+    legend: {
+      data: t.labels,
+      bottom: 0,
+      icon: 'roundRect',
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: { color: '#3a3f47', fontSize: 11 }
+    },
+    grid: { left: 40, right: 16, top: 16, bottom: 40 },
     xAxis: { type: 'category', data: t.days, boundaryGap: false, axisLine: { lineStyle: { color: '#dbe4f1' } }, axisTick: { show: false }, axisLabel: { color: '#8c8c8c', fontSize: 12 } },
     yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f4f8' } }, axisLabel: { color: '#8c8c8c', fontSize: 12 } },
-    series: [{ type: 'line', smooth: true, symbol: 'circle', symbolSize: 6, showSymbol: true, data, itemStyle: { color }, lineStyle: { width: 2, color }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: color + '2e' }, { offset: 1, color: color + '00' }] } } }]
+    series: t.series.map(s => ({
+      name: s.label,
+      type: 'line',
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 5,
+      showSymbol: true,
+      data: s.data,
+      itemStyle: { color: s.color },
+      lineStyle: { width: 2, color: s.color },
+      emphasis: { focus: 'series' }
+    }))
   }
 })
 
@@ -511,8 +565,29 @@ function onMarkerClick(m: SiteMarker) {
 
     <!-- 五栏主体 -->
     <div class="main-grid">
-      <!-- ===== 左栏：事件列表 ===== -->
+      <!-- ===== 左栏：视频墙 + 事件列表 ===== -->
       <div class="left-col">
+        <!-- 视频墙 -->
+        <div class="col-card video-card">
+          <div class="col-card__head"><strong>视频监控</strong></div>
+          <div class="video-grid">
+            <div
+              v-for="cam in siteCameras"
+              :key="cam.id"
+              class="video-cell"
+              @click="playCamera(cam)"
+            >
+              <img :src="cam.thumb" class="video-cell__thumb" draggable="false" alt="视频画面" />
+              <div class="video-cell__overlay" />
+              <div class="video-cell__top">
+                <span class="video-cell__dot" :class="cam.status" />
+                <span class="video-cell__name" :title="cam.name">{{ cam.name }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 事件列表 -->
         <div class="col-card">
           <div class="col-card__head"><strong>事件列表</strong></div>
           <div class="event-tabs-wrap">
@@ -1093,6 +1168,72 @@ function onMarkerClick(m: SiteMarker) {
   min-height: 0;
 
   &--flex { flex: 1; }
+}
+
+/* 视频墙 */
+.video-card { flex-shrink: 0; }
+
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  padding: 4px 8px 8px;
+}
+
+.video-cell {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #2c2f36;
+  cursor: pointer;
+  transition: transform 0.15s;
+
+  &:hover { transform: scale(1.03); }
+
+  &__thumb {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.3) 100%);
+  }
+
+  &__top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+  }
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &.online { background: $color-online; box-shadow: 0 0 4px $color-online; }
+    &.offline { background: #bfbfbf; }
+  }
+
+  &__name {
+    font-size: 10px;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .col-card__head {
