@@ -497,12 +497,12 @@ function goBackToList() {
       <div class="ga-result-group ga-result-group--success">
         <div class="ga-result-group__header" @click="successCollapsed = !successCollapsed">
           <div class="ga-result-group__title">
-            <i class="i-ant-design-check-circle-filled" style="color: #52c41a;" />
+            <i class="i-ant-design-check-circle-filled" />
             <span>绑定成功（{{ bindSuccessList.length }}）</span>
           </div>
-          <i class="ga-result-group__arrow" :class="{ 'is-collapsed': successCollapsed }" />
+          <i class="i-ant-design-down-outlined ga-result-group__arrow" :class="{ 'is-collapsed': successCollapsed }" />
         </div>
-        <div v-show="!successCollapsed" class="ga-bind-fail-list">
+        <div v-show="!successCollapsed" class="ga-result-list">
           <div v-if="bindSuccessList.length === 0" class="ga-bind-empty">
             <i class="i-ant-design-info-circle-filled" />
             <span>没有成功的设备</span>
@@ -524,12 +524,12 @@ function goBackToList() {
       <div class="ga-result-group ga-result-group--fail">
         <div class="ga-result-group__header" @click="failCollapsed = !failCollapsed">
           <div class="ga-result-group__title">
-            <i class="i-ant-design-close-circle-filled" style="color: #ff4d4f;" />
+            <i class="i-ant-design-close-circle-filled" />
             <span>绑定失败（{{ bindFailList.length }}）</span>
           </div>
-          <i class="ga-result-group__arrow" :class="{ 'is-collapsed': failCollapsed }" />
+          <i class="i-ant-design-down-outlined ga-result-group__arrow" :class="{ 'is-collapsed': failCollapsed }" />
         </div>
-        <div v-show="!failCollapsed" class="ga-bind-fail-list">
+        <div v-show="!failCollapsed" class="ga-result-list">
           <div v-if="bindFailList.length === 0" class="ga-bind-empty">
             <i class="i-ant-design-check-circle-filled" />
             <span>没有失败的设备</span>
@@ -1258,19 +1258,38 @@ function goBackToList() {
 
 /* 结果折叠分组 */
 .ga-result-group {
-  margin-bottom: 12px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #f0f0f0;
+
+  & + & { margin-top: 10px; }
+
+  /* 成功组 */
+  &--success {
+    .ga-result-group__header {
+      background: rgba(82, 196, 26, 0.06);
+      &:hover { background: rgba(82, 196, 26, 0.1); }
+    }
+    .ga-result-group__title i { color: #52c41a; }
+  }
+
+  /* 失败组 */
+  &--fail {
+    .ga-result-group__header {
+      background: rgba(255, 77, 79, 0.06);
+      &:hover { background: rgba(255, 77, 79, 0.1); }
+    }
+    .ga-result-group__title i { color: #ff4d4f; }
+  }
 
   &__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 10px 14px;
-    border-radius: 8px;
-    background: #f5f7fa;
     cursor: pointer;
     transition: background 0.15s;
     user-select: none;
-    &:hover { background: #eef1f6; }
   }
 
   &__title {
@@ -1285,11 +1304,18 @@ function goBackToList() {
 
   &__arrow {
     font-size: 12px;
-    color: #999;
-    &::before { content: '⌄'; font-size: 18px; line-height: 1; }
+    color: #bbb;
+    transition: transform 0.2s ease;
     &.is-collapsed { transform: rotate(-90deg); }
-    transition: transform 0.2s;
   }
+}
+
+/* 结果列表容器 */
+.ga-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
 }
 
 /* 空状态 */
@@ -1297,11 +1323,11 @@ function goBackToList() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 30px 0;
+  gap: 6px;
+  padding: 20px 0;
   color: #ccc;
-  i { font-size: 32px; }
-  span { font-size: 13px; }
+  i { font-size: 28px; }
+  span { font-size: 12px; }
 }
 
 /* 成功列表项 */
@@ -1309,9 +1335,8 @@ function goBackToList() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  background: rgba(82, 196, 26, 0.04);
-  border: 1px solid rgba(82, 196, 26, 0.15);
+  padding: 8px 12px;
+  background: rgba(82, 196, 26, 0.03);
   border-radius: 8px;
 }
 .ga-bind-success-tag {
@@ -1336,9 +1361,8 @@ function goBackToList() {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 14px;
-  background: rgba(255, 77, 79, 0.04);
-  border: 1px solid rgba(255, 77, 79, 0.15);
+  padding: 8px 12px;
+  background: rgba(255, 77, 79, 0.03);
   border-radius: 8px;
 }
 .ga-bind-fail-name { font-size: 13px; color: #333; font-weight: 500; }
@@ -1354,6 +1378,7 @@ function goBackToList() {
   color: #3b82f6;
   font-size: 12px;
   cursor: pointer;
+  flex-shrink: 0;
   &:hover { background: rgba(59, 130, 246, 0.06); }
   i { font-size: 13px; }
 }

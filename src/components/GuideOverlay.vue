@@ -6,6 +6,7 @@
  */
 import { useAppStore, type GuideStep } from '@/stores/app'
 import { useRouter } from 'vue-router'
+import loginImg from '@/assets/cameras/image.png'
 
 const appStore = useAppStore()
 const router = useRouter()
@@ -485,14 +486,38 @@ function startDetect() {
   }, 3000)
 }
 
-// ===== 网络配置弹窗 =====
+// ===== 网络配置弹窗（手机模拟器） =====
 const networkConfigModalVisible = ref(false)
-// 自动模式开关，默认开启自动
-const networkAuto = ref(true)
-// 两组网络配置数据（手动模式下展示并可编辑）
-const networkGroups = ref([
-  { address: '192.168.1.108', gateway: '192.168.1.1', mask: '255.255.255.0', dns: '8.8.8.8' },
-  { address: '192.168.1.109', gateway: '192.168.1.1', mask: '255.255.255.0', dns: '8.8.8.8' },
+// 手机页面：login 登录页 / config 网关配置页
+const phonePage = ref<'login' | 'config'>('login')
+
+function openNetworkConfig() {
+  phonePage.value = 'login'
+  networkConfigModalVisible.value = true
+}
+
+// 两个网口的配置数据
+const portConfigs = ref([
+  {
+    name: '网口 1',
+    connected: true,
+    auto: true,
+    address: '192.168.1.108',
+    gateway: '192.168.1.1',
+    mask: '255.255.255.0',
+    dns: '8.8.8.8',
+    cameras: ['前门摄像头', '大厅摄像头'],
+  },
+  {
+    name: '网口 2',
+    connected: false,
+    auto: true,
+    address: '',
+    gateway: '',
+    mask: '',
+    dns: '',
+    cameras: [],
+  },
 ])
 
 // ===== 网关已在线：已接入的摄像头列表 =====
@@ -660,14 +685,8 @@ const isBranchStep = computed(() =>
           </button>
         </div>
 
-        <!-- 网关离线：网络配置，跳过为文案链接 -->
+        <!-- 网关离线：跳过为文案链接 -->
         <div v-if="currentStep === 'gw-offline'" class="guide-tip__offline-actions">
-          <div class="guide-tip__actions">
-            <button class="guide-tip__btn guide-tip__btn--default" type="button" style="flex: 1;" @click="networkConfigModalVisible = true">
-              <i class="i-ant-design-setting-outlined" />
-              网络配置
-            </button>
-          </div>
           <button class="guide-tip__skip" type="button" @click="closeGuide">跳过，稍后再说</button>
         </div>
 
@@ -696,6 +715,15 @@ const isBranchStep = computed(() =>
         </div>
       </div>
     </Transition>
+
+    <!-- 网关离线：网络配置按钮（在气泡外侧，表示此操作在 App 上进行） -->
+    <div v-if="currentStep === 'gw-offline'" class="gw-offline-app-entry">
+      <button class="gw-offline-app-entry__btn" type="button" @click="openNetworkConfig">
+        <i class="i-ant-design-mobile-outlined" />
+        <span>网络配置</span>
+        <small>在 App 上操作</small>
+      </button>
+    </div>
 
     <!-- ===== 网关在线提示弹窗（highlight-modal 高亮目标） ===== -->
     <a-modal
@@ -824,57 +852,129 @@ const isBranchStep = computed(() =>
       </div>
     </a-modal>
 
-    <!-- ===== 网络配置弹窗 ===== -->
+    <!-- ===== 网络配置弹窗（手机模拟器） ===== -->
     <a-modal
       v-model:open="networkConfigModalVisible"
-      title="网络配置"
-      :width="440"
+      :title="null"
       :footer="null"
+      :width="340"
       centered
       :z-index="2200"
+      :body-style="{ padding: '0', background: 'transparent' }"
+      wrap-class-name="phone-modal-wrap"
       @cancel="networkConfigModalVisible = false"
     >
-      <div class="net-config">
-        <!-- 自动开关 -->
-        <div class="net-config__auto">
-          <div class="net-config__auto-info">
-            <strong>自动获取</strong>
-            <span>开启后自动配置网络参数</span>
+      <div class="phone-mock">
+        <!-- 手机刘海 -->
+        <div class="phone-mock__notch" />
+        <!-- 手机屏幕 -->
+        <div class="phone-mock__screen">
+          <!-- 页面 1：登录 -->
+          <div v-if="phonePage === 'login'" class="phone-login">
+            <img :src="loginImg" alt="登录页面" draggable="false" />
+            <button class="phone-login__enter" type="button" @click="phonePage = 'config'">
+              <span>模拟登录，进入网关配置</span>
+              <i class="i-ant-design-arrow-right-outlined" />
+            </button>
           </div>
-          <a-switch v-model:checked="networkAuto" />
-        </div>
 
-        <!-- 手动模式下展示两组配置 -->
-        <template v-if="!networkAuto">
-          <div
-            v-for="(group, gi) in networkGroups"
-            :key="gi"
-            class="net-config__group"
-          >
-            <div class="net-config__group-title">配置 {{ gi + 1 }}</div>
-            <div class="net-config__field">
-              <label>地址</label>
-              <input v-model="group.address" />
+          <!-- 页面 2：网关配置 -->
+          <div v-else class="phone-config">
+            <!-- 顶部标题 -->
+            <div class="phone-config__header">
+              <i class="i-ant-design-arrow-left-outlined" @click="phonePage = 'login'" />
+              <span>网关配置</span>
             </div>
-            <div class="net-config__field">
-              <label>网关</label>
-              <input v-model="group.gateway" />
+
+            <!-- 网口列表 -->
+            <div class="phone-config__body">
+              <div
+                v-for="(port, pi) in portConfigs"
+                :key="pi"
+                class="phone-port"
+                :class="{ 'is-connected': port.connected }"
+              >
+                <!-- 网口标题行 -->
+                <div class="phone-port__head">
+                  <span class="phone-port__name">{{ port.name }}</span>
+                  <span class="phone-port__status" :class="port.connected ? 'online' : 'offline'">
+                    {{ port.connected ? '已接入' : '未接入' }}
+                  </span>
+                </div>
+
+                <!-- 已接入：显示基本信息 + 摄像头 -->
+                <template v-if="port.connected">
+                  <!-- 自动开关 -->
+                  <div class="phone-port__auto">
+                    <span>自动获取</span>
+                    <a-switch v-model:checked="port.auto" size="small" />
+                  </div>
+
+                  <!-- 手动模式：显示字段 -->
+                  <div v-if="!port.auto" class="phone-port__fields">
+                    <div class="phone-port__field">
+                      <label>地址</label>
+                      <input v-model="port.address" />
+                    </div>
+                    <div class="phone-port__field">
+                      <label>网关</label>
+                      <input v-model="port.gateway" />
+                    </div>
+                    <div class="phone-port__field">
+                      <label>子网掩码</label>
+                      <input v-model="port.mask" />
+                    </div>
+                    <div class="phone-port__field">
+                      <label>DNS</label>
+                      <input v-model="port.dns" />
+                    </div>
+                  </div>
+
+                  <!-- 自动模式：只读显示全部网络信息 -->
+                  <div v-else class="phone-port__info">
+                    <div class="phone-port__info-row">
+                      <span>地址</span>
+                      <strong>{{ port.address }}</strong>
+                    </div>
+                    <div class="phone-port__info-row">
+                      <span>网关</span>
+                      <strong>{{ port.gateway }}</strong>
+                    </div>
+                    <div class="phone-port__info-row">
+                      <span>子网掩码</span>
+                      <strong>{{ port.mask }}</strong>
+                    </div>
+                    <div class="phone-port__info-row">
+                      <span>DNS</span>
+                      <strong>{{ port.dns }}</strong>
+                    </div>
+                  </div>
+
+                  <!-- 发现的摄像头 -->
+                  <div class="phone-port__cameras">
+                    <div class="phone-port__cameras-title">发现的摄像头（{{ port.cameras.length }}）</div>
+                    <div v-for="cam in port.cameras" :key="cam" class="phone-port__camera">
+                      <i class="i-ant-design-video-camera-outlined" />
+                      <span>{{ cam }}</span>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- 未接入 -->
+                <div v-else class="phone-port__empty">
+                  <i class="i-ant-design-api-outlined" />
+                  <span>等待接入</span>
+                </div>
+              </div>
             </div>
-            <div class="net-config__field">
-              <label>子网掩码</label>
-              <input v-model="group.mask" />
-            </div>
-            <div class="net-config__field">
-              <label>DNS</label>
-              <input v-model="group.dns" />
+
+            <!-- 底部保存 -->
+            <div class="phone-config__footer">
+              <button class="phone-config__save" type="button" @click="networkConfigModalVisible = false">
+                保存配置
+              </button>
             </div>
           </div>
-        </template>
-
-        <div class="net-config__actions">
-          <button class="guide-tip__btn guide-tip__btn--primary" type="button" style="flex: 1;" @click="networkConfigModalVisible = false">
-            确定
-          </button>
         </div>
       </div>
     </a-modal>
@@ -1482,6 +1582,40 @@ const isBranchStep = computed(() =>
   100% { transform: scale(2.8); opacity: 0; }
 }
 
+/* ===== 网关离线：App 操作入口（气泡外侧） ===== */
+.gw-offline-app-entry {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1999;
+
+  &__btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 24px;
+    border: 1px dashed rgba(255, 255, 255, 0.4);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+
+    > i { font-size: 24px; }
+    span { font-size: 14px; font-weight: 600; }
+    small { font-size: 11px; opacity: 0.6; }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.6);
+    }
+  }
+}
+
 /* ===== 网关上线提示 toast ===== */
 .online-toast {
   position: fixed;
@@ -1571,75 +1705,247 @@ const isBranchStep = computed(() =>
   }
 }
 
-/* ===== 网络配置弹窗 ===== */
-.net-config {
+/* ===== 手机模拟器弹窗 ===== */
+.phone-mock {
+  width: 300px;
+  height: 600px;
+  margin: 0 auto;
+  background: #1a1a1a;
+  border-radius: 36px;
+  padding: 10px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3);
+
+  &__notch {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 22px;
+    background: #1a1a1a;
+    border-radius: 0 0 14px 14px;
+    z-index: 10;
+  }
+
+  &__screen {
+    width: 100%;
+    height: 100%;
+    background: #f5f5f5;
+    border-radius: 28px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+}
+
+/* 登录页 */
+.phone-login {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 8px 4px 4px;
+
+  img {
+    width: 100%;
+    flex: 1;
+    object-fit: contain;
+    object-position: top;
+  }
+
+  &__enter {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px;
+    border: none;
+    background: $color-primary;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    i { font-size: 13px; }
+    &:hover { background: $color-primary-hover; }
+  }
+}
+
+/* 网关配置页 */
+.phone-config {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 28px 14px 12px;
+    background: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    color: $text-base;
+    flex-shrink: 0;
+
+    i {
+      font-size: 18px;
+      cursor: pointer;
+      color: $text-secondary;
+      &:hover { color: $color-primary; }
+    }
+  }
+
+  &__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__footer {
+    flex-shrink: 0;
+    padding: 10px 14px 16px;
+    background: #fff;
+    border-top: 1px solid #f0f0f0;
+  }
+
+  &__save {
+    width: 100%;
+    height: 38px;
+    border: none;
+    border-radius: 8px;
+    background: $color-primary;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    &:hover { background: $color-primary-hover; }
+  }
+}
+
+/* 网口卡片 */
+.phone-port {
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #f0f0f0;
+
+  &.is-connected {
+    border-color: rgba(82, 196, 26, 0.3);
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid #f5f5f5;
+  }
+
+  &__name {
+    font-size: 13px;
+    font-weight: 600;
+    color: $text-base;
+  }
+
+  &__status {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+
+    &.online { background: rgba(82, 196, 26, 0.1); color: #52c41a; }
+    &.offline { background: rgba(0, 0, 0, 0.06); color: #999; }
+  }
 
   &__auto {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 16px;
-    background: $bg-page;
-    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: $text-secondary;
   }
 
-  &__auto-info {
+  &__info {
+    padding: 4px 12px 8px;
+  }
+
+  &__info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 3px 0;
+
+    span { color: $text-muted; }
+    strong { color: $text-base; font-family: 'Courier New', monospace; }
+  }
+
+  &__fields {
+    padding: 4px 12px 8px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    strong { font-size: 14px; font-weight: 600; color: $text-base; }
-    span { font-size: 12px; color: $text-muted; }
-  }
-
-  &__group {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 16px;
-    border: 1px solid $border-color-card;
-    border-radius: 10px;
-  }
-
-  &__group-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: $color-primary;
-    padding-bottom: 8px;
-    border-bottom: 1px solid $border-color-card;
-    margin-bottom: 2px;
+    gap: 6px;
   }
 
   &__field {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 2px;
 
-    label {
-      font-size: 12px;
-      color: $text-secondary;
-    }
+    label { font-size: 11px; color: $text-muted; }
 
     input {
       width: 100%;
-      height: 34px;
-      padding: 0 12px;
-      border: 1px solid $border-color-light;
+      height: 30px;
+      padding: 0 8px;
+      border: 1px solid #e8e8e8;
       border-radius: 6px;
-      font-size: 13px;
+      font-size: 12px;
       color: $text-base;
       font-family: 'Courier New', monospace;
       outline: none;
-      transition: border-color 0.15s;
-      &:focus { border-color: $color-primary; box-shadow: 0 0 0 2px rgba(110, 75, 255, 0.1); }
+      &:focus { border-color: $color-primary; }
     }
   }
 
-  &__actions {
-    margin-top: 4px;
+  &__cameras {
+    padding: 8px 12px;
+    border-top: 1px solid #f5f5f5;
+  }
+
+  &__cameras-title {
+    font-size: 11px;
+    color: $text-muted;
+    margin-bottom: 6px;
+  }
+
+  &__camera {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 0;
+    font-size: 12px;
+    color: $text-base;
+
+    i { font-size: 13px; color: $color-primary; }
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 24px 0;
+
+    i { font-size: 28px; color: #d9d9d9; }
+    span { font-size: 12px; color: #bbb; }
   }
 }
 </style>
