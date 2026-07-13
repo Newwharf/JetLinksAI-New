@@ -4,6 +4,7 @@
  * 设备接入总览 / 告警分析 / 最近告警事件 / 识别趋势 / 最近出现人员车辆
  */
 import ECharts from '@/components/ECharts.vue'
+import { useAppStore } from '@/stores/app'
 import {
   deviceStats,
   alarmTrendDays,
@@ -218,6 +219,12 @@ const levelClass: Record<AlarmLevel, string> = {
   警告: 'is-warning',
   提示: 'is-info'
 }
+
+// 每次进入仪表盘自动弹出欢迎引导
+const appStore = useAppStore()
+onMounted(() => {
+  appStore.showWelcome()
+})
 </script>
 
 <template>

@@ -25,5 +25,25 @@ export default defineConfig({
     'flex-center': 'flex items-center justify-center',
     'flex-between': 'flex items-center justify-between',
     'card-base': 'bg-white rounded-lg shadow p-4'
-  }
+  },
+  // 确保动态绑定的图标 class 被生成（mock 数据中的图标名无法被静态扫描）
+  safelist: [
+    'i-ant-design-safety-outlined',
+    'i-ant-design-fire-outlined',
+    'i-ant-design-team-outlined',
+    'i-ant-design-car-outlined',
+    'i-ant-design-property-safety-outlined',
+    'i-ant-design-bell-outlined',
+    'i-ant-design-radar-chart-outlined',
+    'i-ant-design-thermometer-outlined',
+    'i-ant-design-experiment-outlined',
+    'i-ant-design-bulb-outlined',
+    'i-ant-design-door-outlined',
+    'i-ant-design-swap-outlined',
+    'i-ant-design-thunderbolt-outlined',
+    'i-ant-design-sound-outlined',
+    'i-ant-design-dashboard-outlined',
+    'i-ant-design-environment-outlined',
+    'i-ant-design-wifi-outlined'
+  ]
 })

@@ -2,6 +2,12 @@
  * 客流分析模块共用 mock 数据
  * 数据来源：JetLinks UAT 站 cloud-uat.jetlinks.cn/ht_device/#/flow-analysis/people/trends
  */
+import cam1 from '@/assets/text-search/result-01.jpg'
+import cam2 from '@/assets/text-search/result-02.jpg'
+import cam3 from '@/assets/text-search/result-03.jpg'
+import cam4 from '@/assets/text-search/result-04.jpg'
+import cam5 from '@/assets/text-search/result-05.jpg'
+import cam6 from '@/assets/text-search/result-06.jpg'
 
 // ===== 趋势页 KPI 卡片（4 张，1:1 原值）=====
 export interface KpiCard {
@@ -214,5 +220,95 @@ export const pointManageList: PointManageRow[] = [
     device: '摄像头-C1（宇视）',
     status: 'online',
     updateTime: '2026-07-01 11:08'
+  }
+]
+
+export type FlowLineStatus = 'pending' | 'done'
+
+export interface FlowPointCard {
+  key: string
+  name: string
+  cameraName: string
+  thumb: string
+  areaPath: string[]
+  gatewayName: string
+  lineStatus: FlowLineStatus
+  todayIn: number
+  todayOut: number
+  remark?: string
+}
+
+export const flowPointCards: FlowPointCard[] = [
+  {
+    key: 'fp-001',
+    name: '产品部原机房位置',
+    cameraName: '东门摄像头',
+    thumb: cam1,
+    areaPath: ['物联网产业园区', 'E栋', '4F', '研发部办公区'],
+    gatewayName: 'E栋网关1',
+    lineStatus: 'done',
+    todayIn: 1135,
+    todayOut: 1330,
+    remark: '用于统计东门通道的日常进出客流，当前按双向越线规则进行识别。'
+  },
+  {
+    key: 'fp-002',
+    name: '产品部门口',
+    cameraName: '大厅摄像头A',
+    thumb: cam2,
+    areaPath: ['物联网产业园区', 'E栋', '4F', '研发部办公区'],
+    gatewayName: 'E栋网关1',
+    lineStatus: 'done',
+    todayIn: 223,
+    todayOut: 252,
+    remark: '覆盖大厅入口区域，适合观察早晚高峰和访客进出变化。'
+  },
+  {
+    key: 'fp-003',
+    name: '东门入口',
+    cameraName: '会议室摄像头',
+    thumb: cam3,
+    areaPath: ['物联网产业园区', 'E栋', '4F', '项目部办公区'],
+    gatewayName: 'E栋网关1',
+    lineStatus: 'pending',
+    todayIn: 8742,
+    todayOut: 0,
+    remark: '该点位待完成进出线框配置，配置后可开始统计净流入数据。'
+  },
+  {
+    key: 'fp-004',
+    name: '西门通道',
+    cameraName: '车库摄像头',
+    thumb: cam4,
+    areaPath: ['物联网产业园区', 'E栋', '2F', '公共区域'],
+    gatewayName: 'E栋网关1',
+    lineStatus: 'done',
+    todayIn: 2601,
+    todayOut: 2717,
+    remark: '用于西门通道客流核算，可辅助判断办公区离场峰值。'
+  },
+  {
+    key: 'fp-005',
+    name: '研发部办公区主通道',
+    cameraName: '南门摄像头',
+    thumb: cam5,
+    areaPath: ['物联网产业园区', 'E栋', '2F', '公共区域'],
+    gatewayName: 'E栋网关1',
+    lineStatus: 'done',
+    todayIn: 1988,
+    todayOut: 1818,
+    remark: '研发部主通道点位，重点关注工作时段人员流动。'
+  },
+  {
+    key: 'fp-006',
+    name: '电梯厅',
+    cameraName: '前台摄像头',
+    thumb: cam6,
+    areaPath: ['物联网产业园区', 'A栋', '1F', '运营办公室'],
+    gatewayName: 'A栋网关',
+    lineStatus: 'pending',
+    todayIn: 636,
+    todayOut: 588,
+    remark: '电梯厅点位，适合做楼层人员到达和离开趋势分析。'
   }
 ]

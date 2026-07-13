@@ -89,7 +89,9 @@ const routes: RouteRecordRaw[] = [
         children: [
           { path: '', redirect: '/video/wall' },
           { path: 'wall', name: 'video-wall', component: () => import('@/views/video/WallView.vue'), meta: { title: '监控墙' } },
-          { path: 'device', name: 'video-device', component: () => import('@/views/video/DeviceManageView.vue'), meta: { title: '监控设备管理' } }
+          { path: 'device', name: 'video-device', component: () => import('@/views/video/DeviceManageView.vue'), meta: { title: '监控设备管理' } },
+          { path: 'device/gateway/:id', name: 'video-gateway-config', component: () => import('@/views/video/GatewayConfigView.vue'), meta: { title: '网关设备配置' } },
+          { path: 'device/gateway/:id/network', name: 'video-gateway-network', component: () => import('@/views/video/GatewayNetworkView.vue'), meta: { title: '网络配置' } }
         ]
       },
 
@@ -125,17 +127,16 @@ const routes: RouteRecordRaw[] = [
         meta: {
           tabs: [
             { key: 'analysis', label: '客流趋势分析', path: '/flow/analysis' },
-            { key: 'heat', label: '区域人员热力图', path: '/flow/heat' },
             { key: 'point', label: '客流点位管理', path: '/flow/point' },
-            { key: 'heat-point', label: '热力图点位管理', path: '/flow/heat-point' }
+            { key: 'portrait', label: '画像分析', path: '/flow/portrait' }
           ]
         },
         children: [
           { path: '', redirect: '/flow/analysis' },
           { path: 'analysis', name: 'flow-analysis', component: () => import('@/views/flow/TrendView.vue'), meta: { title: '客流趋势分析' } },
-          { path: 'heat', name: 'flow-heat', ...ph('区域人员热力图') },
           { path: 'point', name: 'flow-point', component: () => import('@/views/flow/PointView.vue'), meta: { title: '客流点位管理' } },
-          { path: 'heat-point', name: 'flow-heat-point', ...ph('热力图点位管理') }
+          { path: 'point/:id', name: 'flow-point-detail', component: () => import('@/views/flow/PointDetailView.vue'), meta: { title: '客流点位详情' } },
+          { path: 'portrait', name: 'flow-portrait', ...ph('画像分析') }
         ]
       },
 
@@ -237,7 +238,7 @@ const routes: RouteRecordRaw[] = [
         children: [
           { path: '', redirect: '/alarm/event' },
           { path: 'event', name: 'alarm-event', component: () => import('@/views/alarm/AlarmEventView.vue'), meta: { title: '告警事件' } },
-          { path: 'rule', name: 'alarm-rule', ...ph('告警规则管理') }
+          { path: 'rule', name: 'alarm-rule', component: () => import('@/views/alarm/AlarmRuleView.vue'), meta: { title: '告警规则管理' } }
         ]
       },
 
@@ -291,14 +292,20 @@ const routes: RouteRecordRaw[] = [
         component: SubTabLayout,
         meta: {
           tabs: [
-            { key: 'device', label: '设备管理', path: '/iot/device' },
-            { key: 'product', label: '产品管理', path: '/iot/product' }
+            { key: 'overview', label: '设备总览', path: '/iot/overview' },
+            { key: 'device', label: '设备列表', path: '/iot/device' },
+            { key: 'product', label: '产品列表', path: '/iot/product' },
+            { key: 'group', label: '设备分组', path: '/iot/group' }
           ]
         },
         children: [
-          { path: '', redirect: '/iot/device' },
-          { path: 'device', name: 'iot-device', ...ph('设备管理') },
-          { path: 'product', name: 'iot-product', ...ph('产品管理') }
+          { path: '', redirect: '/iot/overview' },
+          { path: 'overview', name: 'iot-overview', component: () => import('@/views/iot/DeviceOverviewView.vue'), meta: { title: '设备总览' } },
+          { path: 'device', name: 'iot-device', component: () => import('@/views/iot/DeviceListView.vue'), meta: { title: '设备列表' } },
+          { path: 'device/:id', name: 'iot-device-detail', component: () => import('@/views/iot/DeviceDetailView.vue'), meta: { title: '设备详情' } },
+          { path: 'product', name: 'iot-product', component: () => import('@/views/iot/ProductListView.vue'), meta: { title: '产品列表' } },
+          { path: 'product/:id', name: 'iot-product-detail', component: () => import('@/views/iot/ProductDetailView.vue'), meta: { title: '产品详情' } },
+          { path: 'group', name: 'iot-group', component: () => import('@/views/iot/DeviceGroupView.vue'), meta: { title: '设备分组' } }
         ]
       },
 
@@ -314,6 +321,7 @@ const routes: RouteRecordRaw[] = [
             { key: 'org', label: '组织', path: '/system/org' },
             { key: 'msg-template', label: '消息模版', path: '/system/msg-template' },
             { key: 'msg-channel', label: '消息渠道', path: '/system/msg-channel' },
+            { key: 'subscription', label: '订阅服务', path: '/system/subscription' },
             { key: 'elderly-space', label: '空间管理', path: '/system/elderly-space', scenarios: ['elderly'] }
           ]
         },
@@ -325,6 +333,7 @@ const routes: RouteRecordRaw[] = [
           { path: 'org', name: 'system-org', ...ph('组织') },
           { path: 'msg-template', name: 'system-msg-template', ...ph('消息模版') },
           { path: 'msg-channel', name: 'system-msg-channel', ...ph('消息渠道') },
+          { path: 'subscription', name: 'system-subscription', component: () => import('@/views/system/subscription/SubscriptionView.vue'), meta: { title: '订阅服务' } },
           { path: 'elderly-space', name: 'system-elderly-space', ...ph('空间管理') }
         ]
       },
@@ -510,6 +519,14 @@ const routes: RouteRecordRaw[] = [
         ...ph('模型性能分析')
       }
     ]
+  },
+
+  // ===== 网关地址页（独立全屏页，不使用 ProjectLayout） =====
+  {
+    path: '/video/device/gateway/:id/address',
+    name: 'video-gateway-address',
+    component: () => import('@/views/video/GatewayAddressView.vue'),
+    meta: { title: '网关地址' }
   }
 ]
 

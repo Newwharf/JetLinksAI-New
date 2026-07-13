@@ -6,7 +6,26 @@
  * 点击通道卡片 → 弹窗播放（复用监控墙弹窗结构：左直播 + 右告警/回放）
  */
 import { message } from 'ant-design-vue'
-import { gateways, channels, areaText, type GatewayDevice, type VideoChannel } from './device.mock'
+import { useRouter } from 'vue-router'
+import { useAppStore } from '@/stores/app'
+import { gateways, channels, areaText, areaTree, areaTreeExpandedKeys, type GatewayDevice, type VideoChannel, type AreaTreeNode } from './device.mock'
+import gatewayImg from '@/assets/cameras/gateway.png'
+
+const router = useRouter()
+const appStore = useAppStore()
+
+// ===== 左侧筛选模式：通过网关 / 通过区域 =====
+type FilterMode = 'gateway' | 'area'
+const filterMode = ref<FilterMode>('gateway')
+
+// ===== 区域树 =====
+const areaExpandedKeys = ref<string[]>([])
+// 初始化展开全部
+watchEffect(() => {
+  if (areaExpandedKeys.value.length === 0 && areaTreeExpandedKeys.value.length > 0) {
+    areaExpandedKeys.value = [...areaTreeExpandedKeys.value]
+  }
+})
 
 // ===== KPI =====
 const kpiCards = computed(() => {
@@ -81,12 +100,61 @@ const activeGateway = computed<GatewayDevice | undefined>(() =>
   gateways.find(g => g.id === activeGatewayId.value)
 )
 
+// 某网关下的通道数
+function channelCount(gwId: string): number {
+  return channels.value.filter(c => c.gatewayId === gwId).length
+}
+
+// ===== 当前选中的区域 =====
+const activeAreaKey = ref<string>('')
+const activeArea = computed<AreaTreeNode | undefined>(() => {
+  if (!activeAreaKey.value) return undefined
+  // 在树中查找
+  function find(nodes: AreaTreeNode[]): AreaTreeNode | undefined {
+    for (const n of nodes) {
+      if (n.key === activeAreaKey.value) return n
+      if (n.children) {
+        const r = find(n.children)
+        if (r) return r
+      }
+    }
+    return undefined
+  }
+  return find(areaTree.value)
+})
+
+// 收集某节点下所有末级区域的 path（用于通道匹配）
+function collectAreaPaths(node: AreaTreeNode): string[] {
+  const paths: string[] = []
+  function walk(n: AreaTreeNode) {
+    if (!n.children || n.children.length === 0) {
+      if (n.path) paths.push(n.path.join('/'))
+    } else {
+      n.children.forEach(walk)
+    }
+  }
+  walk(node)
+  return paths
+}
+
 // 通道搜索关键字
 const searchKey = ref('')
 
-// 当前网关下、命中搜索的通道
-const gatewayChannels = computed(() => {
-  const list = channels.value.filter(c => c.gatewayId === activeGatewayId.value)
+// 当前筛选下、命中搜索的通道（按模式区分）
+const filteredChannels = computed(() => {
+  let list: VideoChannel[]
+  if (filterMode.value === 'gateway') {
+    list = channels.value.filter(c => c.gatewayId === activeGatewayId.value)
+  } else {
+    // 区域模式：选中树节点，匹配该节点下所有末级区域的通道
+    const area = activeArea.value
+    if (area) {
+      const paths = collectAreaPaths(area)
+      list = channels.value.filter(c => paths.includes(c.areaPath.join('/')))
+    } else {
+      list = []
+    }
+  }
   const kw = searchKey.value.trim().toLowerCase()
   if (!kw) return list
   return list.filter(c =>
@@ -95,16 +163,53 @@ const gatewayChannels = computed(() => {
   )
 })
 
+// 右侧标题
+const rightPanelTitle = computed(() => {
+  if (filterMode.value === 'gateway') {
+    return `${activeGateway.value?.name || ''} · 通道列表`
+  }
+  return `${activeArea.value?.title || ''} · 通道列表`
+})
+
 // 选中网关
 function selectGateway(id: string) {
   activeGatewayId.value = id
   searchKey.value = ''
 }
 
+// 进入网关设备配置页
+function gotoGatewayConfig(gw: GatewayDevice, e: Event) {
+  e.stopPropagation()
+  // 引导联动：进入地址页时推进步骤
+  if (appStore.guideStep === 'goto-config') {
+    appStore.setGuideStep('gw-address')
+  }
+  router.push(`/video/device/gateway/${gw.id}/address`)
+}
+
+// 选中区域（树节点）
+function selectAreaNode(key: string) {
+  activeAreaKey.value = key
+  searchKey.value = ''
+}
+
+// 切换筛选模式时重置选择
+watch(filterMode, (mode) => {
+  searchKey.value = ''
+  if (mode === 'gateway') {
+    if (!activeGatewayId.value) activeGatewayId.value = gateways[0]?.id || ''
+  } else {
+    // 默认选中第一个根节点
+    if (!activeAreaKey.value && areaTree.value.length > 0) {
+      activeAreaKey.value = areaTree.value[0].key
+    }
+  }
+})
+
 // ===== 同步通道：占位交互（无未同步概念，仅给反馈）=====
 const syncingId = ref<string | null>(null)
-function syncChannels(gw: GatewayDevice, e: Event) {
-  e.stopPropagation()
+function syncChannels(gw: GatewayDevice, e?: Event) {
+  e?.stopPropagation()
   if (syncingId.value) return
   syncingId.value = gw.id
   setTimeout(() => {
@@ -112,6 +217,179 @@ function syncChannels(gw: GatewayDevice, e: Event) {
     message.success(`「${gw.name}」通道已同步`)
   }, 800)
 }
+
+// 右侧面板：同步当前选中网关
+const isSyncingActive = computed(() => syncingId.value === activeGatewayId.value)
+function syncActiveGateway() {
+  if (activeGateway.value) syncChannels(activeGateway.value)
+}
+
+// ===== 新增网关弹窗 =====
+type BindMethod = 'sn' | 'scan'
+const bindModalVisible = ref(false)
+const bindMethod = ref<BindMethod>('sn')
+const snInput = ref('')
+const binding = ref(false)
+// 绑定错误提示（红色横条）
+const bindError = ref('')
+// 扫码识别状态：false=待扫码，true=识别成功
+const scanSuccess = ref(false)
+
+function openBindModal() {
+  bindModalVisible.value = true
+}
+
+function closeBindModal() {
+  bindModalVisible.value = false
+  // 重置
+  snInput.value = ''
+  binding.value = false
+  bindError.value = ''
+  scanSuccess.value = false
+}
+
+function switchMethod(m: BindMethod) {
+  bindMethod.value = m
+  bindError.value = ''
+  snInput.value = ''
+  scanSuccess.value = false
+}
+
+/**
+ * 绑定网关
+ * 规则：输入 "1" 成功，输入 "2" 失败，其他值也失败
+ */
+function handleBind() {
+  bindError.value = ''
+  let inputValue = ''
+  let errorTip = ''
+
+  if (bindMethod.value === 'sn') {
+    inputValue = snInput.value.trim()
+    if (!inputValue) { bindError.value = '请输入网关 SN 码'; return }
+    errorTip = '绑定失败，请确认 SN 码是否正确'
+  } else {
+    return // 扫码接入不经过这里
+  }
+
+  binding.value = true
+  setTimeout(() => {
+    binding.value = false
+    if (inputValue === '1') {
+      // 绑定成功
+      message.success('网关绑定成功')
+      closeBindModal()
+
+      // 引导流程：绑定成功后添加新网关并推进到「配置设备」步骤
+      if (appStore.guideActive && appStore.guideStep === 'bind-gateway') {
+        gateways.push({
+          id: 'gw-new-' + Date.now(),
+          name: '新接入网关',
+          brand: 'JetLinks',
+          model: 'Edge-2000',
+          sn: 'GW-' + Math.floor(10000000 + Math.random() * 89999999),
+          ip: '192.168.1.108',
+          location: 'E栋 1F 弱电间',
+          status: 'online'
+        })
+        nextTick(() => {
+          appStore.setGuideStep('goto-config')
+        })
+      }
+    } else {
+      // 绑定失败，不关闭弹窗
+      bindError.value = errorTip
+    }
+  }, 800)
+}
+
+// ===== 引导模式：下拉选择绑定结果 =====
+const GUIDE_GW_ID = 'gw-guide'
+
+type GuideBindResult = 'configured' | 'empty' | 'offline'
+
+// 引导模式：确定绑定选择弹窗
+const guideBindModalVisible = ref(false)
+
+/** 打开绑定结果选择弹窗 */
+function openGuideBindModal() {
+  guideBindModalVisible.value = true
+}
+
+/** 引导模式下，选择绑定结果后创建网关并推进到对应提示页 */
+function handleGuideBindSelect(result: GuideBindResult) {
+  guideBindModalVisible.value = false
+  closeBindModal()
+
+  // 先移除之前引导创建的网关（避免重复）
+  const idx = gateways.findIndex(g => g.id === GUIDE_GW_ID)
+  if (idx >= 0) gateways.splice(idx, 1)
+
+  // 创建新网关
+  const isOnline = result === 'configured' || result === 'empty'
+  gateways.push({
+    id: GUIDE_GW_ID,
+    name: '新接入网关',
+    brand: 'JetLinks',
+    model: 'Edge-2000',
+    sn: 'GW-' + Math.floor(10000000 + Math.random() * 89999999),
+    ip: '192.168.1.108',
+    location: 'E栋 1F 弱电间',
+    status: isOnline ? 'online' : 'offline',
+  })
+
+  // 已配置场景：为该网关添加几条摄像头通道
+  if (result === 'configured') {
+    const camThumbs = [channels.value[0]?.thumb, channels.value[1]?.thumb, channels.value[2]?.thumb]
+    const guideChannels: VideoChannel[] = [
+      { id: 'ch-guide-1', name: '前门摄像头', thumb: camThumbs[0] || channels.value[0]?.thumb || '', gatewayId: GUIDE_GW_ID, areaPath: ['物联网产业园区', 'E栋', '1F', '公共区域'], status: 'online', ptz: false },
+      { id: 'ch-guide-2', name: '大厅摄像头', thumb: camThumbs[1] || channels.value[1]?.thumb || '', gatewayId: GUIDE_GW_ID, areaPath: ['物联网产业园区', 'E栋', '1F', '公共区域'], status: 'online', ptz: false },
+      { id: 'ch-guide-3', name: '走廊摄像头', thumb: camThumbs[2] || channels.value[2]?.thumb || '', gatewayId: GUIDE_GW_ID, areaPath: [], status: 'offline', ptz: false },
+    ]
+    channels.value.push(...guideChannels)
+  }
+
+  // 清除该网关下旧的引导通道（切换场景时避免残留）
+  if (result !== 'configured') {
+    const chIdx: number[] = []
+    channels.value.forEach((c, i) => { if (c.gatewayId === GUIDE_GW_ID) chIdx.unshift(i) })
+    chIdx.forEach(i => channels.value.splice(i, 1))
+  }
+
+  // 选中并记录
+  activeGatewayId.value = GUIDE_GW_ID
+  appStore.guideGatewayId = GUIDE_GW_ID
+  appStore.guideBindResult = result
+
+  // 推进到对应的 center 提示页
+  nextTick(() => {
+    if (result === 'configured') appStore.setGuideStep('gw-online-configured')
+    else if (result === 'empty') appStore.setGuideStep('gw-online-empty')
+    else appStore.setGuideStep('gw-offline')
+  })
+}
+
+// ===== 离线网关：更新通道触发 =====
+watch(() => appStore.guideOfflineUpdateTrigger, () => {
+  if (!appStore.guideActive) return
+  // 将引导网关变为在线（步骤推进由 GuideOverlay 的 handleOfflineUpdateSelect 负责）
+  const gw = gateways.find(g => g.id === GUIDE_GW_ID)
+  if (gw) gw.status = 'online'
+})
+watch(() => appStore.guideStep, (step) => {
+  if (step === 'bind-gateway' && !bindModalVisible.value) {
+    nextTick(() => openBindModal())
+  }
+}, { immediate: true })
+
+// ===== 引导联动：点击新增网关 → 自动推进到 bind-gateway =====
+function openBindModalGuide() {
+  openBindModal()
+  if (appStore.guideStep === 'add-gateway') {
+    appStore.setGuideStep('bind-gateway')
+  }
+}
+
 
 // ===== 点击通道 → 弹窗播放（复用监控墙弹窗结构）=====
 const playModalVisible = ref(false)
@@ -238,71 +516,146 @@ const replayClips = computed<ReplayClip[]>(() => {
 
     <!-- 左右两栏 -->
     <section class="split">
-      <!-- 左：网关列表 -->
+      <!-- 左：网关/区域列表 -->
       <aside class="gw-panel">
-        <div class="panel-head">
-          <strong>边缘网关</strong>
-          <span class="panel-count">{{ gateways.length }} 个</span>
-        </div>
-        <div class="gw-list">
-          <div
-            v-for="gw in gateways"
-            :key="gw.id"
-            class="gw-item"
-            :class="{ 'is-active': gw.id === activeGatewayId }"
-            @click="selectGateway(gw.id)"
+        <!-- 模式切换 -->
+        <div class="filter-mode">
+          <button
+            class="filter-mode__btn"
+            :class="{ active: filterMode === 'gateway' }"
+            @click="filterMode = 'gateway'"
           >
-            <!-- 第一行：图标 + 名称 + 状态文案 + 状态点 + 同步按钮 -->
-            <div class="gw-item__top">
-              <i
-                class="gw-item__icon"
-                :class="gw.status === 'online' ? 'is-online' : 'is-offline'"
-              />
-              <span class="gw-item__name" :title="gw.name">{{ gw.name }}</span>
-              <span class="gw-item__status-text" :class="gw.status">
-                {{ gw.status === 'online' ? '在线' : '离线' }}
+            <i class="i-ant-design-cloud-server-outlined" />
+            <span>网关</span>
+            <em class="filter-mode__badge">{{ gateways.length }}</em>
+          </button>
+          <button
+            class="filter-mode__btn"
+            :class="{ active: filterMode === 'area' }"
+            @click="filterMode = 'area'"
+          >
+            <i class="i-ant-design-environment-outlined" />
+            <span>区域</span>
+          </button>
+        </div>
+
+        <!-- ===== 网关模式 ===== -->
+        <template v-if="filterMode === 'gateway'">
+          <div class="gw-list">
+            <div
+              v-for="gw in gateways"
+              :key="gw.id"
+              class="gw-item"
+              :class="{ 'is-active': gw.id === activeGatewayId }"
+              :data-guide="gw.id === activeGatewayId && appStore.guideStep === 'goto-config' ? 'goto-config' : undefined"
+              @click="selectGateway(gw.id)"
+            >
+              <span class="gw-item__icon-box" :class="gw.status">
+                <i class="i-ant-design-cloud-server-outlined" />
               </span>
-              <span class="gw-status-dot" :class="gw.status" />
+              <div class="gw-item__main">
+                <div class="gw-item__top">
+                  <span class="gw-item__name" :title="gw.name">{{ gw.name }}</span>
+                  <span class="gw-item__status-text" :class="gw.status">
+                    {{ gw.status === 'online' ? '在线' : '离线' }}
+                  </span>
+                </div>
+                <div class="gw-item__desc">{{ channelCount(gw.id) }} 路通道</div>
+              </div>
+              <!-- 配置设备按钮 -->
               <button
-                class="sync-btn"
-                :disabled="syncingId === gw.id"
-                title="同步该网关下所有通道"
-                @click="syncChannels(gw, $event)"
+                class="gw-item__config"
+                type="button"
+                title="配置该网关的摄像头设备"
+                @click="gotoGatewayConfig(gw, $event)"
               >
-                <i :class="syncingId === gw.id ? 'i-ant-design-loading-outlined sync-spin' : 'i-ant-design-sync-outlined'" />
-                <span>{{ syncingId === gw.id ? '同步中' : '同步通道' }}</span>
+                <i class="i-ant-design-setting-outlined" />
+                <span>配置设备</span>
               </button>
             </div>
-            <!-- 第二行：品牌型号 + IP -->
-            <div class="gw-item__meta">
-              <span class="gw-item__brand">{{ gw.brand }} · {{ gw.model }}</span>
-              <span class="gw-item__ip">{{ gw.ip }}</span>
+
+            <!-- 添加网关卡片 -->
+            <button
+              class="gw-add-card"
+              type="button"
+              data-guide="add-gateway"
+              @click="appStore.guideActive ? openBindModalGuide() : openBindModal()"
+            >
+              <i class="i-ant-design-plus-outlined" />
+              <span>添加网关</span>
+            </button>
+          </div>
+        </template>
+
+        <!-- ===== 区域模式 ===== -->
+        <template v-else>
+          <div class="panel-head">
+            <strong>区域列表</strong>
+          </div>
+          <div class="area-tree-wrap">
+            <a-tree
+              v-model:expandedKeys="areaExpandedKeys"
+              :tree-data="areaTree"
+              :selected-keys="activeAreaKey ? [activeAreaKey] : []"
+              :block-node="true"
+              :show-line="false"
+              class="area-tree"
+              @select="(_, info) => selectAreaNode(String(info.node.key))"
+            >
+              <template #title="{ title, count, onlineCount }">
+                <div class="area-tree-node" :class="{ 'has-children': false }">
+                  <span class="area-tree-node__label" :title="title">{{ title }}</span>
+                  <span class="area-tree-node__count">
+                    <i class="i-ant-design-video-camera-outlined" />
+                    <span>{{ count || 0 }}</span>
+                    <span v-if="onlineCount !== undefined" class="area-tree-node__online">/{{ onlineCount }}</span>
+                  </span>
+                </div>
+              </template>
+            </a-tree>
+            <div v-if="areaTree.length === 0" class="area-empty">
+              <i class="i-ant-design-environment-outlined" />
+              <p>暂无已绑定区域的通道</p>
             </div>
           </div>
-        </div>
+        </template>
       </aside>
 
       <!-- 右：通道卡片 -->
       <div class="ch-panel">
         <div class="ch-panel-head">
           <div class="ch-panel-title">
-            <strong>{{ activeGateway?.name }} · 通道列表</strong>
-            <span class="panel-count">{{ gatewayChannels.length }} 路</span>
+            <strong>{{ rightPanelTitle }}</strong>
+            <span class="panel-count">{{ filteredChannels.length }} 路</span>
           </div>
-          <a-input
-            v-model:value="searchKey"
-            class="ch-search"
-            placeholder="搜索通道名称或区域"
-            allow-clear
-          >
-            <template #prefix>
-              <i class="i-ant-design-search-outlined" />
-            </template>
-          </a-input>
+          <div class="ch-panel-actions">
+            <a-input
+              v-model:value="searchKey"
+              class="ch-search"
+              placeholder="搜索通道名称或区域"
+              allow-clear
+            >
+              <template #prefix>
+                <i class="i-ant-design-search-outlined" />
+              </template>
+            </a-input>
+            <!-- 更新通道（仅网关模式，同步当前选中网关） -->
+            <button
+              v-if="filterMode === 'gateway'"
+              class="ch-sync-btn"
+              type="button"
+              :disabled="isSyncingActive"
+              title="更新当前网关通道"
+              @click="syncActiveGateway"
+            >
+              <i :class="isSyncingActive ? 'i-ant-design-loading-outlined sync-spin' : 'i-ant-design-sync-outlined'" />
+              <span>{{ isSyncingActive ? '更新中' : '更新通道' }}</span>
+            </button>
+          </div>
         </div>
         <div class="ch-grid">
           <article
-            v-for="ch in gatewayChannels"
+            v-for="ch in filteredChannels"
             :key="ch.id"
             class="ch-card"
             @click="playChannel(ch)"
@@ -328,7 +681,7 @@ const replayClips = computed<ReplayClip[]>(() => {
               <div class="ch-card__title" :title="ch.name">{{ ch.name }}</div>
               <div class="ch-card__row">
                 <i class="i-ant-design-cloud-server-outlined ch-card__row-icon" />
-                <span class="ch-card__gateway">{{ activeGateway?.name }}</span>
+                <span class="ch-card__gateway">{{ gateways.find(g => g.id === ch.gatewayId)?.name || '未知网关' }}</span>
               </div>
               <div class="ch-card__row">
                 <i class="i-ant-design-environment-outlined ch-card__row-icon" />
@@ -344,13 +697,252 @@ const replayClips = computed<ReplayClip[]>(() => {
           </article>
 
           <!-- 空状态 -->
-          <div v-if="gatewayChannels.length === 0" class="ch-empty">
+          <div v-if="filteredChannels.length === 0" class="ch-empty">
             <i class="i-ant-design-video-camera-outlined ch-empty__icon" />
-            <p>{{ searchKey ? '没有找到匹配的通道' : '该网关暂无通道' }}</p>
+            <p>{{ searchKey ? '没有找到匹配的通道' : (filterMode === 'gateway' ? '该网关暂无通道' : '该区域暂无通道') }}</p>
           </div>
         </div>
       </div>
     </section>
+
+    <!-- ===== 新增网关弹窗 ===== -->
+    <a-modal
+      v-model:open="bindModalVisible"
+      title="新增网关"
+      :width="480"
+      :footer="null"
+      centered
+      :body-style="{ padding: '0' }"
+      :mask-closable="!appStore.guideActive"
+      :z-index="appStore.guideStep === 'bind-gateway' ? 2000 : 1000"
+      wrap-class-name="bind-modal-wrap"
+      @cancel="closeBindModal"
+    >
+      <div class="bind-modal" data-guide="bind-modal">
+        <!-- 方式切换 -->
+        <div class="bind-tabs">
+          <button
+            class="bind-tab"
+            :class="{ active: bindMethod === 'sn' }"
+            @click="switchMethod('sn')"
+          >
+            <i class="i-ant-design-barcode-outlined" />
+            <span>SN 码绑定</span>
+          </button>
+          <button
+            class="bind-tab"
+            :class="{ active: bindMethod === 'scan' }"
+            @click="switchMethod('scan')"
+          >
+            <i class="i-ant-design-scan-outlined" />
+            <span>扫码接入</span>
+          </button>
+        </div>
+
+        <!-- 尚未购买网关提示 -->
+        <div class="bind-contact">
+          <i class="i-ant-design-customer-service-outlined" />
+          <span>尚未购买网关？请前往联系商务获取设备</span>
+          <div class="bind-contact__ways">
+            <span class="bind-contact__way">
+              <i class="i-ant-design-phone-outlined" />
+              400-888-0000
+            </span>
+            <span class="bind-contact__way">
+              <i class="i-ant-design-mail-outlined" />
+              business@jetlinks.com
+            </span>
+          </div>
+        </div>
+
+        <!-- SN 码绑定 -->
+        <div v-if="bindMethod === 'sn'" class="bind-content">
+          <!-- 错误提示 -->
+          <div v-if="bindError" class="bind-error">
+            <i class="i-ant-design-close-circle-filled" />
+            <span>{{ bindError }}</span>
+          </div>
+          <div class="bind-field">
+            <label class="bind-field__label">网关 SN 码</label>
+            <a-input
+              v-model:value="snInput"
+              class="bind-field__input"
+              placeholder="请输入网关 SN 码（输入 1 成功，输入 2 失败）"
+              allow-clear
+              @pressEnter="handleBind"
+            >
+              <template #prefix>
+                <i class="i-ant-design-barcode-outlined" />
+              </template>
+            </a-input>
+            <p class="bind-field__hint">SN 码印在网关设备背面标签上，通常为 12-16 位字母数字组合。</p>
+            <img :src="gatewayImg" class="bind-field__hint-img" alt="网关背面 SN 码位置示意" draggable="false" />
+          </div>
+          <div class="bind-actions">
+            <button class="bind-btn bind-btn--default" type="button" @click="closeBindModal">取消</button>
+            <!-- 引导模式：按钮打开选择弹窗 -->
+            <button
+              v-if="appStore.guideStep === 'bind-gateway'"
+              class="bind-btn bind-btn--primary"
+              type="button"
+              @click="openGuideBindModal"
+            >
+              <span>确定绑定</span>
+            </button>
+            <!-- 非引导模式：普通绑定按钮 -->
+            <button v-else class="bind-btn bind-btn--primary" type="button" :disabled="binding || !snInput.trim()" @click="handleBind">
+              <i v-if="binding" class="i-ant-design-loading-outlined sync-spin" />
+              <span>{{ binding ? '绑定中' : '绑定' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 扫码接入 -->
+        <div v-if="bindMethod === 'scan'" class="bind-content bind-content--scan">
+          <!-- 扫码说明（未识别时） -->
+          <template v-if="!scanSuccess">
+            <div class="scan-intro">
+              <!-- 二维码示意 -->
+              <div class="scan-intro__qr">
+                <i class="i-ant-design-qrcode-outlined" />
+                <div class="scan-intro__qr-frame">
+                  <div class="scan-intro__qr-corner scan-intro__qr-corner--tl" />
+                  <div class="scan-intro__qr-corner scan-intro__qr-corner--tr" />
+                  <div class="scan-intro__qr-corner scan-intro__qr-corner--bl" />
+                  <div class="scan-intro__qr-corner scan-intro__qr-corner--br" />
+                  <div class="scan-intro__qr-scanline" />
+                  <div class="scan-intro__qr-dots">
+                    <span v-for="n in 49" :key="n" class="scan-intro__qr-dot" :class="{ on: (n * 7 + 3) % 3 === 0 }" />
+                  </div>
+                </div>
+              </div>
+              <!-- 步骤说明 -->
+              <div class="scan-intro__steps">
+                <div class="scan-intro__step">
+                  <span class="scan-intro__num">1</span>
+                  <div class="scan-intro__text">
+                    <strong>扫描设备二维码</strong>
+                    <span>使用微信或浏览器扫码，扫描网关背面的二维码</span>
+                    <img :src="gatewayImg" class="scan-intro__hint-img" alt="网关背面二维码位置示意" draggable="false" />
+                  </div>
+                </div>
+                <div class="scan-intro__step">
+                  <span class="scan-intro__num">2</span>
+                  <div class="scan-intro__text">
+                    <strong>登录账号</strong>
+                    <span>扫码后跳转到登录页面，完成账号登录</span>
+                  </div>
+                </div>
+                <div class="scan-intro__step">
+                  <span class="scan-intro__num">3</span>
+                  <div class="scan-intro__text">
+                    <strong>识别成功</strong>
+                    <span>登录后系统自动识别设备并开始接入</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="bind-actions">
+              <button class="bind-btn bind-btn--default" type="button" @click="closeBindModal">取消</button>
+              <button class="bind-btn bind-btn--primary" type="button" @click="scanSuccess = true">
+                <i class="i-ant-design-check-outlined" />
+                <span>扫码成功</span>
+              </button>
+            </div>
+          </template>
+
+          <!-- 扫码成功（识别成功页） -->
+          <template v-else>
+            <div class="scan-success">
+              <!-- 成功标识 -->
+              <div class="scan-success__badge">
+                <i class="i-ant-design-check-circle-filled" />
+                <span>设备识别成功</span>
+              </div>
+              <!-- 网关信息 -->
+              <div class="scan-success__info">
+                <div class="scan-success__row">
+                  <span class="scan-success__label">设备名称</span>
+                  <span class="scan-success__value">JetLinks 边缘网关</span>
+                </div>
+                <div class="scan-success__row">
+                  <span class="scan-success__label">品牌型号</span>
+                  <span class="scan-success__value">JetLinks · Edge-2000</span>
+                </div>
+                <div class="scan-success__row">
+                  <span class="scan-success__label">SN 码</span>
+                  <span class="scan-success__value scan-success__value--mono">GW-58740736</span>
+                </div>
+                <div class="scan-success__row">
+                  <span class="scan-success__label">IP 地址</span>
+                  <span class="scan-success__value scan-success__value--mono">192.168.1.108</span>
+                </div>
+              </div>
+              <!-- 接入中提示 -->
+              <div class="scan-success__status">
+                <i class="i-ant-design-loading-outlined sync-spin" />
+                <span>正在接入，请稍候...</span>
+              </div>
+            </div>
+            <div class="bind-actions">
+              <!-- 引导模式：按钮打开选择弹窗 -->
+              <button
+                v-if="appStore.guideStep === 'bind-gateway'"
+                class="bind-btn bind-btn--primary"
+                type="button"
+                @click="openGuideBindModal"
+              >
+                <span>确定绑定</span>
+              </button>
+              <!-- 非引导模式：完成接入按钮 -->
+              <button v-else class="bind-btn bind-btn--primary" type="button" @click="closeBindModal">
+                <i class="i-ant-design-check-outlined" />
+                <span>完成接入</span>
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+    </a-modal>
+
+    <!-- ===== 确定绑定选择弹窗 ===== -->
+    <a-modal
+      v-model:open="guideBindModalVisible"
+      title="确定绑定"
+      :width="400"
+      :footer="null"
+      centered
+      :z-index="2100"
+      @cancel="guideBindModalVisible = false"
+    >
+      <div class="guide-bind-modal">
+        <p class="guide-bind-modal__desc">请选择绑定结果场景：</p>
+        <button class="guide-bind-modal__option" type="button" @click="handleGuideBindSelect('configured')">
+          <i class="i-ant-design-video-camera-outlined" />
+          <div class="guide-bind-modal__option-body">
+            <strong>网关上线且视频已配置</strong>
+            <span>网关在线，已接入部分摄像头</span>
+          </div>
+          <i class="i-ant-design-right-outlined" />
+        </button>
+        <button class="guide-bind-modal__option" type="button" @click="handleGuideBindSelect('empty')">
+          <i class="i-ant-design-inbox-outlined" />
+          <div class="guide-bind-modal__option-body">
+            <strong>网关上线且视频未配置</strong>
+            <span>网关在线，尚未接入摄像头</span>
+          </div>
+          <i class="i-ant-design-right-outlined" />
+        </button>
+        <button class="guide-bind-modal__option" type="button" @click="handleGuideBindSelect('offline')">
+          <i class="i-ant-design-cloud-server-outlined" />
+          <div class="guide-bind-modal__option-body">
+            <strong>网关离线</strong>
+            <span>网关处于离线状态，需排查</span>
+          </div>
+          <i class="i-ant-design-right-outlined" />
+        </button>
+      </div>
+    </a-modal>
 
     <!-- 视频播放弹窗（复用监控墙弹窗结构：左直播 + 右告警/回放） -->
     <a-modal
@@ -493,6 +1085,8 @@ const replayClips = computed<ReplayClip[]>(() => {
 <style scoped lang="scss">
 @use '@/styles/variables' as *;
 
+/* 新手引导（已移至顶部导航栏） */
+
 .device-page {
   height: 100%;
   background: transparent;
@@ -594,6 +1188,621 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
+/* ===== 筛选模式切换 ===== */
+.filter-mode {
+  display: flex;
+  padding: 8px;
+  gap: 6px;
+  border-bottom: 1px solid $border-color-card;
+  flex-shrink: 0;
+
+  &__btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 32px;
+    border: 1px solid $border-color-card;
+    border-radius: 8px;
+    background: #fff;
+    color: $text-secondary;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+
+    i { font-size: 15px; }
+
+    &:hover {
+      border-color: rgba(110, 75, 255, 0.4);
+      color: $color-primary;
+    }
+
+    &.active {
+      border-color: $color-primary;
+      background: $color-primary-bg;
+      color: $color-primary;
+      font-weight: 500;
+    }
+  }
+
+  &__badge {
+    font-style: normal;
+    font-size: 11px;
+    min-width: 18px;
+    height: 18px;
+    line-height: 18px;
+    text-align: center;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: rgba(110, 75, 255, 0.12);
+    color: $color-primary;
+  }
+}
+
+/* 添加网关虚线卡片 */
+.gw-add-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px;
+  border: 2px dashed $border-color-light;
+  border-radius: 10px;
+  background: transparent;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.18s;
+
+  i { font-size: 20px; }
+
+  &:hover {
+    border-color: $color-primary;
+    color: $color-primary;
+    background: $color-primary-bg;
+  }
+}
+
+/* ===== 区域树 ===== */
+.area-tree-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+.area-tree {
+  background: transparent;
+  font-size: 13px;
+
+  :deep(.ant-tree-treenode) {
+    padding: 1px 0;
+    width: 100%;
+  }
+
+  :deep(.ant-tree-node-content-wrapper) {
+    flex: 1;
+    border-radius: 8px;
+    transition: all 0.15s;
+
+    &:hover {
+      background: #faf9ff;
+    }
+  }
+
+  :deep(.ant-tree-node-selected) {
+    background: $color-primary-bg !important;
+  }
+
+  :deep(.ant-tree-title) {
+    width: 100%;
+  }
+}
+
+.area-tree-node {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+
+  &__label {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    color: $text-base;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__count {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: $text-tertiary;
+    background: $bg-page;
+    padding: 1px 7px;
+    border-radius: 9999px;
+
+    i { font-size: 12px; color: $color-primary; }
+  }
+
+  &__online {
+    color: $color-online;
+  }
+}
+
+/* 区域空状态 */
+.area-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: $text-muted;
+
+  i { font-size: 36px; opacity: 0.3; }
+  p { font-size: 13px; margin: 0; }
+}
+
+/* ===== 新增网关弹窗 ===== */
+.bind-modal {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 方式切换 tab */
+.bind-tabs {
+  display: flex;
+  border-bottom: 1px solid $border-color-card;
+}
+
+.bind-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 8px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: $text-secondary;
+  cursor: pointer;
+  font-family: inherit;
+  position: relative;
+  transition: color 0.15s;
+
+  i { font-size: 22px; }
+
+  &:hover { color: $color-primary; }
+
+  &.active {
+    color: $color-primary;
+    font-weight: 500;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 20%;
+      right: 20%;
+      bottom: -1px;
+      height: 2px;
+      background: $color-primary;
+      border-radius: 1px;
+    }
+  }
+}
+
+/* 绑定内容区 */
+.bind-content {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  &--wechat {
+    gap: 20px;
+  }
+}
+
+/* 错误横条 */
+.bind-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(255, 77, 79, 0.08);
+  border: 1px solid rgba(255, 77, 79, 0.3);
+  border-radius: 8px;
+  color: #ff4d4f;
+  font-size: 13px;
+  animation: bind-error-shake 0.3s ease;
+
+  i { font-size: 16px; flex-shrink: 0; }
+}
+
+/* 尚未购买网关提示 */
+.bind-contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  margin: 0 24px;
+  margin-top: 12px;
+  background: rgba(110, 75, 255, 0.05);
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: $text-secondary;
+  flex-wrap: wrap;
+
+  > i:first-child {
+    font-size: 16px;
+    color: $color-primary;
+    flex-shrink: 0;
+  }
+
+  &__ways {
+    display: flex;
+    gap: 14px;
+    margin-left: auto;
+  }
+
+  &__way {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: $text-base;
+    font-weight: 500;
+
+    i { font-size: 13px; color: $color-primary; }
+  }
+}
+
+@keyframes bind-error-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* 输入字段 */
+.bind-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__label {
+    font-size: 13px;
+    font-weight: 500;
+    color: $text-base;
+  }
+
+  &__input {
+    width: 100%;
+  }
+
+  &__hint {
+    margin: 0;
+    font-size: 12px;
+    color: $text-muted;
+    line-height: 1.5;
+  }
+
+  &__hint-img {
+    width: 100%;
+    margin-top: 8px;
+    border-radius: 8px;
+    border: 1px solid $border-color-card;
+  }
+}
+
+/* 操作按钮 */
+.bind-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.bind-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  i { font-size: 14px; }
+
+  &--default {
+    border: 1px solid $border-color-light;
+    background: #fff;
+    color: $text-secondary;
+    &:hover { border-color: $color-primary; color: $color-primary; }
+  }
+
+  &--primary {
+    border: 1px solid $color-primary;
+    background: $color-primary;
+    color: #fff;
+    &:hover:not(:disabled) { background: $color-primary-hover; border-color: $color-primary-hover; }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+  }
+}
+
+/* 引导模式：绑定结果下拉框 */
+/* ===== 确定绑定选择弹窗 ===== */
+.guide-bind-modal {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  &__desc {
+    font-size: 13px;
+    color: $text-secondary;
+    margin: 0 0 4px;
+  }
+
+  &__option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 2px solid $border-color-card;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+
+    > i:first-child {
+      font-size: 24px;
+      color: $color-primary;
+      flex-shrink: 0;
+    }
+
+    > i:last-child {
+      font-size: 14px;
+      color: $text-muted;
+      margin-left: auto;
+    }
+
+    &:hover {
+      border-color: $color-primary;
+      background: $color-primary-bg;
+    }
+  }
+
+  &__option-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong { font-size: 14px; font-weight: 600; color: $text-base; }
+    span { font-size: 12px; color: $text-muted; }
+  }
+}
+
+/* ===== 扫码接入 ===== */
+.bind-content--scan {
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 扫码说明页 */
+.scan-intro {
+  flex: 1;
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  padding: 8px 0;
+
+  &__qr {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+
+    > i {
+      font-size: 24px;
+      color: $color-primary;
+    }
+  }
+
+  &__qr-frame {
+    position: relative;
+    width: 130px;
+    height: 130px;
+    background: #fafafa;
+    border: 1px solid $border-color-card;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  &__qr-corner {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border: 3px solid $color-primary;
+
+    &--tl { top: 10px; left: 10px; border-right: none; border-bottom: none; border-radius: 4px 0 0 0; }
+    &--tr { top: 10px; right: 10px; border-left: none; border-bottom: none; border-radius: 0 4px 0 0; }
+    &--bl { bottom: 10px; left: 10px; border-right: none; border-top: none; border-radius: 0 0 0 4px; }
+    &--br { bottom: 10px; right: 10px; border-left: none; border-top: none; border-radius: 0 0 4px 0; }
+  }
+
+  &__qr-scanline {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, $color-primary, transparent);
+    animation: scan-line 2s ease-in-out infinite;
+  }
+
+  &__qr-dots {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    width: 70px;
+    height: 70px;
+  }
+
+  &__qr-dot {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 1px;
+
+    &.on { background: $text-base; }
+  }
+
+  &__steps {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 4px;
+  }
+
+  &__step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  &__num {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: $color-primary-bg;
+    color: $color-primary;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong {
+      font-size: 13px;
+      font-weight: 600;
+      color: $text-base;
+    }
+
+    span {
+      font-size: 12px;
+      color: $text-tertiary;
+      line-height: 1.5;
+    }
+  }
+
+  &__hint-img {
+    width: 100%;
+    max-width: 240px;
+    margin-top: 6px;
+    border-radius: 8px;
+    border: 1px solid $border-color-card;
+  }
+}
+
+@keyframes scan-line {
+  0%, 100% { top: 15%; }
+  50% { top: 82%; }
+}
+
+/* 扫码成功页 */
+.scan-success {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+
+  &__badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #52c41a;
+
+    i { font-size: 22px; }
+  }
+
+  &__info {
+    width: 100%;
+    background: $bg-page;
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__label {
+    font-size: 13px;
+    color: $text-tertiary;
+    flex-shrink: 0;
+  }
+
+  &__value {
+    font-size: 13px;
+    color: $text-base;
+    font-weight: 500;
+    text-align: right;
+
+    &--mono {
+      font-family: 'Courier New', monospace;
+      font-size: 12.5px;
+    }
+  }
+
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: $color-primary;
+
+    i { font-size: 16px; }
+  }
+}
+
 /* ===== 左右两栏 ===== */
 .split {
   flex: 1;
@@ -648,8 +1857,8 @@ const replayClips = computed<ReplayClip[]>(() => {
   cursor: pointer;
   transition: all 0.18s;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
 
   &:hover {
     border-color: rgba(110, 75, 255, 0.4);
@@ -661,22 +1870,38 @@ const replayClips = computed<ReplayClip[]>(() => {
     background: $color-primary-bg;
   }
 
+  &__icon-box {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+    background: $color-primary;
+
+    &.online { background: $color-online; }
+    &.offline { background: #bfbfbf; }
+
+    i { font-size: 20px; }
+  }
+
+  &__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
   &__top {
     display: flex;
     align-items: center;
-    gap: 6px;
-  }
-
-  &__icon {
-    font-size: 18px;
-    flex-shrink: 0;
-
-    &.is-online { color: $color-online; }
-    &.is-offline { color: #bfbfbf; }
+    gap: 8px;
   }
 
   &__name {
-    flex: 1;
     font-size: 14px;
     font-weight: 600;
     color: $text-base;
@@ -694,63 +1919,71 @@ const replayClips = computed<ReplayClip[]>(() => {
     &.offline { color: #bfbfbf; }
   }
 
-  &__meta {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding-left: 24px;
-  }
-
-  &__brand {
+  &__desc {
     font-size: 12px;
-    color: $text-secondary;
-  }
-
-  &__ip {
-    font-size: 11px;
     color: $text-muted;
-    font-family: 'Courier New', monospace;
+  }
+
+  &__config {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 12px;
+    border: 1px solid $border-color-light;
+    border-radius: 6px;
+    background: #fff;
+    color: $text-secondary;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+
+    i { font-size: 13px; }
+    &:hover {
+      border-color: $color-primary;
+      color: $color-primary;
+    }
   }
 }
 
-.gw-status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-
-  &.online { background: $color-online; }
-  &.offline { background: #bfbfbf; }
-}
-
-/* 同步通道按钮 */
-.sync-btn {
+/* 右侧面板操作区 */
+.ch-panel-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid $color-primary;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* 更新通道按钮 */
+.ch-sync-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid $border-color-light;
   border-radius: 6px;
-  background: $color-primary;
-  color: #fff;
-  font-size: 12px;
+  background: #fff;
+  color: $text-secondary;
+  font-size: 13px;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.18s;
+  transition: all 0.15s;
   flex-shrink: 0;
-  margin-left: 4px;
 
-  i { font-size: 12px; }
+  i { font-size: 14px; }
 
   &:hover:not(:disabled) {
-    background: $color-primary-hover;
-    border-color: $color-primary-hover;
+    border-color: $color-primary;
+    color: $color-primary;
   }
 
   &:disabled {
-    opacity: 0.7;
     cursor: progress;
+    color: $color-primary;
+    border-color: $color-primary;
   }
 }
 

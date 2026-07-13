@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JetLinks AI SaaS 设计规范</title>
+  <style>
+    :root {
+      --primary: #6e4bff;
+      --primary-hover: #7d5cff;
+      --primary-active: #5d3bff;
+      --primary-bg: #ece7ff;
+      --online: #2bb3a3;
+      --blue: #1890ff;
+      --deep-blue: #1d4ed8;
+      --warning: #faad14;
+      --orange: #fa8c16;
+      --danger: #ff4d4f;
+      --fault: #fa541c;
+      --page: #fafbfc;
+      --card: #ffffff;
+      --panel-soft: #fefdff;
+      --hover: #f5f5f5;
+      --hover-purple: #faf9ff;
+      --line: #f4f5f7;
+      --line-strong: #dbe4f1;
+      --input-line: #ebedf0;
+      --text: #111418;
+      --text-title: #1c2842;
+      --text-secondary: #3a3f47;
+      --text-tertiary: #8895ab;
+      --text-muted: #9aa1ab;
+      --video-bg: #23262b;
+      --video-cell: #2c2f36;
+      --video-border: rgba(255,255,255,0.16);
+      --shadow-header: 0 1px 4px 0 rgba(0,21,41,0.12);
+      --shadow-card: 0 1px 3px 0 rgba(20,23,31,0.06);
+      --shadow-hover: 0 8px 24px 0 rgba(20,23,31,0.06);
+      --shadow-pop: 0 4px 16px 0 rgba(0,0,0,0.10);
+      --shadow-heavy: -8px 0 32px rgba(0,0,0,0.12);
+      --font: AliRegular, "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: #fff;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    .shell {
+      display: grid;
+      grid-template-columns: 268px minmax(0, 1fr);
+      min-height: 100vh;
+      background: #fff;
+    }
+    .toc {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 24px 18px;
+      border-right: 1px solid var(--line);
+      background: #fff;
+      overflow-y: auto;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 8px 18px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 16px;
+    }
+    .logo {
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      background: var(--primary);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 650;
+    }
+    .brand strong { display: block; font-size: 15px; line-height: 1.2; }
+    .brand span { display: block; font-size: 12px; color: var(--text-muted); }
+    .toc a {
+      display: block;
+      padding: 8px 10px;
+      margin: 2px 0;
+      border-radius: 6px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 13px;
+    }
+    .toc a:hover { background: var(--primary-bg); color: var(--primary); }
+    main { padding: 30px 42px 60px; max-width: 1280px; }
+    .hero {
+      padding: 22px 24px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+      margin-bottom: 22px;
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.25; letter-spacing: 0; color: var(--text); }
+    h2 {
+      margin: 34px 0 14px;
+      padding-top: 4px;
+      font-size: 22px;
+      line-height: 1.35;
+      color: var(--text);
+      border-top: 1px solid var(--line);
+    }
+    h3 { margin: 18px 0 8px; font-size: 16px; color: var(--text); }
+    p { margin: 0 0 10px; color: var(--text-secondary); }
+    .meta { color: var(--text-muted); font-size: 13px; }
+    .grid { display: grid; gap: 12px; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: var(--shadow-card);
+    }
+    .sample {
+      background: var(--page);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .code {
+      display: block;
+      white-space: pre-wrap;
+      background: #f6f7f9;
+      border: 1px solid #eceef2;
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: #4b5563;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      overflow-x: auto;
+    }
+    .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+    .swatch {
+      min-height: 96px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .swatch-color { height: 44px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+    .swatch-info { padding: 10px; font-size: 12px; line-height: 1.45; }
+    .swatch-info strong { display: block; font-size: 13px; color: var(--text); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      font-size: 13px;
+    }
+    th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #fafbfc; color: var(--text-secondary); font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--line-strong); background: #fff; color: var(--text-secondary); font-size: 13px; }
+    .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn.text { border-color: transparent; color: var(--primary); background: transparent; padding: 0; }
+    .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+    .tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+    .tag.primary { background: var(--primary-bg); color: var(--primary); }
+    .tag.online { background: rgba(43,179,163,0.10); color: var(--online); }
+    .tag.warn { background: rgba(250,140,22,0.12); color: var(--orange); }
+    .tag.danger { background: rgba(255,77,79,0.10); color: var(--danger); }
+    .demo-layout { display: grid; grid-template-columns: 72px 1fr; height: 220px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--page); }
+    .demo-sider { background: #fff; box-shadow: 1px 0 0 #f4f5f7; padding: 8px; }
+    .demo-menu { width: 52px; height: 52px; border-radius: 12px; margin: 6px 0; background: var(--primary-bg); color: var(--primary); display: grid; place-items: center; font-size: 20px; }
+    .demo-main { display: flex; flex-direction: column; }
+    .demo-header { height: 48px; background: #fff; box-shadow: var(--shadow-header); display: flex; align-items: center; padding: 0 16px; justify-content: space-between; }
+    .demo-content { padding: 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .demo-card { background: #fff; border-radius: 14px; padding: 14px; min-height: 90px; }
+    .media-box { aspect-ratio: 16 / 10; border-radius: 8px; background: linear-gradient(135deg, #1a1a2e, #3a3f47); position: relative; overflow: hidden; }
+    .bbox { position: absolute; left: 38%; top: 22%; width: 20%; height: 44%; border: 2px solid #34c759; }
+    .video-stage { background: var(--video-bg); border: 1px solid var(--video-border); border-radius: 12px; padding: 14px; color: #fff; }
+    .video-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .video-cell { aspect-ratio: 16 / 9; border-radius: 14px; background: var(--video-cell); position: relative; overflow: hidden; }
+    .video-cell::after { content: "LIVE"; position: absolute; top: 8px; left: 8px; color: #fff; font-size: 11px; background: rgba(43,179,163,0.85); border-radius: 3px; padding: 2px 6px; }
+    .forbid { color: var(--danger); font-weight: 600; }
+    @media (max-width: 960px) {
+      .shell { grid-template-columns: 1fr; }
+      .toc { position: relative; height: auto; border-right: none; border-bottom: 1px solid var(--line); }
+      main { padding: 22px 18px 42px; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <nav class="toc">
+      <div class="brand">
+        <div class="logo">通</div>
+        <div><strong>JetLinks AI SaaS</strong><span>设计规范文档</span></div>
+      </div>
+      <a href="#brand">1. 品牌基础视觉规范</a>
+      <a href="#type">2. 字体排版规范系统</a>
+      <a href="#layout">3. 布局栅格规范</a>
+      <a href="#radius">4. 圆角&描边规范</a>
+      <a href="#icon">5. 图标规范</a>
+      <a href="#atomic">6. 基础原子组件规范</a>
+      <a href="#complex">7. 复合模块组件规范</a>
+      <a href="#interaction">8. 页面通用交互规则</a>
+      <a href="#media">9. 图片&素材规范</a>
+      <a href="#shadow">10. 全局阴影分层规范</a>
+      <a href="#template">11. 页面模板布局规范</a>
+      <a href="#rules">12. 复刻约束禁令</a>
+      <a href="#ai">AI复刻使用说明</a>
+    </nav>
+    <main>
+      <section class="hero">
+        <h1>JetLinks AI SaaS 项目内页面设计规范</h1>
+        <p>基于当前项目 `/dashboard`、空间态势、空间管理、视联中心、文搜图、人员档案、临时轨迹跟踪及详情穿透页整理。目标是让后续 SaaS 页面在视觉、交互、组件尺寸和布局密度上与现有项目保持一致。</p>
+        <p class="meta">适用范围：项目内业务页面、SaaS 工作台承接页面、AI 复刻实现。所有数值必须按本文固定值执行。</p>
+      </section>
+
+      <section id="brand">
+        <h2>1. 品牌基础视觉规范</h2>
+        <p>项目内视觉以紫色主题为核心，配合冷调成功色、蓝色视频/空间设备色、橙色告警辅助色。页面整体克制、浅底、低阴影，避免营销化大色块。</p>
+        <div class="swatches">
+          <div class="swatch"><div class="swatch-color" style="background:#6e4bff"></div><div class="swatch-info"><strong>主色 Primary</strong>#6E4BFF<br>RGB(110,75,255)<br>菜单选中、主按钮、链接、进度</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#ece7ff"></div><div class="swatch-info"><strong>主色浅底</strong>#ECE7FF<br>RGB(236,231,255)<br>选中背景、轻量标签、分段控件</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#2bb3a3"></div><div class="swatch-info"><strong>成功/在线</strong>#2BB3A3<br>RGB(43,179,163)<br>在线点、成功标签、持续时长</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#1890ff"></div><div class="swatch-info"><strong>设备蓝</strong>#1890FF<br>RGB(24,144,255)<br>视频设备、空间视联点位</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#faad14"></div><div class="swatch-info"><strong>警告</strong>#FAAD14<br>RGB(250,173,20)<br>警告级别、默认星标</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#ff4d4f"></div><div class="swatch-info"><strong>危险</strong>#FF4D4F<br>RGB(255,77,79)<br>紧急告警、删除、异常红光</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#fafbfc"></div><div class="swatch-info"><strong>页面底色</strong>#FAFBFC<br>RGB(250,251,252)<br>全局背景、表头浅底</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#111418"></div><div class="swatch-info"><strong>正文主色</strong>#111418<br>RGB(17,20,24)<br>正文、标题、关键数值</div></div>
+        </div>
+        <h3>数值规范</h3>
+        <pre class="code">主渐变按钮：linear-gradient(135deg, #7D5CFF 0%, #6E4BFF 50%, #5D3BFF 100%)
+空间画布背景：linear-gradient(180deg, #FFFFFF 0%, #F5F6F8 100%)
+视频舞台背景：#23262B；视频格背景：#2C2F36；黑色视频底：#000000
+透明度层级：浅选中 0.10；图片遮罩 0.45-0.60；全局遮罩 rgba(0,0,0,0.25)；视频按钮 rgba(255,255,255,0.06/0.12)</pre>
+        <h3>使用示例</h3>
+        <div class="sample">
+          <span class="tag primary">主色选中</span>
+          <span class="tag online">在线</span>
+          <span class="tag warn">警告</span>
+          <span class="tag danger">紧急</span>
+        </div>
+        <h3>禁止项</h3>
+        <p class="forbid">禁止把项目内主色改为蓝色、绿色或黑金；禁止使用大面积紫色背景；禁止使用高饱和多彩渐变作为页面背景；禁止在浅底业务卡片上使用重投影。</p>
+      </section>
+
+      <section id="type">
+        <h2>2. 字体排版规范系统</h2>
+        <p>字体系统强调清晰、紧凑、扫描效率。项目内默认字号为 14px，标题通常在 15-22px 之间，数据看板关键数字可放大到 26-30px。</p>
+        <table>
+          <thead><tr><th>层级</th><th>字号/行高/字重</th><th>颜色</th><th>使用场景</th></tr></thead>
+          <tbody>
+            <tr><td>H1</td><td>28px / 36px / 650</td><td>#111418</td><td>规范文档、少量一级页面标题</td></tr>
+            <tr><td>H2</td><td>22px / 30px / 600</td><td>#111418</td><td>文搜图日期组标题“今天”</td></tr>
+            <tr><td>H3</td><td>18px / 26px / 600</td><td>#111418</td><td>详情页人员姓名、弹窗标题</td></tr>
+            <tr><td>模块标题</td><td>15px / 22px / 600</td><td>#111418</td><td>卡片头、面板头、KPI 名称</td></tr>
+            <tr><td>正文</td><td>14px / 22px / 400</td><td>#111418</td><td>表格、表单、菜单、常规信息</td></tr>
+            <tr><td>小正文</td><td>13px / 20px / 400-500</td><td>#3A3F47</td><td>按钮、路径、筛选项、说明</td></tr>
+            <tr><td>备注</td><td>12px / 18px / 400</td><td>#8895AB 或 #9AA1AB</td><td>时间、单位、空状态提示、辅助说明</td></tr>
+            <tr><td>角标</td><td>10-11px / 16px / 500</td><td>语义色</td><td>告警级别、PTZ、视频时长、状态角标</td></tr>
+          </tbody>
+        </table>
+        <pre class="code">字体族：AliRegular, "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif
+字间距：0；禁止负字距
+段落间距：8px / 10px / 12px / 16px
+中英文混排：中文与英文/数字之间不强制加空格；车牌和 IP 使用 "Courier New" monospace；数字单位同 baseline 显示</pre>
+        <h3>禁止项</h3>
+        <p class="forbid">禁止使用大标题营销排版；禁止在业务卡片中使用 24px 以上标题；禁止使用负 letter-spacing；禁止把辅助文字颜色加深到正文级别。</p>
+      </section>
+
+      <section id="layout">
+        <h2>3. 布局栅格规范</h2>
+        <p>项目内采用固定顶栏 + 左侧一级菜单 + 内容区布局。内容区以 8px 或 12px 为主间距，复杂页面使用左右分栏，列表/卡片页使用自适应网格。</p>
+        <div class="demo-layout">
+          <aside class="demo-sider"><div class="demo-menu">●</div></aside>
+          <div class="demo-main">
+            <div class="demo-header"><span>48px 顶栏</span><span class="btn primary">AI 对话</span></div>
+            <div class="demo-content"><div class="demo-card">卡片 14px 圆角</div><div class="demo-card">间距 8px</div><div class="demo-card">内容区 padding 8/12/20px</div></div>
+          </div>
+        </div>
+        <pre class="code">项目内顶栏：height 48px；padding 0 16px；box-shadow 0 1px 4px rgba(0,21,41,0.12)
+一级侧栏：展开 224px；折叠 72px；菜单折叠项 52x52px；展开项 48px 高
+二级 Tab：height 44px；padding 0 16px；选中下划线 2px
+内容页外边距：dashboard/space 8px；video wall 12px 16px 0；image-search 12px 20px
+通用间距阶梯：4 / 6 / 8 / 10 / 12 / 14 / 16 / 20 / 24px
+栅格：Dashboard KPI 3列或4列 gap 8px；文搜图结果 minmax(256px,1fr) gap 12px；人员卡片 minmax(220px,1fr) gap 14px
+固定面板：筛选栏 260px；空间树 300px；视频墙列表 280px；视频设备网关栏 340px；轨迹详情左栏 340px；滑入详情面板 480px</pre>
+        <h3>响应式规则</h3>
+        <table>
+          <thead><tr><th>断点</th><th>布局处理</th></tr></thead>
+          <tbody>
+            <tr><td>≥1200px</td><td>保留侧栏 + 多列卡片；图表 2:1 或 1:1 分栏；视频墙可显示左右双栏</td></tr>
+            <tr><td>768-1199px</td><td>侧栏保持折叠 72px；卡片网格降至 2-3 列；固定面板宽度不低于 260px</td></tr>
+            <tr><td>&lt;768px</td><td>内容转单列；固定面板改为顶部折叠/抽屉；表格保留横向滚动</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="radius">
+        <h2>4. 圆角&描边规范</h2>
+        <div class="grid grid-2">
+          <div class="card">
+            <h3>圆角分级</h3>
+            <pre class="code">2px：滚动条、微型进度
+3px：告警级别、视频时长、热力格
+4px：小标签、表格行按钮、删除角标
+6px：普通按钮、输入框、头像小图、Logo
+8px：图片、表格容器、分段控件、事件项
+10px：列表卡片、子空间条目、KPI 图标
+12px：筛选面板、主面板、侧边菜单选中项、弹出按钮
+14px：Dashboard/KPI/视频格卡片
+9999px：胶囊按钮、进度条、头像圆形</pre>
+          </div>
+          <div class="card">
+            <h3>描边分级</h3>
+            <pre class="code">默认边框：1px solid #F4F5F7
+输入边框：1px solid #EBEDF0
+强边框：1px solid #DBE4F1
+选中边框：1px solid #6E4BFF
+检测框：1-2px solid #34C759
+视频深色边框：1px solid rgba(255,255,255,0.16)
+虚线新增入口：1px dashed #DBE4F1</pre>
+          </div>
+        </div>
+        <h3>禁止项</h3>
+        <p class="forbid">禁止在业务卡片中使用超过 14px 的大圆角；禁止给表格和紧凑列表加玻璃拟态边框；禁止使用 2px 以上普通面板描边。</p>
+      </section>
+
+      <section id="icon">
+        <h2>5. 图标规范</h2>
+        <p>图标采用 Ant Design/UnoCSS 线性图标语义，业务图标与文字色保持一致。一级菜单折叠态图标视觉更大，面板内图标小而克制。</p>
+        <table>
+          <thead><tr><th>场景</th><th>尺寸</th><th>颜色</th><th>规则</th></tr></thead>
+          <tbody>
+            <tr><td>折叠一级菜单</td><td>28px</td><td>默认 #8895AB；选中 #6E4BFF</td><td>容器 52x52px，圆角 12px</td></tr>
+            <tr><td>展开一级菜单</td><td>24px</td><td>默认 #8895AB；hover #6E4BFF</td><td>菜单高 48px，文字 15px</td></tr>
+            <tr><td>顶部/按钮图标</td><td>14-16px</td><td>跟随按钮文字</td><td>与文字 gap 4-8px</td></tr>
+            <tr><td>KPI 图标</td><td>20-24px</td><td>#FFFFFF</td><td>图标容器 36/44px，圆角 10/12px，背景用语义色</td></tr>
+            <tr><td>空间设备点位</td><td>18px</td><td>物联 #6E4BFF；视联 #1890FF；离线 #BFBFBF</td><td>点位容器 42x42px，白底，2px 彩色外圈</td></tr>
+            <tr><td>视频播放浮层</td><td>26-28px</td><td>#FFFFFF</td><td>圆形黑底 rgba(0,0,0,0.5)</td></tr>
+          </tbody>
+        </table>
+        <h3>禁止项</h3>
+        <p class="forbid">禁止混入 3D 图标、插画图标或粗填充图标；禁止同一按钮内图标与文字色不同；禁止用图片替代功能图标。</p>
+      </section>
+
+      <section id="atomic">
+        <h2>6. 基础原子组件规范</h2>
+        <div class="grid grid-3">
+          <div class="card"><h3>按钮</h3><p><span class="btn primary">主按钮</span> <span class="btn">次按钮</span> <span class="btn text">文字按钮</span></p><pre class="code">主按钮：height 32px；padding 0 14/15px；radius 6px；bg #6E4BFF；hover #7D5CFF；active #5D3BFF
+AI 胶囊：height 36px；radius 9999px；padding 0 16px 0 6px；shadow 0 2px 12px rgba(110,75,255,0.35)
+小图标按钮：26x26px 或 30x30px；radius 6px</pre></div>
+          <div class="card"><h3>输入/选择</h3><pre class="code">普通输入：height 32/36/38/42px；padding 4px 11px；radius 6px；border #EBEDF0
+带搜索图标：left padding 36px；图标 left 12px；图标 14px #9AA1AB
+focus：border #6E4BFF；无外发光
+多选 Select：min-height 32px；max-tag-count 2/3</pre></div>
+          <div class="card"><h3>状态/标签</h3><p><span class="tag online">在线</span> <span class="tag primary">跟踪中</span> <span class="tag warn">重点关注</span> <span class="tag danger">待处理</span></p><pre class="code">点：6-8px 圆点
+小标签：font 11px；padding 2px 7/8px；radius 3/4px
+在线背景：rgba(43,179,163,0.10)
+告警背景：rgba(255,77,79,0.10)
+重点背景：rgba(250,140,22,0.12)</pre></div>
+        </div>
+        <table>
+          <thead><tr><th>组件</th><th>默认</th><th>Hover/Active</th><th>Disabled</th><th>禁止项</th></tr></thead>
+          <tbody>
+            <tr><td>单选/复选</td><td>14px 方框/圆点，边框 #DBE4F1</td><td>选中 #6E4BFF，白色勾</td><td>opacity 0.4</td><td>禁止大尺寸自定义控件</td></tr>
+            <tr><td>开关</td><td>36x20px，圆角 9999px</td><td>开启 #6E4BFF，关闭 #BFBFBF</td><td>opacity 0.45</td><td>禁止改变语义色</td></tr>
+            <tr><td>分页</td><td>32px 高，页码 30x30px</td><td>选中紫色边框/文字</td><td>灰色不可点</td><td>禁止使用大按钮分页</td></tr>
+            <tr><td>提示气泡</td><td>黑底，radius 6px，font 12px</td><td>mouse enter delay 0.2s</td><td>无</td><td>禁止白底重阴影提示</td></tr>
+            <tr><td>颜色 Chip</td><td>18x18px 圆形，2px 白边，1px 外阴影</td><td>hover scale 1.15；active 2px #6E4BFF 外圈</td><td>opacity 0.4</td><td>禁止方形色块</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="complex">
+        <h2>7. 复合模块组件规范</h2>
+        <div class="grid grid-2">
+          <div class="card">
+            <h3>卡片与面板</h3>
+            <pre class="code">Dashboard 卡片：bg #FFFFFF；radius 14px；padding 16px 20px 或 20px 24px；gap 8/12/16px
+普通面板：border 1px #F4F5F7；radius 12px；padding 16px
+结果卡片：padding 4px；radius 12px；图片 radius 8px；hover border #6E4BFF + shadow 0 2px 8px rgba(110,75,255,0.10)
+事件卡片：bg #FAFBFC；border #F4F5F7；radius 8/10px；hover bg #FAF9FF</pre>
+          </div>
+          <div class="card">
+            <h3>表格与列表</h3>
+            <pre class="code">表格容器：bg #FFFFFF；border #F4F5F7；radius 12px；overflow hidden
+表头：bg #FAFBFC；padding 12px 14px；font 13px/600；color #3A3F47
+表行：td padding 10px 14px；hover #FAF9FF；border-bottom #F4F5F7
+左侧树行：height 30px；radius 6px；padding per level 8/24/40/56px</pre>
+          </div>
+          <div class="card">
+            <h3>导航栏/侧边菜单</h3>
+            <pre class="code">顶栏：48px 高；白底；box-shadow 0 1px 4px rgba(0,21,41,0.12)
+侧栏：白底；折叠 72px；展开 224px；右分隔 shadow 1px 0 0 #F4F5F7
+菜单项：展开高 48px，padding 0 14px，margin 8px 0，radius 6px
+折叠菜单项：52x52px，margin 6px 0，radius 12px
+二级 Tab：44px 高；active 紫色文字 + 底部 2px 紫线</pre>
+          </div>
+          <div class="card">
+            <h3>弹窗/抽屉</h3>
+            <pre class="code">标准弹窗宽：440 / 480 / 520 / 560 / 720 / 900px
+视频播放弹窗：width 66.6vw；body padding 0；左侧黑色视频，右侧白色信息
+右滑详情面板：width 480px；mask rgba(0,0,0,0.25)；shadow -8px 0 32px rgba(0,0,0,0.12)
+弹窗表单行距：16/18px；label 13/14px；必填色 #FF4D4F</pre>
+          </div>
+        </div>
+        <h3>空间态势专用模块</h3>
+        <pre class="code">地图画布：flex 1；bg linear-gradient(180deg,#FFFFFF,#F5F6F8)；border #F4F5F7；radius 14px；cursor grab
+浮动卡片按钮：height 36px；bg rgba(255,255,255,0.96)；border #F4F5F7；radius 12px；shadow 0 1px 2px rgba(20,22,30,0.04)
+图层开关：top/right 16px；height 36px；padding 4px 6px；radius 8px；shadow 0 2px 10px rgba(0,0,0,0.10)
+底部状态卡：width 220px；padding 12px；radius 12px；gap 12px；状态数字 24px/600</pre>
+        <h3>视联中心专用模块</h3>
+        <div class="video-stage">
+          <div style="display:flex;justify-content:space-between;margin-bottom:12px"><span>深色剧院风视频墙</span><span class="btn primary">保存</span></div>
+          <div class="video-grid"><div class="video-cell"></div><div class="video-cell"></div><div class="video-cell"></div><div class="video-cell"></div></div>
+        </div>
+        <pre class="code">视频舞台：bg #23262B；border rgba(255,255,255,0.16)；radius 12px；padding 14px；gap 14px
+视频格：bg #2C2F36；radius 14px；gap 10px；告警红光 animation 1.2s infinite
+分屏按钮组：bg rgba(255,255,255,0.12)；radius 10px；按钮 32x30px；active rgba(110,75,255,0.50)
+选择视频面板：width 280px；bg #FFFFFF；radius 12px；padding 16px</pre>
+      </section>
+
+      <section id="interaction">
+        <h2>8. 页面通用交互规则</h2>
+        <table>
+          <thead><tr><th>交互</th><th>规范</th><th>示例</th><th>禁止项</th></tr></thead>
+          <tbody>
+            <tr><td>Hover</td><td>transition 0.15-0.2s；列表 hover 背景 #F5F5F5 或 #FAF9FF</td><td>卡片边框变 #6E4BFF，轻阴影</td><td>禁止大位移、大缩放</td></tr>
+            <tr><td>点击反馈</td><td>小按钮 active scale(0.96)；普通按钮颜色加深</td><td>新增按钮 hover scale(1.06)，active scale(0.96)</td><td>禁止弹跳动画</td></tr>
+            <tr><td>过渡</td><td>颜色/阴影 0.15-0.2s；侧栏宽度 0.25s cubic-bezier(0.4,0,0.2,1)</td><td>侧栏展开、面板滑入</td><td>禁止超过 0.4s 的常规过渡</td></tr>
+            <tr><td>弹出动画</td><td>右侧面板 transform translateX(100%)，0.25s cubic-bezier(0.23,1,0.32,1)</td><td>轨迹事件详情</td><td>禁止旋转/翻页动画</td></tr>
+            <tr><td>滚动条</td><td>4px 细滚动条，默认透明，hover rgba(0,0,0,0.2)</td><td>树、事件列表、详情栏</td><td>禁止粗滚动条</td></tr>
+            <tr><td>Loading</td><td>图标线性旋转 1s linear infinite；按钮文字改为“同步中”</td><td>同步通道</td><td>禁止全屏遮挡局部操作</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="media">
+        <h2>9. 图片&素材规范</h2>
+        <p>图像用于视频、抓拍、人员、车辆、空间平面/全景。图片必须承载业务信息，禁止使用装饰性图片填充业务区域。</p>
+        <div class="grid grid-3">
+          <div class="sample"><div class="media-box"><div class="bbox"></div></div><p class="meta">检索结果：aspect-ratio 254/158；卡片 padding 4px；检测框 #34C759</p></div>
+          <div class="sample"><div class="media-box" style="aspect-ratio:4/3"></div><p class="meta">人员/车辆卡：aspect-ratio 4/3；图片 radius 8px；object-fit cover</p></div>
+          <div class="sample"><div class="media-box" style="aspect-ratio:16/9"></div><p class="meta">视频/回放：aspect-ratio 16/9 或 16/10；黑底 #1A1A2E</p></div>
+        </div>
+        <pre class="code">头像小图：40x40px radius 6px；详情主头像 100x100px 或 200x200px radius 8/12px
+抓拍缩略图：64x48px、96x64px、96x72px、120x68px；radius 5/6px
+上传人脸：96x96px；radius 8px；虚线上传框 #DBE4F1
+图片 hover：scale(1.04) 或显示 36/44px 播放/放大圆形浮层
+图片遮罩：视频顶部/底部 linear-gradient，黑色透明度 0.35-0.60</pre>
+        <h3>禁止项</h3>
+        <p class="forbid">禁止把视频/抓拍图裁成无法识别主体的暗图；禁止使用装饰插画替代真实业务截图；禁止在图片上叠加大面积彩色蒙层。</p>
+      </section>
+
+      <section id="shadow">
+        <h2>10. 全局阴影分层规范</h2>
+        <table>
+          <thead><tr><th>层级</th><th>数值</th><th>使用场景</th></tr></thead>
+          <tbody>
+            <tr><td>分隔阴影</td><td>0 1px 4px rgba(0,21,41,0.12)；1px 0 0 #F4F5F7</td><td>顶栏、侧栏分隔</td></tr>
+            <tr><td>一级轻阴影</td><td>0 1px 3px rgba(20,23,31,0.06)</td><td>状态卡、浮动卡、空间底部摘要</td></tr>
+            <tr><td>Hover 阴影</td><td>0 2px 8px rgba(110,75,255,0.08-0.12)；0 8px 24px rgba(20,23,31,0.06)</td><td>卡片 hover、列表 hover</td></tr>
+            <tr><td>二级浮层</td><td>0 4px 16px rgba(0,0,0,0.10)</td><td>下拉菜单、空间树弹层、拖拽 ghost</td></tr>
+            <tr><td>三级重浮层</td><td>-8px 0 32px rgba(0,0,0,0.12)；0 20px 40px rgba(2,6,23,0.18)</td><td>右侧抽屉、视频舞台</td></tr>
+            <tr><td>主按钮发光</td><td>0 2px 12px rgba(110,75,255,0.35)；hover 0 4px 18px rgba(110,75,255,0.50)</td><td>AI 对话入口</td></tr>
+          </tbody>
+        </table>
+        <p class="forbid">禁止给普通白卡片默认加重阴影；禁止在页面区域之间使用大投影制造悬浮层级。</p>
+      </section>
+
+      <section id="template">
+        <h2>11. 页面模板布局规范</h2>
+        <h3>项目内通用外壳</h3>
+        <pre class="code">ProjectLayout = 48px 顶栏 + 72/224px 左侧一级菜单 + 主内容区
+SubTabLayout = 44px 二级 tab + 内容区
+所有项目内页面背景 #FAFBFC；内容卡片白底；页面内容不做营销式 hero</pre>
+        <table>
+          <thead><tr><th>模板</th><th>布局结构</th><th>关键页面</th><th>固定规范</th></tr></thead>
+          <tbody>
+            <tr><td>首页/仪表盘</td><td>8px padding；KPI 卡片 + 图表卡 + 横向事件流 + 图片网格</td><td>/dashboard</td><td>卡片 radius 14px；KPI gap 8px；图表色 #6E4BFF/#1D4ED8/#2BB3A3/#FAAD14</td></tr>
+            <tr><td>空间态势页</td><td>44px tab；8px 内容；地图画布 + 浮动控制 + 底部时间轴</td><td>/space/situation</td><td>浮层 top/left/right 16px；点位 42px；时间轴白底 radius 14px</td></tr>
+            <tr><td>空间管理页</td><td>左 300px 树面板 + 右详情工作区</td><td>/space/area</td><td>左右 gap 16px；面板 radius 12px；右侧 tab 42px</td></tr>
+            <tr><td>视频墙页</td><td>左 280px 监控墙列表 + 右深色视频舞台 + 可选 280px 通道面板</td><td>/video/wall</td><td>视频舞台深色；分屏按钮 32x30px；视频格 radius 14px</td></tr>
+            <tr><td>视频设备页</td><td>顶部 4 KPI + 左 340px 网关列表 + 右通道卡网格</td><td>/video/device</td><td>通道卡 minmax(220px,1fr)；搜索宽 260px；播放弹窗 66.6vw</td></tr>
+            <tr><td>文搜图页</td><td>左 260px 筛选栏 + 右搜索工具栏 + 日期分组结果网格</td><td>/image-search/text / person</td><td>页面 padding 12px 20px；内容 gap 16px；结果卡 min 256px</td></tr>
+            <tr><td>档案/轨迹列表</td><td>顶部工具栏 + 卡片网格/表格切换</td><td>/image-search/person-profile / person-track</td><td>搜索 280-420px；视图按钮 34x32px；新增按钮 32px 高</td></tr>
+            <tr><td>详情穿透页</td><td>返回文字按钮 + 左右分栏或左固定右自适应 + 事件列表/时间轴</td><td>person-profile/:id、person-track/:id</td><td>返回按钮 13px 紫色；详情卡白底 border #F4F5F7 radius 12px</td></tr>
+            <tr><td>右侧滑入详情</td><td>固定遮罩 + 480px 右侧抽屉 + 底部操作栏</td><td>轨迹事件详情</td><td>mask rgba(0,0,0,0.25)；动画 0.25s；头/底 border #F4F5F7</td></tr>
+          </tbody>
+        </table>
+        <h3>标题区与操作栏</h3>
+        <pre class="code">页面级标题尽量不显式出现；依赖二级 tab 或卡片头组织内容
+工具栏：左搜索/筛选，右统计/视图切换/新增；高度 32-42px；gap 12px
+操作按钮靠右；危险操作放菜单底部或确认弹窗；详情返回使用文字按钮，不使用大按钮</pre>
+      </section>
+
+      <section id="rules">
+        <h2>12. 复刻约束禁令</h2>
+        <ol>
+          <li>不得修改项目内主色 `#6E4BFF`、浅选中 `#ECE7FF`、页面底色 `#FAFBFC`、正文色 `#111418`。</li>
+          <li>不得把项目内布局改成顶部大导航或营销首页；项目内必须保留 48px 顶栏、左侧一级菜单、44px 二级 tab 的层级。</li>
+          <li>不得自主放大圆角：业务卡片最大 14px，普通面板 12px，输入/按钮 6px。</li>
+          <li>不得使用外部 CSS、外部 JS、外部图片作为规范依赖；实现页面时可使用项目已有资产。</li>
+          <li>不得把卡片塞进卡片形成多层浮岛；页面区域用白底面板和轻边框分隔。</li>
+          <li>不得使用紫色大面积渐变背景；紫色只能用于主操作、选中、链接、轻量强调。</li>
+          <li>不得改变间距体系，页面 padding 必须从 8/12/16/20/24px 阶梯中选择。</li>
+          <li>不得使用非系统字体、负字距、过大的标题或装饰性文案。</li>
+          <li>不得把视频墙深色剧院风改成白色卡片；视频格必须保留深色底、14px 圆角、顶部/底部遮罩。</li>
+          <li>不得省略 hover、active、disabled、empty、loading、modal、drawer、preview、table/list 切换等状态。</li>
+          <li>不得改变文搜图筛选栏 260px、视频墙列表 280px、空间树 300px、详情滑入 480px 等关键尺寸。</li>
+          <li>不得让文字溢出容器；所有卡片标题、路径、摄像头名称必须单行省略或按规范换行。</li>
+        </ol>
+      </section>
+
+      <section id="ai">
+        <h2>AI复刻使用说明</h2>
+        <ol>
+          <li>先读取本规范的颜色、字体、布局、圆角、阴影和组件模块，不要从零设计新风格。</li>
+          <li>判断页面类型：仪表盘、空间态势、空间管理、视频墙、视频设备、文搜图、列表页、详情页、弹窗或抽屉，并套用对应模板。</li>
+          <li>建立三层 token：原始色值与尺寸、语义别名、组件级变量。所有组件必须引用这些固定值。</li>
+          <li>先搭建项目外壳：48px 顶栏、72/224px 侧栏、44px 二级 tab、#FAFBFC 内容底色。</li>
+          <li>再实现原子组件：32px 主按钮、6px 输入框、11-13px 标签、细滚动条、语义状态色。</li>
+          <li>最后实现页面内容：按 8/12/16px 间距排布卡片和面板，严格使用对应页面的固定宽度与网格规则。</li>
+          <li>交付前逐项检查：主色是否正确、圆角是否超限、间距是否在阶梯内、文字是否溢出、hover/active/empty/loading 是否完整。</li>
+        </ol>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

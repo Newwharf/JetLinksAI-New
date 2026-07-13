@@ -7,6 +7,8 @@
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { scenarioOptions } from '@/views/workbench/templates'
+import WelcomeModal from '@/components/WelcomeModal.vue'
+import GuideOverlay from '@/components/GuideOverlay.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -136,6 +138,20 @@ function handleMenuClick(m: MenuItem) {
   }
   router.push(m.path)
 }
+
+// 启动新手引导
+function startGuide(type: 'iot' | 'video' | 'alarm') {
+  if (type === 'iot') {
+    appStore.startIotGuideDirect()
+    router.push('/iot/device')
+  } else if (type === 'video') {
+    appStore.startVideoGuideDirect()
+    router.push('/video/device')
+  } else {
+    appStore.startAlarmGuideDirect()
+    router.push('/alarm/rule')
+  }
+}
 </script>
 
 <template>
@@ -152,6 +168,30 @@ function handleMenuClick(m: MenuItem) {
           <i class="i-ant-design-robot-outlined ai-entry-icon" />
           <span class="ai-entry-text">AI 对话</span>
         </button>
+        <!-- 新手引导下拉 -->
+        <a-dropdown>
+          <div class="guide-trigger" @click.prevent>
+            <i class="i-ant-design-question-circle-outlined" />
+            <span>新手引导</span>
+            <i class="i-ant-design-down-outlined guide-arrow" />
+          </div>
+          <template #overlay>
+            <a-menu>
+              <a-menu-item @click="startGuide('iot')">
+                <i class="i-ant-design-api-outlined" />
+                <span>创建物联设备</span>
+              </a-menu-item>
+              <a-menu-item @click="startGuide('video')">
+                <i class="i-ant-design-video-camera-outlined" />
+                <span>创建视联设备</span>
+              </a-menu-item>
+              <a-menu-item @click="startGuide('alarm')">
+                <i class="i-ant-design-bell-outlined" />
+                <span>创建告警规则</span>
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
         <!-- 场景切换下拉框 -->
         <a-dropdown>
           <div class="scenario-trigger" @click.prevent>
@@ -263,6 +303,11 @@ function handleMenuClick(m: MenuItem) {
         <RouterView :key="route.path + (route.query._t as string || '')" />
       </main>
     </div>
+
+    <!-- 欢迎弹窗 -->
+    <WelcomeModal />
+    <!-- 全局引导覆盖层 -->
+    <GuideOverlay />
   </div>
 </template>
 
@@ -356,6 +401,29 @@ function handleMenuClick(m: MenuItem) {
     font-size: 15px;
     color: #fff;
   }
+}
+
+/* 新手引导下拉 */
+.guide-trigger {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid $border-color-card;
+  border-radius: 9999px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  color: $text-base;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: $color-primary;
+    color: $color-primary;
+  }
+
+  .guide-arrow { font-size: 10px; color: $text-muted; }
 }
 
 /* 场景切换下拉框 */
