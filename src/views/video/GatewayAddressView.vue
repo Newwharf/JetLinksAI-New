@@ -5,6 +5,7 @@
  */
 import { ref, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
+import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import GuideOverlay from '@/components/GuideOverlay.vue'
 import cameraImg from '@/assets/cameras/camera.png'
@@ -14,9 +15,17 @@ import cam3 from '@/assets/text-search/result-03.jpg'
 import cam4 from '@/assets/text-search/result-04.jpg'
 
 const appStore = useAppStore()
+const route = useRoute()
 
 // 页面视图：list(设备列表) / add(新增设备)
 const viewMode = ref<'list' | 'add'>('list')
+
+// 从 URL 参数启动引导（新标签页打开时传入）
+const guideParam = route.query.guide as string
+if (guideParam) {
+  appStore.guideActive = true
+  appStore.setGuideStep(guideParam as any)
+}
 
 // 接入方式
 type AccessMethod = 'gb28181' | 'fixed' | 'onvif' | 'plugin' | 'agent'
@@ -128,9 +137,10 @@ function goToAuth() {
   successCollapsed.value = true
   failCollapsed.value = false
   bindModalVisible.value = true
-  // 引导联动：进入认证步
+  // 进入绑定弹窗后，后续只保留弹窗流程，不再展示第八步/第九步引导。
   if (appStore.guideStep === 'select-device') {
-    nextTick(() => appStore.setGuideStep('bind-device'))
+    appStore.guideActive = false
+    appStore.guideStep = ''
   }
 }
 
@@ -151,10 +161,6 @@ function handleBind() {
     bindStep.value = 'result'
     if (success.length > 0) {
       message.success(`成功绑定 ${success.length} 台摄像头`)
-    }
-    // 引导联动：全部成功 → 推进到 done
-    if (fail.length === 0 && appStore.guideActive && (appStore.guideStep === 'bind-device' || appStore.guideStep === 'select-device')) {
-      nextTick(() => appStore.setGuideStep('done'))
     }
   }, 800)
 }
@@ -178,10 +184,6 @@ function confirmPartial() {
     message.success(`成功绑定 ${bindSuccessList.value.length} 台摄像头`)
   }
   bindModalVisible.value = false
-  // 引导联动
-  if (appStore.guideActive) {
-    nextTick(() => appStore.setGuideStep('done'))
-  }
   goBackToList()
 }
 

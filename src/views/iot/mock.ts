@@ -559,6 +559,56 @@ export const deviceTemplateCategories: DeviceTemplateCategory[] = [
   }
 ]
 
+// ===== 设备告警规则 =====
+export type AlarmNotifyStatus = 'none' | 'disabled' | 'enabled'
+
+export interface AlarmRule {
+  id: string
+  /** 告警名称 */
+  name: string
+  /** 产品名称 */
+  product: string
+  /** 设备名称 */
+  device: string
+  /** 属性名称 */
+  property: string
+  /** 触发条件描述，如 "温度不在[10, 30]之间" */
+  trigger: string
+  /** 告警级别 */
+  level: AlarmLevel
+  /** 通知配置状态 */
+  notifyStatus: AlarmNotifyStatus
+}
+
+export const alarmRules = ref<AlarmRule[]>([
+  { id: 'alarm-1', name: '温度阈值告警', product: '华汉维温湿度', device: '温湿度监测器', property: '温度', trigger: '温度不在[10, 30]之间', level: '超紧急', notifyStatus: 'enabled' },
+  { id: 'alarm-2', name: '湿度超限告警', product: '华汉维温湿度', device: '温湿度监测器', property: '湿度', trigger: '湿度不在[40, 70]之间', level: '紧急', notifyStatus: 'enabled' },
+  { id: 'alarm-3', name: '可燃气体浓度超标', product: '可燃气体探测器', device: '可燃气体探测器', property: '可燃气体浓度', trigger: '浓度 ≥ 50 ppm', level: '超紧急', notifyStatus: 'enabled' },
+  { id: 'alarm-4', name: '烟雾报警', product: '烟雾探测器', device: '烟雾探测器A', property: '烟雾浓度', trigger: '浓度 ≥ 100 ppm', level: '超紧急', notifyStatus: 'disabled' },
+  { id: 'alarm-5', name: '信号强度弱', product: '温湿度监测器', device: '温湿度监测器', property: '信号强度', trigger: '信号强度 ≤ -90 dBm', level: '一般', notifyStatus: 'none' },
+  { id: 'alarm-6', name: '电池电压偏低', product: '温湿度监测器', device: '温湿度监测器', property: '电池电压', trigger: '电压 ≤ 3.2 V', level: '提醒', notifyStatus: 'none' },
+  { id: 'alarm-7', name: '倾角超限告警', product: '双轴倾角传感器', device: '双轴倾角传感器', property: 'X轴角度', trigger: '角度 ≥ 15°', level: '严重', notifyStatus: 'enabled' },
+  { id: 'alarm-8', name: '水浸告警', product: '水浸传感器', device: '水浸监测器', property: '水浸状态', trigger: '状态 = true', level: '严重', notifyStatus: 'disabled' },
+  { id: 'alarm-9', name: '噪音超标', product: '噪音监测器', device: '噪音监测器', property: '噪音', trigger: '噪音 ≥ 85 dB', level: '一般', notifyStatus: 'none' },
+  { id: 'alarm-10', name: '电压异常告警', product: '电参数采集仪', device: '电参数采集仪', property: '电压', trigger: '电压不在[200, 240]之间', level: '紧急', notifyStatus: 'enabled' },
+])
+
+// 告警级别配置
+export const alarmLevelConfig: Record<AlarmLevel, { label: string; class: string }> = {
+  '超紧急': { label: '超紧急', class: 'alarm-critical' },
+  '紧急': { label: '紧急', class: 'alarm-urgent' },
+  '严重': { label: '严重', class: 'alarm-serious' },
+  '一般': { label: '一般', class: 'alarm-general' },
+  '提醒': { label: '提醒', class: 'alarm-notice' },
+}
+
+// 通知配置状态
+export const alarmNotifyConfig: Record<AlarmNotifyStatus, { label: string; class: string }> = {
+  none: { label: '未配置', class: 'notify-none' },
+  disabled: { label: '未启用', class: 'notify-disabled' },
+  enabled: { label: '已启用', class: 'notify-enabled' },
+}
+
 // ===== 相对时间格式化 =====
 export function formatRelativeTime(timeStr: string): string {
   if (!timeStr || timeStr === '—') return '—'

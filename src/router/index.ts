@@ -295,7 +295,8 @@ const routes: RouteRecordRaw[] = [
             { key: 'overview', label: '设备总览', path: '/iot/overview' },
             { key: 'device', label: '设备列表', path: '/iot/device' },
             { key: 'product', label: '产品列表', path: '/iot/product' },
-            { key: 'group', label: '设备分组', path: '/iot/group' }
+            { key: 'group', label: '设备分组', path: '/iot/group' },
+            { key: 'alarm', label: '设备告警', path: '/iot/alarm' }
           ]
         },
         children: [
@@ -305,7 +306,8 @@ const routes: RouteRecordRaw[] = [
           { path: 'device/:id', name: 'iot-device-detail', component: () => import('@/views/iot/DeviceDetailView.vue'), meta: { title: '设备详情' } },
           { path: 'product', name: 'iot-product', component: () => import('@/views/iot/ProductListView.vue'), meta: { title: '产品列表' } },
           { path: 'product/:id', name: 'iot-product-detail', component: () => import('@/views/iot/ProductDetailView.vue'), meta: { title: '产品详情' } },
-          { path: 'group', name: 'iot-group', component: () => import('@/views/iot/DeviceGroupView.vue'), meta: { title: '设备分组' } }
+          { path: 'group', name: 'iot-group', component: () => import('@/views/iot/DeviceGroupView.vue'), meta: { title: '设备分组' } },
+          { path: 'alarm', name: 'iot-alarm', component: () => import('@/views/iot/AlarmRuleView.vue'), meta: { title: '设备告警' } }
         ]
       },
 

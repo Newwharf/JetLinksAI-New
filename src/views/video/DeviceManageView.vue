@@ -1,9 +1,9 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
- * 监控设备管理
+ * 视频设备管理
  * 顶部 4 个 KPI（网关/通道/区域/PTZ，各带在线离线明细）
- * 左侧网关列表 + 右侧该网关下通道卡片（含搜索）
- * 点击通道卡片 → 弹窗播放（复用监控墙弹窗结构：左直播 + 右告警/回放）
+ * 左侧网关列表 + 右侧该网关下通道卡片
+ * 点击通道卡片 -> 弹窗播放（左直播 + 右告警/回放）
  */
 import { message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
@@ -140,7 +140,7 @@ function collectAreaPaths(node: AreaTreeNode): string[] {
 // 通道搜索关键字
 const searchKey = ref('')
 
-// 当前筛选下、命中搜索的通道（按模式区分）
+// 当前筛选下、命中搜索的通道
 const filteredChannels = computed(() => {
   let list: VideoChannel[]
   if (filterMode.value === 'gateway') {
@@ -166,9 +166,9 @@ const filteredChannels = computed(() => {
 // 右侧标题
 const rightPanelTitle = computed(() => {
   if (filterMode.value === 'gateway') {
-    return `${activeGateway.value?.name || ''} · 通道列表`
+    return `${activeGateway.value?.name || ''} / 通道列表`
   }
-  return `${activeArea.value?.title || ''} · 通道列表`
+  return `${activeArea.value?.title || ''} / 通道列表`
 })
 
 // 选中网关
@@ -180,33 +180,57 @@ function selectGateway(id: string) {
 // 进入网关设备配置页
 function gotoGatewayConfig(gw: GatewayDevice, e: Event) {
   e.stopPropagation()
-  // 引导联动：进入地址页时推进步骤
-  if (appStore.guideStep === 'goto-config') {
-    appStore.setGuideStep('gw-address')
+  // 引导联动：进入配置页时结束当前引导
+  const isGuide = appStore.guideStep === 'goto-config'
+  // 打开新标签页，并将引导状态传到地址页
+  const routeHref = router.resolve({
+    path: `/video/device/gateway/${gw.id}/address`,
+    query: isGuide ? { guide: 'gw-address' } : {}
+  }).href
+  const url = new URL(routeHref, window.location.origin).href
+  window.open(url, '_blank')
+  // 原页面只保留视频设备接入弹窗
+  if (isGuide) {
+    appStore.finishGuide()
   }
-  router.push(`/video/device/gateway/${gw.id}/address`)
+  connectingStatus.value = 'pending'
+  connectingModalVisible.value = true
 }
 
-// 选中区域（树节点）
+// ===== 视联设备接入弹窗 =====
+const connectingModalVisible = ref(false)
+const connectingStatus = ref<'pending' | 'done'>('pending')
+
+function toggleConnectingStatus() {
+  connectingStatus.value = connectingStatus.value === 'pending' ? 'done' : 'pending'
+}
+
+function goToAlarmFromConnecting() {
+  connectingModalVisible.value = false
+  appStore.startAlarmGuideDirect()
+  router.push('/alarm/rule')
+}
+
+// 选中区域
 function selectAreaNode(key: string) {
   activeAreaKey.value = key
   searchKey.value = ''
 }
 
-// 切换筛选模式时重置选择
+// 切换筛选模式时重置选中状态
 watch(filterMode, (mode) => {
   searchKey.value = ''
   if (mode === 'gateway') {
     if (!activeGatewayId.value) activeGatewayId.value = gateways[0]?.id || ''
   } else {
-    // 默认选中第一个根节点
+    // 区域模式默认选中第一个区域
     if (!activeAreaKey.value && areaTree.value.length > 0) {
       activeAreaKey.value = areaTree.value[0].key
     }
   }
 })
 
-// ===== 同步通道：占位交互（无未同步概念，仅给反馈）=====
+// ===== 同步通道 =====
 const syncingId = ref<string | null>(null)
 function syncChannels(gw: GatewayDevice, e?: Event) {
   e?.stopPropagation()
@@ -214,29 +238,130 @@ function syncChannels(gw: GatewayDevice, e?: Event) {
   syncingId.value = gw.id
   setTimeout(() => {
     syncingId.value = null
-    message.success(`「${gw.name}」通道已同步`)
+    message.success(`${gw.name}通道已更新`)
   }, 800)
 }
 
-// 右侧面板：同步当前选中网关
+// 当前网关是否正在同步
 const isSyncingActive = computed(() => syncingId.value === activeGatewayId.value)
 function syncActiveGateway() {
   if (activeGateway.value) syncChannels(activeGateway.value)
 }
 
 // ===== 新增网关弹窗 =====
+// ===== 可加入项目的网关 =====
+const gatewayPoolModalVisible = ref(false)
+const unjoinedGateways = ref<GatewayDevice[]>([
+  {
+    id: 'gw-pool-1',
+    name: '研发楼 1F 网关',
+    brand: 'JetLinks',
+    model: 'Edge-2000',
+    sn: 'GW-90368215',
+    ip: '192.168.1.118',
+    location: '',
+    status: 'online'
+  },
+  {
+    id: 'gw-pool-2',
+    name: '生产区入口网关',
+    brand: 'JetLinks',
+    model: 'Edge-2000',
+    sn: 'GW-90368242',
+    ip: '192.168.1.126',
+    location: '',
+    status: 'offline'
+  }
+])
+
+function openGatewayPoolModal() {
+  gatewayPoolModalVisible.value = true
+  if (appStore.guideStep === 'add-gateway') {
+    nextTick(() => appStore.setGuideStep('bind-gateway'))
+  }
+}
+
+function closeGatewayPoolModal() {
+  gatewayPoolModalVisible.value = false
+}
+
+function addExistingGateway(gw: GatewayDevice) {
+  gatewayPoolModalVisible.value = false
+  pendingJoinGateway.value = gw
+  if (gw.status === 'offline') {
+    handleGuideBindSelect('offline')
+  } else {
+    guideBindModalVisible.value = true
+  }
+}
+
+function refreshGuidePosition() {
+  nextTick(() => {
+    setTimeout(() => window.dispatchEvent(new Event('guide-position-refresh')), 80)
+    setTimeout(() => window.dispatchEvent(new Event('guide-position-refresh')), 220)
+    setTimeout(() => window.dispatchEvent(new Event('guide-position-refresh')), 420)
+    setTimeout(() => window.dispatchEvent(new Event('guide-position-refresh')), 700)
+  })
+}
+
+function openBindModalFromPool() {
+  gatewayPoolModalVisible.value = false
+  openBindModal()
+  refreshGuidePosition()
+  if (appStore.guideStep === 'add-gateway') {
+    nextTick(() => appStore.setGuideStep('bind-gateway'))
+  }
+}
+
+function backToGatewayPool() {
+  closeBindModal()
+  gatewayPoolModalVisible.value = true
+  refreshGuidePosition()
+  if (appStore.guideStep === 'add-gateway') {
+    nextTick(() => appStore.setGuideStep('bind-gateway'))
+  }
+}
+
 type BindMethod = 'sn' | 'scan'
 const bindModalVisible = ref(false)
 const bindMethod = ref<BindMethod>('sn')
 const snInput = ref('')
 const binding = ref(false)
-// 绑定错误提示（红色横条）
+// 绑定失败错误提示
 const bindError = ref('')
-// 扫码识别状态：false=待扫码，true=识别成功
+// 扫码接入状态：false=未扫码，true=识别成功
 const scanSuccess = ref(false)
+const scanOutsideStyle = ref<Record<string, string>>({})
+
+function updateScanOutsidePosition() {
+  if (!bindModalVisible.value || bindMethod.value !== 'scan' || scanSuccess.value) return
+  const modal = document.querySelector('.bind-modal-wrap .ant-modal') as HTMLElement | null
+  if (!modal) return
+
+  const rect = modal.getBoundingClientRect()
+  const gap = 16
+  const buttonWidth = 132
+  let left = rect.right + gap
+  if (left + buttonWidth > window.innerWidth - gap) {
+    left = rect.left - buttonWidth - gap
+  }
+  left = Math.max(gap, left)
+
+  scanOutsideStyle.value = {
+    left: `${left}px`,
+    top: `${Math.min(rect.bottom - 96, window.innerHeight - 72)}px`,
+    transform: 'none'
+  }
+}
 
 function openBindModal() {
   bindModalVisible.value = true
+  nextTick(() => {
+    setTimeout(updateScanOutsidePosition, 120)
+    setTimeout(updateScanOutsidePosition, 360)
+    setTimeout(updateScanOutsidePosition, 800)
+    setTimeout(updateScanOutsidePosition, 1200)
+  })
 }
 
 function closeBindModal() {
@@ -253,11 +378,17 @@ function switchMethod(m: BindMethod) {
   bindError.value = ''
   snInput.value = ''
   scanSuccess.value = false
+  nextTick(() => {
+    setTimeout(updateScanOutsidePosition, 120)
+    setTimeout(updateScanOutsidePosition, 360)
+    setTimeout(updateScanOutsidePosition, 800)
+    setTimeout(updateScanOutsidePosition, 1200)
+  })
 }
 
 /**
  * 绑定网关
- * 规则：输入 "1" 成功，输入 "2" 失败，其他值也失败
+ * 模拟：输入 "1" 成功，输入 "2" 失败
  */
 function handleBind() {
   bindError.value = ''
@@ -269,64 +400,55 @@ function handleBind() {
     if (!inputValue) { bindError.value = '请输入网关 SN 码'; return }
     errorTip = '绑定失败，请确认 SN 码是否正确'
   } else {
-    return // 扫码接入不经过这里
+    return // 扫码接入不走这个分支
   }
 
   binding.value = true
   setTimeout(() => {
     binding.value = false
     if (inputValue === '1') {
-      // 绑定成功
-      message.success('网关绑定成功')
-      closeBindModal()
-
-      // 引导流程：绑定成功后添加新网关并推进到「配置设备」步骤
-      if (appStore.guideActive && appStore.guideStep === 'bind-gateway') {
-        gateways.push({
-          id: 'gw-new-' + Date.now(),
-          name: '新接入网关',
-          brand: 'JetLinks',
-          model: 'Edge-2000',
-          sn: 'GW-' + Math.floor(10000000 + Math.random() * 89999999),
-          ip: '192.168.1.108',
-          location: 'E栋 1F 弱电间',
-          status: 'online'
-        })
-        nextTick(() => {
-          appStore.setGuideStep('goto-config')
-        })
-      }
+      // 网关识别成功后进入绑定结果场景选择，普通流程和新手引导共用
+      message.success('网关识别成功')
+      openGuideBindModal()
     } else {
-      // 绑定失败，不关闭弹窗
+      // 网关绑定失败
       bindError.value = errorTip
     }
   }, 800)
 }
 
-// ===== 引导模式：下拉选择绑定结果 =====
+// ===== 引导绑定结果场景 =====
 const GUIDE_GW_ID = 'gw-guide'
 
 type GuideBindResult = 'configured' | 'empty' | 'offline'
 
-// 引导模式：确定绑定选择弹窗
+// 引导绑定弹窗
 const guideBindModalVisible = ref(false)
+const pendingJoinGateway = ref<GatewayDevice | null>(null)
 
-/** 打开绑定结果选择弹窗 */
+/** 打开绑定结果选择 */
 function openGuideBindModal() {
+  closeBindModal()
   guideBindModalVisible.value = true
 }
 
-/** 引导模式下，选择绑定结果后创建网关并推进到对应提示页 */
+/** 根据绑定结果进入对应引导弹窗 */
 function handleGuideBindSelect(result: GuideBindResult) {
   guideBindModalVisible.value = false
   closeBindModal()
+  const selectedGateway = pendingJoinGateway.value
+  const targetGatewayId = selectedGateway?.id || GUIDE_GW_ID
 
-  // 先移除之前引导创建的网关（避免重复）
-  const idx = gateways.findIndex(g => g.id === GUIDE_GW_ID)
+  // 先移除同 id 网关，避免重复
+  const idx = gateways.findIndex(g => g.id === targetGatewayId)
   if (idx >= 0) gateways.splice(idx, 1)
 
-  // 创建新网关
+  // 网关状态
   const isOnline = result === 'configured' || result === 'empty'
+  if (selectedGateway) {
+    gateways.push({ ...selectedGateway, status: isOnline ? 'online' : 'offline' })
+    unjoinedGateways.value = unjoinedGateways.value.filter(g => g.id !== selectedGateway.id)
+  } else {
   gateways.push({
     id: GUIDE_GW_ID,
     name: '新接入网关',
@@ -334,34 +456,43 @@ function handleGuideBindSelect(result: GuideBindResult) {
     model: 'Edge-2000',
     sn: 'GW-' + Math.floor(10000000 + Math.random() * 89999999),
     ip: '192.168.1.108',
-    location: 'E栋 1F 弱电间',
+    location: '',
     status: isOnline ? 'online' : 'offline',
   })
 
-  // 已配置场景：为该网关添加几条摄像头通道
+  // 根据场景更新摄像头通道
+  }
   if (result === 'configured') {
     const camThumbs = [channels.value[0]?.thumb, channels.value[1]?.thumb, channels.value[2]?.thumb]
     const guideChannels: VideoChannel[] = [
-      { id: 'ch-guide-1', name: '前门摄像头', thumb: camThumbs[0] || channels.value[0]?.thumb || '', gatewayId: GUIDE_GW_ID, areaPath: ['物联网产业园区', 'E栋', '1F', '公共区域'], status: 'online', ptz: false },
-      { id: 'ch-guide-2', name: '大厅摄像头', thumb: camThumbs[1] || channels.value[1]?.thumb || '', gatewayId: GUIDE_GW_ID, areaPath: ['物联网产业园区', 'E栋', '1F', '公共区域'], status: 'online', ptz: false },
+      { id: 'ch-guide-1', name: '前门摄像头', thumb: camThumbs[0] || channels.value[0]?.thumb || '', gatewayId: GUIDE_GW_ID, areaPath: ['物联网产业园区', 'E 栋', '1F', '公共区域'], status: 'online', ptz: false },
+      { id: 'ch-guide-2', name: '大厅摄像头', thumb: camThumbs[1] || channels.value[1]?.thumb || '', gatewayId: GUIDE_GW_ID, areaPath: ['物联网产业园区', 'E 栋', '1F', '公共区域'], status: 'online', ptz: false },
       { id: 'ch-guide-3', name: '走廊摄像头', thumb: camThumbs[2] || channels.value[2]?.thumb || '', gatewayId: GUIDE_GW_ID, areaPath: [], status: 'offline', ptz: false },
     ]
-    channels.value.push(...guideChannels)
+    const oldChannelIdx: number[] = []
+    channels.value.forEach((c, i) => { if (c.gatewayId === targetGatewayId) oldChannelIdx.unshift(i) })
+    oldChannelIdx.forEach(i => channels.value.splice(i, 1))
+    channels.value.push(...guideChannels.map((ch, index) => ({
+      ...ch,
+      id: `ch-${targetGatewayId}-${index + 1}`,
+      gatewayId: targetGatewayId
+    })))
   }
 
-  // 清除该网关下旧的引导通道（切换场景时避免残留）
+  // 无设备或离线场景清空通道
   if (result !== 'configured') {
     const chIdx: number[] = []
-    channels.value.forEach((c, i) => { if (c.gatewayId === GUIDE_GW_ID) chIdx.unshift(i) })
+    channels.value.forEach((c, i) => { if (c.gatewayId === targetGatewayId) chIdx.unshift(i) })
     chIdx.forEach(i => channels.value.splice(i, 1))
   }
 
-  // 选中并记录
-  activeGatewayId.value = GUIDE_GW_ID
-  appStore.guideGatewayId = GUIDE_GW_ID
+  // 选中网关
+  activeGatewayId.value = targetGatewayId
+  appStore.guideGatewayId = targetGatewayId
   appStore.guideBindResult = result
+  pendingJoinGateway.value = null
 
-  // 推进到对应的 center 提示页
+  // 进入对应引导步骤
   nextTick(() => {
     if (result === 'configured') appStore.setGuideStep('gw-online-configured')
     else if (result === 'empty') appStore.setGuideStep('gw-online-empty')
@@ -369,29 +500,21 @@ function handleGuideBindSelect(result: GuideBindResult) {
   })
 }
 
-// ===== 离线网关：更新通道触发 =====
+// ===== 缁傝崵鍤庣純鎴濆彠閿涙碍娲块弬浼粹偓姘朵壕鐟欙箑褰?=====
 watch(() => appStore.guideOfflineUpdateTrigger, () => {
   if (!appStore.guideActive) return
-  // 将引导网关变为在线（步骤推进由 GuideOverlay 的 handleOfflineUpdateSelect 负责）
-  const gw = gateways.find(g => g.id === GUIDE_GW_ID)
+  // 同网段处理后模拟网关上线
+  const gw = gateways.find(g => g.id === appStore.guideGatewayId || g.id === GUIDE_GW_ID)
   if (gw) gw.status = 'online'
 })
 watch(() => appStore.guideStep, (step) => {
-  if (step === 'bind-gateway' && !bindModalVisible.value) {
+  if (step === 'bind-gateway' && !bindModalVisible.value && !gatewayPoolModalVisible.value) {
     nextTick(() => openBindModal())
   }
 }, { immediate: true })
 
-// ===== 引导联动：点击新增网关 → 自动推进到 bind-gateway =====
-function openBindModalGuide() {
-  openBindModal()
-  if (appStore.guideStep === 'add-gateway') {
-    appStore.setGuideStep('bind-gateway')
-  }
-}
-
-
-// ===== 点击通道 → 弹窗播放（复用监控墙弹窗结构）=====
+// ===== 引导联动：点击新增网关后推进 bind-gateway =====
+// ===== 播放弹窗 =====
 const playModalVisible = ref(false)
 const playTarget = ref<VideoChannel | null>(null)
 function playChannel(ch: VideoChannel) {
@@ -400,41 +523,52 @@ function playChannel(ch: VideoChannel) {
   playModalVisible.value = true
 }
 
-// 弹窗宽度：屏幕宽度的 2/3（与监控墙 WallView 保持一致）
+// 播放弹窗宽度：屏幕 2/3
 const viewportWidth = ref(window.innerWidth)
 function onResize() {
   viewportWidth.value = window.innerWidth
+  updateScanOutsidePosition()
 }
 onMounted(() => window.addEventListener('resize', onResize))
 onBeforeUnmount(() => window.removeEventListener('resize', onResize))
 const playModalWidth = computed(() => Math.floor(viewportWidth.value * 2 / 3))
 
-// ===== 弹窗右侧：告警事件 / 录像回放 tab =====
+// ===== 告警 / 回放 tab =====
 const playTab = ref<'alarm' | 'replay'>('alarm')
+
+type AlarmLevel = 'urgent' | 'warning' | 'info'
+type AlarmStatus = 'pending' | 'done'
 
 interface PlayAlarmRow {
   id: string
-  level: '紧急' | '警告' | '提示'
+  level: AlarmLevel
   title: string
   time: string
-  status: '待处理' | '已处理'
+  status: AlarmStatus
 }
+
+function alarmLevelText(level: AlarmLevel) {
+  return level === 'urgent' ? '紧急' : level === 'warning' ? '警告' : '提示'
+}
+
+function alarmStatusText(status: AlarmStatus) {
+  return status === 'pending' ? '待处理' : '已处理'
+}
+
 const allPlayAlarms = computed<PlayAlarmRow[]>(() => {
   const name = playTarget.value?.name || ''
-  if (name.includes('东门')) {
+  if (name.includes('门') || name.includes('入口')) {
     return [
-      { id: 'a1', level: '紧急', title: '人员闯入', time: '2026-07-07 09:12', status: '待处理' },
-      { id: 'a2', level: '警告', title: '人员徘徊', time: '2026-07-07 08:40', status: '待处理' },
-      { id: 'a3', level: '提示', title: '物品遗留', time: '2026-07-06 18:22', status: '已处理' },
-      { id: 'a6', level: '紧急', title: '夜间未归', time: '2026-07-05 23:10', status: '已处理' },
-      { id: 'a7', level: '警告', title: '人员聚集', time: '2026-07-05 14:30', status: '已处理' }
+      { id: 'a1', level: 'urgent', title: '人员闯入', time: '2026-07-07 09:12', status: 'pending' },
+      { id: 'a2', level: 'warning', title: '人员徘徊', time: '2026-07-07 08:40', status: 'pending' },
+      { id: 'a3', level: 'info', title: '物品遗留', time: '2026-07-06 18:22', status: 'done' }
     ]
   }
-  if (name.includes('南门')) {
+  if (name.includes('车库') || name.includes('停车')) {
     return [
-      { id: 'a4', level: '警告', title: '车辆违停', time: '2026-07-07 10:05', status: '待处理' },
-      { id: 'a5', level: '紧急', title: '烟火疑似', time: '2026-07-07 07:30', status: '已处理' },
-      { id: 'a8', level: '提示', title: '物品遗留', time: '2026-07-06 11:20', status: '已处理' }
+      { id: 'a4', level: 'warning', title: '车辆违停', time: '2026-07-07 10:05', status: 'pending' },
+      { id: 'a5', level: 'urgent', title: '烟火疑似', time: '2026-07-07 07:30', status: 'done' },
+      { id: 'a8', level: 'info', title: '物品遗留', time: '2026-07-06 11:20', status: 'done' }
     ]
   }
   return []
@@ -467,11 +601,11 @@ interface ReplayClip {
 const allReplayClips = computed<ReplayClip[]>(() => {
   const thumb = playTarget.value?.thumb || ''
   return [
-    { id: 'r1', time: '2026-07-07 09:10-09:15', label: '人员闯入告警时段', thumb, duration: '5 分钟' },
-    { id: 'r2', time: '2026-07-07 08:38-08:45', label: '人员徘徊告警时段', thumb, duration: '7 分钟' },
-    { id: 'r3', time: '2026-07-07 06:00-06:10', label: '晨间例行画面', thumb, duration: '10 分钟' },
-    { id: 'r4', time: '2026-07-06 18:20-18:25', label: '物品遗留告警时段', thumb, duration: '5 分钟' },
-    { id: 'r5', time: '2026-07-06 14:00-14:15', label: '午后例行画面', thumb, duration: '15 分钟' }
+    { id: 'r1', time: '2026-07-07 09:10-09:15', label: '前门摄像头录像片段', thumb, duration: '5 分钟' },
+    { id: 'r2', time: '2026-07-07 08:38-08:45', label: '大厅摄像头录像片段', thumb, duration: '7 分钟' },
+    { id: 'r3', time: '2026-07-07 06:00-06:10', label: '入口摄像头录像片段', thumb, duration: '10 分钟' },
+    { id: 'r4', time: '2026-07-06 18:20-18:25', label: '走廊摄像头录像片段', thumb, duration: '5 分钟' },
+    { id: 'r5', time: '2026-07-06 14:00-14:15', label: '停车场摄像头录像片段', thumb, duration: '15 分钟' }
   ]
 })
 const replayDateModel = ref<any>(null)
@@ -483,11 +617,31 @@ const replayClips = computed<ReplayClip[]>(() => {
   if (!replayDate.value) return allReplayClips.value
   return allReplayClips.value.filter(c => c.time.slice(0, 10) === replayDate.value)
 })
+
+void [
+  gatewayImg,
+  gotoGatewayConfig,
+  toggleConnectingStatus,
+  goToAlarmFromConnecting,
+  isSyncingActive,
+  syncActiveGateway,
+  closeGatewayPoolModal,
+  addExistingGateway,
+  openBindModalFromPool,
+  backToGatewayPool,
+  switchMethod,
+  handleBind,
+  openGuideBindModal,
+  playChannel,
+  playModalWidth,
+  playAlarms,
+  replayClips,
+]
 </script>
 
 <template>
   <div class="device-page">
-    <!-- 顶部 KPI -->
+    <!-- 妞ゅ爼鍎?KPI -->
     <section class="kpi-grid">
       <article v-for="k in kpiCards" :key="k.key" class="kpi-card">
         <div class="kpi-card__head">
@@ -514,11 +668,11 @@ const replayClips = computed<ReplayClip[]>(() => {
       </article>
     </section>
 
-    <!-- 左右两栏 -->
+    <!-- 主体内容 -->
     <section class="split">
-      <!-- 左：网关/区域列表 -->
+      <!-- 左侧网关/区域筛选 -->
       <aside class="gw-panel">
-        <!-- 模式切换 -->
+        <!-- 筛选模式 -->
         <div class="filter-mode">
           <button
             class="filter-mode__btn"
@@ -539,7 +693,7 @@ const replayClips = computed<ReplayClip[]>(() => {
           </button>
         </div>
 
-        <!-- ===== 网关模式 ===== -->
+        <!-- ===== 网关列表 ===== -->
         <template v-if="filterMode === 'gateway'">
           <div class="gw-list">
             <div
@@ -566,7 +720,7 @@ const replayClips = computed<ReplayClip[]>(() => {
               <button
                 class="gw-item__config"
                 type="button"
-                title="配置该网关的摄像头设备"
+                title="配置该网关的摄像头"
                 @click="gotoGatewayConfig(gw, $event)"
               >
                 <i class="i-ant-design-setting-outlined" />
@@ -574,23 +728,23 @@ const replayClips = computed<ReplayClip[]>(() => {
               </button>
             </div>
 
-            <!-- 添加网关卡片 -->
+            <!-- 新增网关 -->
             <button
               class="gw-add-card"
               type="button"
               data-guide="add-gateway"
-              @click="appStore.guideActive ? openBindModalGuide() : openBindModal()"
+              @click="openGatewayPoolModal"
             >
               <i class="i-ant-design-plus-outlined" />
-              <span>添加网关</span>
+              <span>新增网关</span>
             </button>
           </div>
         </template>
 
-        <!-- ===== 区域模式 ===== -->
+        <!-- ===== 区域列表 ===== -->
         <template v-else>
           <div class="panel-head">
-            <strong>区域列表</strong>
+            <strong>区域筛选</strong>
           </div>
           <div class="area-tree-wrap">
             <a-tree
@@ -615,13 +769,13 @@ const replayClips = computed<ReplayClip[]>(() => {
             </a-tree>
             <div v-if="areaTree.length === 0" class="area-empty">
               <i class="i-ant-design-environment-outlined" />
-              <p>暂无已绑定区域的通道</p>
+              <p>暂无区域数据</p>
             </div>
           </div>
         </template>
       </aside>
 
-      <!-- 右：通道卡片 -->
+      <!-- 通道列表 -->
       <div class="ch-panel">
         <div class="ch-panel-head">
           <div class="ch-panel-title">
@@ -639,13 +793,13 @@ const replayClips = computed<ReplayClip[]>(() => {
                 <i class="i-ant-design-search-outlined" />
               </template>
             </a-input>
-            <!-- 更新通道（仅网关模式，同步当前选中网关） -->
+            <!-- 更新通道：同步当前网关 -->
             <button
               v-if="filterMode === 'gateway'"
               class="ch-sync-btn"
               type="button"
               :disabled="isSyncingActive"
-              title="更新当前网关通道"
+              title="同步当前网关通道"
               @click="syncActiveGateway"
             >
               <i :class="isSyncingActive ? 'i-ant-design-loading-outlined sync-spin' : 'i-ant-design-sync-outlined'" />
@@ -668,7 +822,7 @@ const replayClips = computed<ReplayClip[]>(() => {
                   <i class="ch-status__dot" />
                   {{ ch.status === 'online' ? '在线' : '离线' }}
                 </span>
-                <span v-if="ch.ptz" class="ch-ptz" title="支持 PTZ 云台控制">
+                <span v-if="ch.ptz" class="ch-ptz" title="支持 PTZ 控制">
                   <i class="i-ant-design-control-outlined" />
                   PTZ
                 </span>
@@ -688,9 +842,9 @@ const replayClips = computed<ReplayClip[]>(() => {
                 <span
                   class="ch-card__area"
                   :class="{ 'is-empty': ch.areaPath.length === 0 }"
-                  :title="ch.areaPath.length > 0 ? areaText(ch.areaPath) : '未绑定'"
+                  :title="ch.areaPath.length > 0 ? areaText(ch.areaPath) : '未绑定区域'"
                 >
-                  {{ ch.areaPath.length > 0 ? areaText(ch.areaPath) : '未绑定' }}
+                  {{ ch.areaPath.length > 0 ? areaText(ch.areaPath) : '未绑定区域' }}
                 </span>
               </div>
             </div>
@@ -707,6 +861,61 @@ const replayClips = computed<ReplayClip[]>(() => {
 
     <!-- ===== 新增网关弹窗 ===== -->
     <a-modal
+      v-model:open="gatewayPoolModalVisible"
+      title="新增网关"
+      :width="560"
+      :footer="null"
+      centered
+      :body-style="{ padding: '0' }"
+      :mask-closable="!appStore.guideActive"
+      :z-index="appStore.guideStep === 'add-gateway' || appStore.guideStep === 'bind-gateway' ? 2000 : 1000"
+      wrap-class-name="gateway-pool-modal-wrap"
+      @cancel="closeGatewayPoolModal"
+    >
+      <div class="gateway-pool">
+        <div class="gateway-pool__header">
+          <strong>可加入当前项目的网关</strong>
+          <span>这些网关已添加到账号，但还没有加入当前项目。</span>
+        </div>
+
+        <div v-if="unjoinedGateways.length > 0" class="gateway-pool__list">
+          <div v-for="gw in unjoinedGateways" :key="gw.id" class="gateway-pool__row">
+            <img :src="gatewayImg" class="gateway-pool__img" alt="网关设备" draggable="false" />
+            <div class="gateway-pool__main">
+              <div class="gateway-pool__top">
+                <strong>{{ gw.name }}</strong>
+                <span class="gateway-pool__status" :class="gw.status">
+                  <i />
+                  {{ gw.status === 'online' ? '在线' : '离线' }}
+                </span>
+              </div>
+              <div class="gateway-pool__meta">
+                <span>序列号 {{ gw.sn }}</span>
+              </div>
+            </div>
+            <button class="gateway-pool__join" type="button" @click="addExistingGateway(gw)">加入项目</button>
+          </div>
+        </div>
+
+        <div v-else class="gateway-pool__empty">
+          <i class="i-ant-design-cloud-server-outlined" />
+          <span>暂无可加入当前项目的网关</span>
+        </div>
+
+        <button class="gateway-pool__add" type="button" @click="openBindModalFromPool">
+          <span class="gateway-pool__add-icon">
+            <i class="i-ant-design-plus-outlined" />
+          </span>
+          <span class="gateway-pool__add-text">
+            <strong>新增网关</strong>
+            <small>通过 SN 码或扫码接入新的网关设备</small>
+          </span>
+          <i class="i-ant-design-arrow-right-outlined gateway-pool__add-arrow" />
+        </button>
+      </div>
+    </a-modal>
+
+    <a-modal
       v-model:open="bindModalVisible"
       title="新增网关"
       :width="480"
@@ -719,7 +928,7 @@ const replayClips = computed<ReplayClip[]>(() => {
       @cancel="closeBindModal"
     >
       <div class="bind-modal" data-guide="bind-modal">
-        <!-- 方式切换 -->
+        <!-- 绑定方式 tab -->
         <div class="bind-tabs">
           <button
             class="bind-tab"
@@ -737,22 +946,6 @@ const replayClips = computed<ReplayClip[]>(() => {
             <i class="i-ant-design-scan-outlined" />
             <span>扫码接入</span>
           </button>
-        </div>
-
-        <!-- 尚未购买网关提示 -->
-        <div class="bind-contact">
-          <i class="i-ant-design-customer-service-outlined" />
-          <span>尚未购买网关？请前往联系商务获取设备</span>
-          <div class="bind-contact__ways">
-            <span class="bind-contact__way">
-              <i class="i-ant-design-phone-outlined" />
-              400-888-0000
-            </span>
-            <span class="bind-contact__way">
-              <i class="i-ant-design-mail-outlined" />
-              business@jetlinks.com
-            </span>
-          </div>
         </div>
 
         <!-- SN 码绑定 -->
@@ -778,50 +971,41 @@ const replayClips = computed<ReplayClip[]>(() => {
             <p class="bind-field__hint">SN 码印在网关设备背面标签上，通常为 12-16 位字母数字组合。</p>
             <img :src="gatewayImg" class="bind-field__hint-img" alt="网关背面 SN 码位置示意" draggable="false" />
           </div>
+          <!-- 联系商务 -->
+          <div class="bind-contact">
+            <i class="i-ant-design-customer-service-outlined" />
+            <span>如需购买网关，请联系商务或项目负责人</span>
+            <div class="bind-contact__ways">
+              <span class="bind-contact__way">
+                <i class="i-ant-design-phone-outlined" />
+                400-888-0000
+              </span>
+              <span class="bind-contact__way">
+                <i class="i-ant-design-mail-outlined" />
+                business@jetlinks.com
+              </span>
+            </div>
+          </div>
           <div class="bind-actions">
-            <button class="bind-btn bind-btn--default" type="button" @click="closeBindModal">取消</button>
-            <!-- 引导模式：按钮打开选择弹窗 -->
-            <button
-              v-if="appStore.guideStep === 'bind-gateway'"
-              class="bind-btn bind-btn--primary"
-              type="button"
-              @click="openGuideBindModal"
-            >
-              <span>确定绑定</span>
-            </button>
-            <!-- 非引导模式：普通绑定按钮 -->
-            <button v-else class="bind-btn bind-btn--primary" type="button" :disabled="binding || !snInput.trim()" @click="handleBind">
+            <button class="bind-btn bind-btn--default" type="button" @click="backToGatewayPool">返回</button>
+            <button class="bind-btn bind-btn--primary" type="button" :disabled="binding || !snInput.trim()" @click="handleBind">
               <i v-if="binding" class="i-ant-design-loading-outlined sync-spin" />
-              <span>{{ binding ? '绑定中' : '绑定' }}</span>
+              <span>{{ binding ? '识别中' : '下一步' }}</span>
             </button>
           </div>
         </div>
 
         <!-- 扫码接入 -->
         <div v-if="bindMethod === 'scan'" class="bind-content bind-content--scan">
-          <!-- 扫码说明（未识别时） -->
+          <!-- 扫码说明 -->
           <template v-if="!scanSuccess">
             <div class="scan-intro">
-              <!-- 二维码示意 -->
-              <div class="scan-intro__qr">
-                <i class="i-ant-design-qrcode-outlined" />
-                <div class="scan-intro__qr-frame">
-                  <div class="scan-intro__qr-corner scan-intro__qr-corner--tl" />
-                  <div class="scan-intro__qr-corner scan-intro__qr-corner--tr" />
-                  <div class="scan-intro__qr-corner scan-intro__qr-corner--bl" />
-                  <div class="scan-intro__qr-corner scan-intro__qr-corner--br" />
-                  <div class="scan-intro__qr-scanline" />
-                  <div class="scan-intro__qr-dots">
-                    <span v-for="n in 49" :key="n" class="scan-intro__qr-dot" :class="{ on: (n * 7 + 3) % 3 === 0 }" />
-                  </div>
-                </div>
-              </div>
-              <!-- 步骤说明 -->
+              <!-- 扫码步骤 -->
               <div class="scan-intro__steps">
                 <div class="scan-intro__step">
                   <span class="scan-intro__num">1</span>
                   <div class="scan-intro__text">
-                    <strong>扫描设备二维码</strong>
+                    <strong>扫描网关二维码</strong>
                     <span>使用微信或浏览器扫码，扫描网关背面的二维码</span>
                     <img :src="gatewayImg" class="scan-intro__hint-img" alt="网关背面二维码位置示意" draggable="false" />
                   </div>
@@ -831,73 +1015,64 @@ const replayClips = computed<ReplayClip[]>(() => {
                   <div class="scan-intro__text">
                     <strong>登录账号</strong>
                     <span>扫码后跳转到登录页面，完成账号登录</span>
+                    <span>请使用当前平台账号完成授权，授权后系统会自动返回识别结果。</span>
                   </div>
                 </div>
                 <div class="scan-intro__step">
                   <span class="scan-intro__num">3</span>
                   <div class="scan-intro__text">
                     <strong>识别成功</strong>
-                    <span>登录后系统自动识别设备并开始接入</span>
+                    <span>登录后系统自动识别网关并开始接入</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- 联系商务 -->
+            <div class="bind-contact">
+              <i class="i-ant-design-customer-service-outlined" />
+              <span>如需购买网关，请联系商务或项目负责人</span>
+              <div class="bind-contact__ways">
+                <span class="bind-contact__way">
+                  <i class="i-ant-design-phone-outlined" />
+                  400-888-0000
+                </span>
+                <span class="bind-contact__way">
+                  <i class="i-ant-design-mail-outlined" />
+                  business@jetlinks.com
+                </span>
+              </div>
+            </div>
+            <div class="bind-actions">
+              <button class="bind-btn bind-btn--default" type="button" @click="backToGatewayPool">返回</button>
+            </div>
+          </template>
+
+          <!-- 扫码成功 -->
+          <template v-else>
+            <div class="scan-success">
+              <!-- 识别成功状态 -->
+              <div class="scan-success__badge">
+                <i class="i-ant-design-check-circle-filled" />
+                <span>网关识别成功</span>
+              </div>
+              <!-- 网关信息 -->
+              <div class="scan-success__info">
+                <img :src="gatewayImg" class="scan-success__img" alt="网关设备" draggable="false" />
+                <div class="scan-success__details">
+                  <div class="scan-success__row">
+                    <span class="scan-success__label">网关名称</span>
+                    <span class="scan-success__value">JetLinks 边缘网关</span>
+                  </div>
+                  <div class="scan-success__row">
+                    <span class="scan-success__label">网关序列号</span>
+                    <span class="scan-success__value scan-success__value--mono">GW-58740736</span>
                   </div>
                 </div>
               </div>
             </div>
             <div class="bind-actions">
-              <button class="bind-btn bind-btn--default" type="button" @click="closeBindModal">取消</button>
-              <button class="bind-btn bind-btn--primary" type="button" @click="scanSuccess = true">
-                <i class="i-ant-design-check-outlined" />
-                <span>扫码成功</span>
-              </button>
-            </div>
-          </template>
-
-          <!-- 扫码成功（识别成功页） -->
-          <template v-else>
-            <div class="scan-success">
-              <!-- 成功标识 -->
-              <div class="scan-success__badge">
-                <i class="i-ant-design-check-circle-filled" />
-                <span>设备识别成功</span>
-              </div>
-              <!-- 网关信息 -->
-              <div class="scan-success__info">
-                <div class="scan-success__row">
-                  <span class="scan-success__label">设备名称</span>
-                  <span class="scan-success__value">JetLinks 边缘网关</span>
-                </div>
-                <div class="scan-success__row">
-                  <span class="scan-success__label">品牌型号</span>
-                  <span class="scan-success__value">JetLinks · Edge-2000</span>
-                </div>
-                <div class="scan-success__row">
-                  <span class="scan-success__label">SN 码</span>
-                  <span class="scan-success__value scan-success__value--mono">GW-58740736</span>
-                </div>
-                <div class="scan-success__row">
-                  <span class="scan-success__label">IP 地址</span>
-                  <span class="scan-success__value scan-success__value--mono">192.168.1.108</span>
-                </div>
-              </div>
-              <!-- 接入中提示 -->
-              <div class="scan-success__status">
-                <i class="i-ant-design-loading-outlined sync-spin" />
-                <span>正在接入，请稍候...</span>
-              </div>
-            </div>
-            <div class="bind-actions">
-              <!-- 引导模式：按钮打开选择弹窗 -->
-              <button
-                v-if="appStore.guideStep === 'bind-gateway'"
-                class="bind-btn bind-btn--primary"
-                type="button"
-                @click="openGuideBindModal"
-              >
-                <span>确定绑定</span>
-              </button>
-              <!-- 非引导模式：完成接入按钮 -->
-              <button v-else class="bind-btn bind-btn--primary" type="button" @click="closeBindModal">
-                <i class="i-ant-design-check-outlined" />
-                <span>完成接入</span>
+              <button class="bind-btn bind-btn--primary" type="button" @click="openGuideBindModal">
+                <span>下一步</span>
               </button>
             </div>
           </template>
@@ -905,10 +1080,21 @@ const replayClips = computed<ReplayClip[]>(() => {
       </div>
     </a-modal>
 
-    <!-- ===== 确定绑定选择弹窗 ===== -->
+    <div
+      v-if="bindModalVisible && bindMethod === 'scan' && !scanSuccess"
+      class="scan-outside-actions"
+      :style="scanOutsideStyle"
+    >
+      <button class="scan-outside-actions__btn" type="button" @click="scanSuccess = true">
+        <i class="i-ant-design-check-outlined" />
+        <span>扫码成功</span>
+      </button>
+    </div>
+
+    <!-- ===== 绑定结果选择 ===== -->
     <a-modal
       v-model:open="guideBindModalVisible"
-      title="确定绑定"
+      title="确认绑定"
       :width="400"
       :footer="null"
       centered
@@ -920,7 +1106,7 @@ const replayClips = computed<ReplayClip[]>(() => {
         <button class="guide-bind-modal__option" type="button" @click="handleGuideBindSelect('configured')">
           <i class="i-ant-design-video-camera-outlined" />
           <div class="guide-bind-modal__option-body">
-            <strong>网关上线且视频已配置</strong>
+            <strong>网关已接入且视频已配置</strong>
             <span>网关在线，已接入部分摄像头</span>
           </div>
           <i class="i-ant-design-right-outlined" />
@@ -928,12 +1114,12 @@ const replayClips = computed<ReplayClip[]>(() => {
         <button class="guide-bind-modal__option" type="button" @click="handleGuideBindSelect('empty')">
           <i class="i-ant-design-inbox-outlined" />
           <div class="guide-bind-modal__option-body">
-            <strong>网关上线且视频未配置</strong>
+            <strong>网关已接入且视频未配置</strong>
             <span>网关在线，尚未接入摄像头</span>
           </div>
           <i class="i-ant-design-right-outlined" />
         </button>
-        <button class="guide-bind-modal__option" type="button" @click="handleGuideBindSelect('offline')">
+        <button v-if="!pendingJoinGateway" class="guide-bind-modal__option" type="button" @click="handleGuideBindSelect('offline')">
           <i class="i-ant-design-cloud-server-outlined" />
           <div class="guide-bind-modal__option-body">
             <strong>网关离线</strong>
@@ -944,17 +1130,17 @@ const replayClips = computed<ReplayClip[]>(() => {
       </div>
     </a-modal>
 
-    <!-- 视频播放弹窗（复用监控墙弹窗结构：左直播 + 右告警/回放） -->
+    <!-- 视频播放弹窗 -->
     <a-modal
       v-model:open="playModalVisible"
-      :title="playTarget?.name || '视频播放'"
+      :title="playTarget?.name || '视频预览'"
       :footer="null"
       :width="playModalWidth"
       :body-style="{ padding: '0' }"
       wrap-class-name="video-player-modal"
     >
       <div class="player-layout">
-        <!-- 左：直播视频 -->
+        <!-- 左侧直播 -->
         <div class="player-live">
           <img v-if="playTarget?.thumb" :src="playTarget.thumb" class="player-frame" alt="视频流" />
           <div class="player-overlay">
@@ -963,18 +1149,18 @@ const replayClips = computed<ReplayClip[]>(() => {
               <div class="player-progress">
                 <div class="player-progress-bar" />
               </div>
-              <span class="player-time">实时</span>
+              <span class="player-time">实时画面</span>
             </div>
           </div>
           <div class="player-info">
             <span class="player-name">{{ playTarget?.name }}</span>
             <span class="player-status" :class="playTarget?.status">
-              {{ playTarget?.status === 'online' ? '● LIVE' : '● 离线' }}
+              {{ playTarget?.status === 'online' ? 'LIVE' : '离线' }}
             </span>
           </div>
         </div>
 
-        <!-- 右：告警事件 / 录像回放 -->
+        <!-- 右侧告警 / 回放 -->
         <div class="player-side">
           <div class="side-tabs">
             <button
@@ -984,7 +1170,7 @@ const replayClips = computed<ReplayClip[]>(() => {
             >
               <i class="i-ant-design-alert-outlined" />
               <span>告警事件</span>
-              <em v-if="allPlayAlarms.length" class="side-tab-badge">{{ allPlayAlarms.filter(a => a.status === '待处理').length }}</em>
+              <em v-if="allPlayAlarms.length" class="side-tab-badge">{{ allPlayAlarms.filter(a => a.status === 'pending').length }}</em>
             </button>
             <button
               class="side-tab"
@@ -992,7 +1178,7 @@ const replayClips = computed<ReplayClip[]>(() => {
               @click="playTab = 'replay'"
             >
               <i class="i-ant-design-history-outlined" />
-              <span>录像回放</span>
+              <span>回放记录</span>
             </button>
           </div>
 
@@ -1002,7 +1188,7 @@ const replayClips = computed<ReplayClip[]>(() => {
               <a-input
                 v-model:value="alarmSearchKey"
                 class="side-search__input"
-                placeholder="搜索告警标题"
+                placeholder="搜索告警事件"
                 allow-clear
               >
                 <template #prefix>
@@ -1031,18 +1217,18 @@ const replayClips = computed<ReplayClip[]>(() => {
                   </span>
                 </div>
                 <div class="alarm-row__tags">
-                  <span class="alarm-level">{{ row.level }}</span>
-                  <span class="alarm-status">{{ row.status }}</span>
+                  <span class="alarm-level">{{ alarmLevelText(row.level) }}</span>
+                  <span class="alarm-status">{{ alarmStatusText(row.status) }}</span>
                 </div>
               </div>
               <div v-if="playAlarms.length === 0" class="side-empty">
                 <i class="i-ant-design-check-circle-outlined side-empty-icon" />
-                <p>该通道暂无告警事件</p>
+                <p>暂无告警事件</p>
               </div>
             </div>
           </div>
 
-          <!-- 录像回放 -->
+          <!-- 回放记录 -->
           <div v-else class="side-body">
             <div class="side-search">
               <a-date-picker
@@ -1059,7 +1245,7 @@ const replayClips = computed<ReplayClip[]>(() => {
                 class="replay-clip"
               >
                 <div class="replay-clip__thumb">
-                  <img :src="clip.thumb" alt="截帧" draggable="false" />
+                  <img :src="clip.thumb" alt="回放片段" draggable="false" />
                   <div class="replay-clip__play">
                     <i class="i-ant-design-caret-right-filled" />
                   </div>
@@ -1072,20 +1258,67 @@ const replayClips = computed<ReplayClip[]>(() => {
               </div>
               <div v-if="replayClips.length === 0" class="side-empty">
                 <i class="i-ant-design-video-camera-outlined side-empty-icon" />
-                <p>所选时段暂无录像</p>
+                <p>暂无回放记录</p>
               </div>
             </div>
           </div>
         </div>
       </div>
     </a-modal>
+
+    <!-- ===== 视联设备接入中 ===== -->
+    <a-modal
+      v-model:open="connectingModalVisible"
+      :title="null"
+      :footer="null"
+      :width="380"
+      centered
+      :closable="false"
+      :mask-closable="false"
+      :z-index="1500"
+      wrap-class-name="connecting-modal-wrap"
+    >
+      <div class="connecting-modal">
+        <div v-if="connectingStatus === 'pending'" class="connecting-modal__spinner">
+          <span class="connecting-modal__ring" />
+          <span class="connecting-modal__ring connecting-modal__ring--2" />
+          <i class="i-ant-design-video-camera-outlined connecting-modal__icon" />
+        </div>
+        <div v-else class="connecting-modal__done-icon">
+          <i class="i-ant-design-check-circle-filled" />
+        </div>
+
+        <template v-if="connectingStatus === 'pending'">
+          <h3 class="connecting-modal__title">视联设备接入中</h3>
+          <p class="connecting-modal__desc">正在同步网关下的摄像头信息，请稍候...</p>
+        </template>
+
+        <template v-else>
+          <h3 class="connecting-modal__title">视联设备接入完成</h3>
+          <p class="connecting-modal__desc">已完成视联设备接入，建议继续新增告警规则。</p>
+          <div class="connecting-modal__actions">
+            <button class="connecting-modal__btn" type="button" @click="connectingModalVisible = false">知道了</button>
+            <button class="connecting-modal__btn connecting-modal__btn--primary" type="button" @click="goToAlarmFromConnecting">
+              <i class="i-ant-design-bell-outlined" />
+              去新增告警规则
+            </button>
+          </div>
+        </template>
+      </div>
+    </a-modal>
+
+    <div v-if="connectingModalVisible" class="connecting-switch">
+      <button class="connecting-switch__btn" type="button" @click="toggleConnectingStatus">
+        {{ connectingStatus === 'pending' ? '模拟接入完成' : '切换为接入中' }}
+      </button>
+    </div>
   </div>
 </template>
 
 <style scoped lang="scss">
 @use '@/styles/variables' as *;
 
-/* 新手引导（已移至顶部导航栏） */
+/* 页面布局 */
 
 .device-page {
   height: 100%;
@@ -1188,7 +1421,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
-/* ===== 筛选模式切换 ===== */
+/* ===== 绛涙ā寮忓垏?===== */
 .filter-mode {
   display: flex;
   padding: 8px;
@@ -1241,7 +1474,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
-/* 添加网关虚线卡片 */
+/* 新增网关入口 */
 .gw-add-card {
   display: flex;
   flex-direction: column;
@@ -1267,7 +1500,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
-/* ===== 区域树 ===== */
+/* ===== 区域 ===== */
 .area-tree-wrap {
   flex: 1;
   overflow-y: auto;
@@ -1355,12 +1588,226 @@ const replayClips = computed<ReplayClip[]>(() => {
 }
 
 /* ===== 新增网关弹窗 ===== */
+.gateway-pool {
+  padding: 20px 24px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    strong {
+      font-size: 15px;
+      color: $text-base;
+      font-weight: 600;
+    }
+
+    span {
+      font-size: 13px;
+      color: $text-tertiary;
+      line-height: 1.5;
+    }
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid $border-color-card;
+    border-bottom: 1px solid $border-color-card;
+  }
+
+  &__row {
+    min-height: 86px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid $border-color-card;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__img {
+    width: 72px;
+    height: 54px;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+
+  &__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  &__top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    strong {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 14px;
+      color: $text-base;
+      font-weight: 600;
+    }
+  }
+
+  &__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    flex-shrink: 0;
+
+    i {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    &.online {
+      color: $color-online;
+      background: rgba(43, 179, 163, 0.1);
+    }
+
+    &.offline {
+      color: #ff4d4f;
+      background: rgba(255, 77, 79, 0.08);
+    }
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+    color: $text-tertiary;
+  }
+
+  &__join {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 6px;
+    border: 1px solid $color-primary;
+    background: #fff;
+    color: $color-primary;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+
+    &:hover {
+      background: $color-primary-bg;
+    }
+  }
+
+  &__empty {
+    height: 112px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: $text-muted;
+    border-top: 1px solid $border-color-card;
+    border-bottom: 1px solid $border-color-card;
+
+    i {
+      font-size: 28px;
+      opacity: 0.36;
+    }
+
+    span {
+      font-size: 13px;
+    }
+  }
+
+  &__add {
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 16px;
+    border: 1px dashed rgba(110, 75, 255, 0.45);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(110, 75, 255, 0.07), rgba(110, 75, 255, 0.03));
+    color: $text-base;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      border-color: $color-primary;
+      background: $color-primary-bg;
+    }
+  }
+
+  &__add-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: $color-primary;
+    color: #fff;
+    flex-shrink: 0;
+
+    i {
+      font-size: 18px;
+    }
+  }
+
+  &__add-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+
+    strong {
+      font-size: 14px;
+      color: $text-base;
+      font-weight: 600;
+    }
+
+    small {
+      font-size: 12.5px;
+      color: $text-tertiary;
+    }
+  }
+
+  &__add-arrow {
+    color: $color-primary;
+    font-size: 16px;
+  }
+}
+
 .bind-modal {
   display: flex;
   flex-direction: column;
 }
 
-/* 方式切换 tab */
+/* 绑定方式 tab */
 .bind-tabs {
   display: flex;
   border-bottom: 1px solid $border-color-card;
@@ -1403,7 +1850,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
-/* 绑定内容区 */
+/* 缁戝畾鍐?*/
 .bind-content {
   padding: 20px 24px;
   display: flex;
@@ -1415,7 +1862,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
-/* 错误横条 */
+/* 错误提示 */
 .bind-error {
   display: flex;
   align-items: center;
@@ -1431,13 +1878,12 @@ const replayClips = computed<ReplayClip[]>(() => {
   i { font-size: 16px; flex-shrink: 0; }
 }
 
-/* 尚未购买网关提示 */
+/* 联系商务 */
 .bind-contact {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  margin: 0 24px;
   margin-top: 12px;
   background: rgba(110, 75, 255, 0.05);
   border-radius: 8px;
@@ -1475,7 +1921,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   75% { transform: translateX(4px); }
 }
 
-/* 输入字段 */
+/* 扫码说明 */
 .bind-field {
   display: flex;
   flex-direction: column;
@@ -1506,7 +1952,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
-/* 操作按钮 */
+/* 扫码成功 */
 .bind-actions {
   display: flex;
   justify-content: flex-end;
@@ -1544,8 +1990,8 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
-/* 引导模式：绑定结果下拉框 */
-/* ===== 确定绑定选择弹窗 ===== */
+/* 引导绑定结果选择 */
+/* ===== 绑定结果选择 ===== */
 .guide-bind-modal {
   padding: 20px;
   display: flex;
@@ -1605,97 +2051,32 @@ const replayClips = computed<ReplayClip[]>(() => {
   flex-direction: column;
 }
 
-/* 扫码说明页 */
+/* 扫码步骤 */
 .scan-intro {
   flex: 1;
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
-  padding: 8px 0;
-
-  &__qr {
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-
-    > i {
-      font-size: 24px;
-      color: $color-primary;
-    }
-  }
-
-  &__qr-frame {
-    position: relative;
-    width: 130px;
-    height: 130px;
-    background: #fafafa;
-    border: 1px solid $border-color-card;
-    border-radius: 10px;
-    padding: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-
-  &__qr-corner {
-    position: absolute;
-    width: 22px;
-    height: 22px;
-    border: 3px solid $color-primary;
-
-    &--tl { top: 10px; left: 10px; border-right: none; border-bottom: none; border-radius: 4px 0 0 0; }
-    &--tr { top: 10px; right: 10px; border-left: none; border-bottom: none; border-radius: 0 4px 0 0; }
-    &--bl { bottom: 10px; left: 10px; border-right: none; border-top: none; border-radius: 0 0 0 4px; }
-    &--br { bottom: 10px; right: 10px; border-left: none; border-top: none; border-radius: 0 0 4px 0; }
-  }
-
-  &__qr-scanline {
-    position: absolute;
-    left: 12px;
-    right: 12px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, $color-primary, transparent);
-    animation: scan-line 2s ease-in-out infinite;
-  }
-
-  &__qr-dots {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
-    width: 70px;
-    height: 70px;
-  }
-
-  &__qr-dot {
-    width: 100%;
-    aspect-ratio: 1;
-    border-radius: 1px;
-
-    &.on { background: $text-base; }
-  }
+  display: block;
+  padding: 4px 0;
 
   &__steps {
-    flex: 1;
-    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding-top: 4px;
+    gap: 18px;
+    width: 100%;
   }
 
   &__step {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: 12px;
+    width: 100%;
+    padding: 0;
+    text-align: left;
   }
 
   &__num {
     flex-shrink: 0;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background: $color-primary-bg;
     color: $color-primary;
@@ -1709,16 +2090,20 @@ const replayClips = computed<ReplayClip[]>(() => {
   &__text {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+    width: 100%;
 
     strong {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 600;
       color: $text-base;
     }
 
     span {
-      font-size: 12px;
+      font-size: 13px;
       color: $text-tertiary;
       line-height: 1.5;
     }
@@ -1726,19 +2111,16 @@ const replayClips = computed<ReplayClip[]>(() => {
 
   &__hint-img {
     width: 100%;
-    max-width: 240px;
-    margin-top: 6px;
+    height: 136px;
+    margin-top: 8px;
     border-radius: 8px;
     border: 1px solid $border-color-card;
+    background: #fff;
+    object-fit: contain;
   }
 }
 
-@keyframes scan-line {
-  0%, 100% { top: 15%; }
-  50% { top: 82%; }
-}
-
-/* 扫码成功页 */
+/* 扫码成功 */
 .scan-success {
   flex: 1;
   display: flex;
@@ -1762,7 +2144,26 @@ const replayClips = computed<ReplayClip[]>(() => {
     width: 100%;
     background: $bg-page;
     border-radius: 10px;
-    padding: 12px 16px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid $border-color-card;
+  }
+
+  &__img {
+    flex-shrink: 0;
+    width: 96px;
+    height: 72px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid $border-color-card;
+  }
+
+  &__details {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -1803,7 +2204,40 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
-/* ===== 左右两栏 ===== */
+.scan-outside-actions {
+  position: fixed;
+  z-index: 2101;
+
+  &__btn {
+    height: 40px;
+    padding: 0 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid $color-primary;
+    border-radius: 20px;
+    background: $color-primary;
+    color: #fff;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 10px 26px rgba(110, 75, 255, 0.24);
+    transition: all 0.15s ease;
+
+    i {
+      font-size: 15px;
+    }
+
+    &:hover {
+      background: $color-primary-hover;
+      border-color: $color-primary-hover;
+      box-shadow: 0 12px 30px rgba(110, 75, 255, 0.3);
+    }
+  }
+}
+
+/* ===== 瀹革箑褰告稉銈嗙埉 ===== */
 .split {
   flex: 1;
   display: grid;
@@ -1832,7 +2266,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
-/* ===== 左：网关列表 ===== */
+/* ===== 左侧网关列表 ===== */
 .gw-panel {
   background: #fff;
   border-radius: 14px;
@@ -1948,7 +2382,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
-/* 右侧面板操作区 */
+/* 右侧面板操作 */
 .ch-panel-actions {
   display: flex;
   align-items: center;
@@ -1994,7 +2428,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   to { transform: rotate(360deg); }
 }
 
-/* ===== 右：通道面板 ===== */
+/* ===== 通道卡片 ===== */
 .ch-panel {
   background: #fff;
   border-radius: 14px;
@@ -2173,7 +2607,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
-/* 状态标签 */
+/* 鐘舵爣?*/
 .ch-status {
   display: flex;
   align-items: center;
@@ -2194,7 +2628,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   &.offline { background: rgba(0, 0, 0, 0.55); }
 }
 
-/* PTZ 标签 */
+/* PTZ 控制 */
 .ch-ptz {
   display: flex;
   align-items: center;
@@ -2209,7 +2643,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   i { font-size: 11px; }
 }
 
-/* 空状态 */
+/* 绌虹姸?*/
 .ch-empty {
   grid-column: 1 / -1;
   display: flex;
@@ -2231,7 +2665,7 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
-/* ===== 视频播放弹窗（与监控墙 WallView 一致） ===== */
+/* ===== 视频播放弹窗 ===== */
 .player-layout {
   display: flex;
   height: 600px;
@@ -2501,23 +2935,23 @@ const replayClips = computed<ReplayClip[]>(() => {
   }
 }
 
-.alarm-row.lv-紧急 .alarm-level {
+.alarm-row.lv-urgent .alarm-level {
   color: #ff4d4f;
   background: rgba(255, 77, 79, 0.1);
 }
-.alarm-row.lv-警告 .alarm-level {
+.alarm-row.lv-warning .alarm-level {
   color: #d46b08;
   background: rgba(250, 173, 20, 0.12);
 }
-.alarm-row.lv-提示 .alarm-level {
+.alarm-row.lv-info .alarm-level {
   color: $color-online;
   background: $color-online-bg;
 }
-.alarm-row.st-待处理 .alarm-status {
+.alarm-row.st-pending .alarm-status {
   color: #ff4d4f;
   background: rgba(255, 77, 79, 0.1);
 }
-.alarm-row.st-已处理 .alarm-status {
+.alarm-row.st-done .alarm-status {
   color: $color-online;
   background: $color-online-bg;
 }
@@ -2616,5 +3050,141 @@ const replayClips = computed<ReplayClip[]>(() => {
       color: $text-muted;
     }
   }
+}
+
+/* ===== 视联设备接入中 ===== */
+.connecting-modal {
+  padding: 32px 28px 24px;
+  text-align: center;
+
+  &__spinner {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid rgba(110, 75, 255, 0.15);
+    border-top-color: $color-primary;
+    animation: connecting-spin 1s linear infinite;
+
+    &--2 {
+      inset: 8px;
+      border: 2px solid rgba(110, 75, 255, 0.1);
+      border-bottom-color: rgba(110, 75, 255, 0.5);
+      animation-duration: 1.5s;
+      animation-direction: reverse;
+    }
+  }
+
+  &__icon {
+    position: relative;
+    z-index: 1;
+    font-size: 24px;
+    color: $color-primary;
+  }
+
+  &__done-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(82, 196, 26, 0.1);
+
+    i {
+      font-size: 38px;
+      color: #52c41a;
+    }
+  }
+
+  &__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: $text-base;
+    margin: 0 0 8px;
+  }
+
+  &__desc {
+    font-size: 13px;
+    color: $text-secondary;
+    line-height: 1.6;
+    margin: 0 0 20px;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 28px;
+    border: 1px solid $border-color-light;
+    border-radius: 6px;
+    background: #fff;
+    color: $text-secondary;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    &:hover { border-color: $color-primary; color: $color-primary; }
+
+    &--primary {
+      border-color: $color-primary;
+      background: $color-primary;
+      color: #fff;
+
+      &:hover {
+        border-color: $color-primary-hover;
+        background: $color-primary-hover;
+        color: #fff;
+      }
+    }
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+}
+
+.connecting-switch {
+  position: fixed;
+  left: 50%;
+  top: calc(50% + 250px);
+  z-index: 1600;
+  transform: translateX(-50%);
+
+  &__btn {
+    height: 36px;
+    padding: 0 18px;
+    border: 1px solid $color-primary;
+    border-radius: 18px;
+    background: #fff;
+    color: $color-primary;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(17, 20, 24, 0.14);
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: $color-primary-bg;
+      box-shadow: 0 10px 28px rgba(110, 75, 255, 0.18);
+    }
+  }
+}
+
+@keyframes connecting-spin {
+  to { transform: rotate(360deg); }
 }
 </style>

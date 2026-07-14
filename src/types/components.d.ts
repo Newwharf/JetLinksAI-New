@@ -13,6 +13,7 @@ declare module 'vue' {
     ACheckboxGroup: typeof import('ant-design-vue/es')['CheckboxGroup']
     AConfigProvider: typeof import('ant-design-vue/es')['ConfigProvider']
     ADatePicker: typeof import('ant-design-vue/es')['DatePicker']
+    ADrawer: typeof import('ant-design-vue/es')['Drawer']
     ADropdown: typeof import('ant-design-vue/es')['Dropdown']
     AInput: typeof import('ant-design-vue/es')['Input']
     AInputNumber: typeof import('ant-design-vue/es')['InputNumber']
@@ -36,8 +37,10 @@ declare module 'vue' {
     ATree: typeof import('ant-design-vue/es')['Tree']
     ATreeSelect: typeof import('ant-design-vue/es')['TreeSelect']
     ECharts: typeof import('./../components/ECharts.vue')['default']
+    GuideOverlay: typeof import('./../components/GuideOverlay.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     VideoPlayerModal: typeof import('./../components/VideoPlayerModal.vue')['default']
+    WelcomeModal: typeof import('./../components/WelcomeModal.vue')['default']
   }
 }
