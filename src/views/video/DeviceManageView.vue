@@ -1014,15 +1014,14 @@ void [
                   <span class="scan-intro__num">2</span>
                   <div class="scan-intro__text">
                     <strong>登录账号</strong>
-                    <span>扫码后跳转到登录页面，完成账号登录</span>
-                    <span>请使用当前平台账号完成授权，授权后系统会自动返回识别结果。</span>
+                    <span>扫码后跳转到登录页面，请使用当前平台账号完成授权完成账号登录</span>
                   </div>
                 </div>
                 <div class="scan-intro__step">
                   <span class="scan-intro__num">3</span>
                   <div class="scan-intro__text">
                     <strong>识别成功</strong>
-                    <span>登录后系统自动识别网关并开始接入</span>
+                    <span>系统自动识别网关并返回识别结果</span>
                   </div>
                 </div>
               </div>
