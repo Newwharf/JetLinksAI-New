@@ -60,12 +60,20 @@ const ALL_MENUS: Record<string, MenuItem> = {
   // 工地场景专属菜单
   'construction-dashboard': { key: 'construction-dashboard', label: '仪表盘', icon: 'i-ant-design-dashboard-outlined', path: '/construction-dashboard' },
   'construction-posture': { key: 'construction-posture', label: '工地态势', icon: 'i-ant-design-environment-outlined', path: '/construction-posture/overview' },
-  'construction-safety': { key: 'construction-safety', label: '工地安全', icon: 'i-ant-design-safety-outlined', path: '/construction-safety/report' },
+  'construction-risk': { key: 'construction-risk', label: '风险隐患', icon: 'i-ant-design-warning-outlined', path: '/construction-risk/analysis' },
+  'construction-accident': { key: 'construction-accident', label: '事故险肇', icon: 'i-ant-design-alert-outlined', path: '/construction-accident/analysis' },
+  'construction-report': { key: 'construction-report', label: '工地报告', icon: 'i-ant-design-file-text-outlined', path: '/construction-report/safety-daily' },
+  'construction-person': { key: 'construction-person', label: '人员', icon: 'i-ant-design-team-outlined', path: '/construction-person/overview' },
+  'construction-vehicle': { key: 'construction-vehicle', label: '车辆', icon: 'i-ant-design-car-outlined', path: '/construction-vehicle/overview' },
+  'construction-permit': { key: 'construction-permit', label: '作业许可', icon: 'i-ant-design-safety-certificate-outlined', path: '/construction-permit/workbench' },
+  'construction-dangerous': { key: 'construction-dangerous', label: '危大工程', icon: 'i-ant-design-build-outlined', path: '/construction-dangerous' },
+  'construction-training': { key: 'construction-training', label: '安全培训', icon: 'i-ant-design-read-outlined', path: '/construction-training' },
+  'construction-briefing': { key: 'construction-briefing', label: '班前交底', icon: 'i-ant-design-schedule-outlined', path: '/construction-briefing' },
+  'construction-device': { key: 'construction-device', label: '物联设备管理', icon: 'i-ant-design-api-outlined', path: '/construction-device/manage' },
+  'construction-tower': { key: 'construction-tower', label: '塔机管理', icon: 'i-ant-design-control-outlined', path: '/construction-tower/overview' },
+  'construction-monitor': { key: 'construction-monitor', label: '监控墙', icon: 'i-ant-design-video-camera-outlined', path: '/construction-monitor/wall' },
   'construction-image': { key: 'construction-image', label: '文搜图', icon: 'i-ant-design-search-outlined', path: '/construction-image/person' },
-  'construction-video': { key: 'construction-video', label: '视频中心', icon: 'i-ant-design-video-camera-outlined', path: '/construction-video/wall' },
-  'construction-device': { key: 'construction-device', label: '设备中心', icon: 'i-ant-design-api-outlined', path: '/construction-device/overview' },
-  'construction-alarm': { key: 'construction-alarm', label: '告警中心', icon: 'i-ant-design-alert-outlined', path: '/construction-alarm/event' },
-  'construction-model': { key: 'construction-model', label: '模型性能分析', icon: 'i-ant-design-experiment-outlined', path: '/construction-model' }
+  'construction-alarm': { key: 'construction-alarm', label: '告警中心', icon: 'i-ant-design-bell-outlined', path: '/construction-alarm/event' }
 }
 
 // 场景 -> 菜单 key 顺序映射
@@ -78,7 +86,25 @@ const SCENARIOS: Record<string, string[]> = {
   apartment: ['dashboard', 'video', 'space', 'image-search', 'alarm', 'archive'],
   elderly: ['dashboard', 'elderly-security', 'elderly-behavior', 'elderly-staff', 'video', 'image-search', 'alarm', 'archive'],
   // 工地场景
-  construction: ['construction-dashboard', 'construction-posture', 'construction-safety', 'construction-image', 'construction-video', 'construction-device', 'construction-alarm', 'construction-model', 'archive']
+  construction: [
+    'construction-dashboard',
+    'construction-posture',
+    'construction-risk',
+    'construction-accident',
+    'construction-report',
+    'construction-person',
+    'construction-vehicle',
+    'construction-permit',
+    'construction-dangerous',
+    // 'construction-training',   // 安全培训 — 暂时隐藏
+    // 'construction-briefing',   // 班前交底 — 暂时隐藏
+    'construction-device',
+    'construction-tower',
+    'construction-monitor',
+    'construction-image',
+    'construction-alarm',
+    'archive'
+  ]
 }
 
 // 当前场景对应的 logo 和项目名
@@ -498,23 +524,23 @@ function startGuide(type: 'iot' | 'video' | 'alarm') {
 
   /* 折叠态：窄边栏，只显图标 */
   &.collapsed {
-    width: 72px;
+    width: 60px;
 
     .sider-menu {
-      padding: 8px;
+      padding: 4px;
       align-items: center;
     }
 
     .menu-item {
-      width: 52px;
-      height: 52px;
+      width: 44px;
+      height: 40px;
       padding: 0;
-      margin: 6px 0;
+      margin: 2px 0;
       justify-content: center;
-      border-radius: 12px;
+      border-radius: 10px;
 
       .menu-icon {
-        font-size: 28px;
+        font-size: 22px;
         margin: 0;
       }
     }
@@ -522,13 +548,14 @@ function startGuide(type: 'iot' | 'video' | 'alarm') {
     .collapse-btn {
       padding: 0;
       justify-content: center;
+      height: 36px;
 
       i { margin: 0; }
     }
 
     .sider-user {
       justify-content: center;
-      padding: 8px 0;
+      padding: 6px 0;
     }
   }
 }
@@ -568,23 +595,29 @@ function startGuide(type: 'iot' | 'video' | 'alarm') {
   padding: 8px;
   display: flex;
   flex-direction: column;
+  /* 完全隐藏原生滚动条，不占布局空间 */
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  height: 48px;
+  height: 40px;
   padding: 0 14px;
-  margin: 8px 0;
+  margin: 2px 0;
   border-radius: $radius-menu-item;
-  font-size: 15px;
+  font-size: 14px;
   color: $text-secondary;
   cursor: pointer;
   transition: background 0.2s;
   flex-shrink: 0;
 
   .menu-icon {
-    font-size: 24px;
+    font-size: 22px;
     color: $text-tertiary;
     margin: 0 12px 0 2px;
     flex-shrink: 0;
@@ -624,18 +657,18 @@ function startGuide(type: 'iot' | 'video' | 'alarm') {
   .footer-actions {
     display: flex;
     flex-direction: column;
-    align-items: stretch;   /* 按钮撑满宽度后内部居中 */
-    gap: 4px;
-    padding: 8px 8px 12px;
+    align-items: stretch;
+    gap: 2px;
+    padding: 4px 4px 8px;
   }
 
   /* 缩小版图标按钮（比业务菜单图标小约 1/3） */
   .footer-icon-btn {
     display: flex;
     align-items: center;
-    justify-content: center;  /* 图标+文字整体水平居中 */
+    justify-content: center;
     gap: 6px;
-    height: 32px;
+    height: 28px;
     padding: 0 10px;
     border-radius: $radius-menu-item;
     color: $text-secondary;
@@ -644,7 +677,7 @@ function startGuide(type: 'iot' | 'video' | 'alarm') {
     font-size: 13px;
 
     i {
-      font-size: 16px;     /* 业务菜单图标 24px，缩小 1/3 */
+      font-size: 16px;
       color: $text-tertiary;
     }
 
@@ -669,14 +702,14 @@ function startGuide(type: 'iot' | 'video' | 'alarm') {
 
 /* 用户区 */
 .sider-user {
-  padding: 8px;
+  padding: 6px;
   display: flex;
   align-items: center;
   gap: 8px;
 
   .user-avatar {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background: $color-primary;
     color: #fff;

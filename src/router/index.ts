@@ -394,7 +394,7 @@ const routes: RouteRecordRaw[] = [
 
       // ==================== 工地场景 ====================
 
-      // ===== 工地仪表盘（无二级 tab）=====
+      // ===== 仪表盘 =====
       {
         path: 'construction-dashboard',
         name: 'construction-dashboard',
@@ -420,63 +420,162 @@ const routes: RouteRecordRaw[] = [
         ]
       },
 
-      // ===== 工地安全 =====
+      // ===== 风险隐患 =====
       {
-        path: 'construction-safety',
+        path: 'construction-risk',
         component: SubTabLayout,
         meta: {
           tabs: [
-            { key: 'report', label: '工地安全报告', path: '/construction-safety/report' },
-            { key: 'history-incident', label: '历史安全事件', path: '/construction-safety/history-incident' },
-            { key: 'risk-incident', label: '历史风险事件', path: '/construction-safety/risk-incident' }
+            { key: 'analysis', label: '风险隐患分析', path: '/construction-risk/analysis' },
+            { key: 'ledger', label: '风险隐患台账', path: '/construction-risk/ledger' }
           ]
         },
         children: [
-          { path: '', redirect: '/construction-safety/report' },
-          { path: 'report', name: 'construction-safety-report', component: () => import('@/views/construction/SafetyReportView.vue'), meta: { title: '工地安全报告' } },
-          { path: 'history-incident', name: 'construction-safety-history-incident', component: () => import('@/views/construction/HistoryIncidentView.vue'), meta: { title: '历史安全事件' } },
-          { path: 'risk-incident', name: 'construction-safety-risk-incident', component: () => import('@/views/construction/RiskIncidentView.vue'), meta: { title: '历史风险事件' } }
+          { path: '', redirect: '/construction-risk/analysis' },
+          { path: 'analysis', name: 'construction-risk-analysis', component: () => import('@/views/construction/RiskAnalysisView.vue'), meta: { title: '风险隐患分析' } },
+          { path: 'ledger', name: 'construction-risk-ledger', component: () => import('@/views/construction/RiskLedgerView.vue'), meta: { title: '风险隐患台账' } }
         ]
       },
 
-      // ===== 文搜图（工地）=====
+      // ===== 事故险肇 =====
       {
-        path: 'construction-image',
+        path: 'construction-accident',
         component: SubTabLayout,
         meta: {
           tabs: [
-            { key: 'person', label: '人员', path: '/construction-image/person' },
-            { key: 'vehicle', label: '车辆', path: '/construction-image/vehicle' },
-            { key: 'profile', label: '人员档案管理', path: '/construction-image/profile' }
+            { key: 'analysis', label: '事故险肇分析', path: '/construction-accident/analysis' },
+            { key: 'ledger', label: '事故险肇台账', path: '/construction-accident/ledger' }
           ]
         },
         children: [
-          { path: '', redirect: '/construction-image/person' },
-          { path: 'person', name: 'construction-image-person', component: () => import('@/views/image-search/TextSearchView.vue'), meta: { title: '人员' } },
-          { path: 'vehicle', name: 'construction-image-vehicle', component: () => import('@/views/image-search/VehicleSearchView.vue'), meta: { title: '车辆' } },
-          { path: 'profile', name: 'construction-image-profile', component: () => import('@/views/image-search/PersonProfileView.vue'), meta: { title: '人员档案管理' } },
-          { path: 'profile/:id', name: 'construction-image-profile-detail', component: () => import('@/views/image-search/PersonProfileDetailView.vue'), meta: { title: '人员档案详情' } }
+          { path: '', redirect: '/construction-accident/analysis' },
+          { path: 'analysis', name: 'construction-accident-analysis', component: () => import('@/views/construction/AccidentAnalysisView.vue'), meta: { title: '事故险肇分析' } },
+          { path: 'ledger', name: 'construction-accident-ledger', component: () => import('@/views/construction/AccidentLedgerView.vue'), meta: { title: '事故险肇台账' } }
         ]
       },
 
-      // ===== 视频中心（工地）=====
+      // ===== 工地报告 =====
       {
-        path: 'construction-video',
+        path: 'construction-report',
         component: SubTabLayout,
         meta: {
           tabs: [
-            { key: 'wall', label: '监控墙', path: '/construction-video/wall' },
-            { key: 'manage', label: '视频管理', path: '/construction-video/manage' }
+            { key: 'safety-daily', label: '安全报告', path: '/construction-report/safety-daily' },
+            { key: 'supervision', label: '监理报告', path: '/construction-report/supervision' }
           ]
         },
         children: [
-          { path: '', redirect: '/construction-video/wall' },
-          { path: 'wall', name: 'construction-video-wall', component: () => import('@/views/video/WallView.vue'), meta: { title: '监控墙' } },
-          { path: 'manage', name: 'construction-video-manage', component: () => import('@/views/video/DeviceManageView.vue'), meta: { title: '视频管理' } }
+          { path: '', redirect: '/construction-report/safety-daily' },
+          { path: 'safety-daily', name: 'construction-report-safety-daily', component: () => import('@/views/construction/SafetyDailyView.vue'), meta: { title: '安全报告' } },
+          { path: 'supervision', name: 'construction-report-supervision', component: () => import('@/views/construction/SupervisionReportView.vue'), meta: { title: '监理报告' } }
         ]
       },
 
-      // ===== 设备中心（工地）=====
+      // ===== 人员 =====
+      {
+        path: 'construction-person',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'overview', label: '人员总览分析', path: '/construction-person/overview' },
+            { key: 'violation', label: '人员违章统计', path: '/construction-person/violation' },
+            { key: 'safety-event', label: '人员安全事件统计', path: '/construction-person/safety-event' },
+            { key: 'access', label: '人员进出统计', path: '/construction-person/access' },
+            { key: 'qualification', label: '资质证件统计', path: '/construction-person/qualification' },
+            { key: 'profile', label: '人员基本档案', path: '/construction-person/profile' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-person/overview' },
+          { path: 'overview', name: 'construction-person-overview', component: () => import('@/views/construction/PersonOverviewView.vue'), meta: { title: '人员总览分析' } },
+          { path: 'violation', name: 'construction-person-violation', component: () => import('@/views/construction/PersonViolationView.vue'), meta: { title: '人员违章统计' } },
+          { path: 'safety-event', name: 'construction-person-safety-event', component: () => import('@/views/construction/PersonSafetyEventView.vue'), meta: { title: '人员安全事件统计' } },
+          { path: 'access', name: 'construction-person-access', component: () => import('@/views/construction/PersonAccessView.vue'), meta: { title: '人员进出统计' } },
+          { path: 'qualification', name: 'construction-person-qualification', component: () => import('@/views/construction/PersonQualificationView.vue'), meta: { title: '资质证件统计' } },
+          { path: 'profile', name: 'construction-person-profile', component: () => import('@/views/construction/ConstructionWorkerProfileView.vue'), meta: { title: '人员基本档案' } }
+        ]
+      },
+
+      // ===== 车辆 =====
+      {
+        path: 'construction-vehicle',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'overview', label: '车辆总览分析', path: '/construction-vehicle/overview' },
+            { key: 'violation', label: '车辆违章统计', path: '/construction-vehicle/violation' },
+            { key: 'access', label: '车辆进出统计', path: '/construction-vehicle/access' },
+            { key: 'profile', label: '车辆基本档案', path: '/construction-vehicle/profile' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-vehicle/overview' },
+          { path: 'overview', name: 'construction-vehicle-overview', component: () => import('@/views/construction/ConstructionVehicleOverviewView.vue'), meta: { title: '车辆总览分析' } },
+          { path: 'violation', name: 'construction-vehicle-violation', component: () => import('@/views/construction/ConstructionVehicleViolationView.vue'), meta: { title: '车辆违章统计' } },
+          { path: 'access', name: 'construction-vehicle-access', component: () => import('@/views/construction/ConstructionVehicleAccessView.vue'), meta: { title: '车辆进出统计' } },
+          { path: 'profile', name: 'construction-vehicle-profile', component: () => import('@/views/construction/ConstructionVehicleProfileView.vue'), meta: { title: '车辆基本档案' } }
+        ]
+      },
+
+      // ===== 作业许可 =====
+      {
+        path: 'construction-permit',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'workbench', label: '作业许可工作台', path: '/construction-permit/workbench' },
+            { key: 'ledger', label: '作业许可台账', path: '/construction-permit/ledger' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-permit/workbench' },
+          { path: 'workbench', name: 'construction-permit-workbench', component: () => import('@/views/construction/PermitWorkbenchView.vue'), meta: { title: '作业许可工作台' } },
+          { path: 'ledger', name: 'construction-permit-ledger', component: () => import('@/views/construction/PermitLedgerView.vue'), meta: { title: '作业许可台账' } }
+        ]
+      },
+
+      // ===== 危大工程（无二级 tab）=====
+      {
+        path: 'construction-dangerous',
+        name: 'construction-dangerous',
+        ...ph('危大工程')
+      },
+
+      // ===== 安全培训 =====
+      {
+        path: 'construction-training',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'overview', label: '培训总览', path: '/construction-training/overview' },
+            { key: 'ledger', label: '培训台账', path: '/construction-training/ledger' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-training/overview' },
+          { path: 'overview', name: 'construction-training-overview', component: () => import('@/views/construction/TrainingOverviewView.vue'), meta: { title: '培训总览' } },
+          { path: 'ledger', name: 'construction-training-ledger', component: () => import('@/views/construction/TrainingLedgerView.vue'), meta: { title: '培训台账' } }
+        ]
+      },
+
+      // ===== 班前交底 =====
+      {
+        path: 'construction-briefing',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'overview', label: '交底总览', path: '/construction-briefing/overview' },
+            { key: 'ledger', label: '交底台账', path: '/construction-briefing/ledger' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-briefing/overview' },
+          { path: 'overview', name: 'construction-briefing-overview', component: () => import('@/views/construction/BriefingOverviewView.vue'), meta: { title: '交底总览' } },
+          { path: 'ledger', name: 'construction-briefing-ledger', component: () => import('@/views/construction/BriefingLedgerView.vue'), meta: { title: '交底台账' } }
+        ]
+      },
+
+      // ===== 物联设备管理 =====
       {
         path: 'construction-device',
         component: SubTabLayout,
@@ -488,10 +587,61 @@ const routes: RouteRecordRaw[] = [
           ]
         },
         children: [
-          { path: '', redirect: '/construction-device/overview' },
+          { path: '', redirect: '/construction-device/manage' },
           { path: 'overview', name: 'construction-device-overview', ...ph('设备总览') },
           { path: 'health', name: 'construction-device-health', ...ph('设备健康') },
-          { path: 'manage', name: 'construction-device-manage', ...ph('设备管理') }
+          { path: 'manage', name: 'construction-device-manage', component: () => import('@/views/construction/DeviceManageView.vue'), meta: { title: '设备管理' } }
+        ]
+      },
+
+      // ===== 塔机管理 =====
+      {
+        path: 'construction-tower',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'overview', label: '塔机总览', path: '/construction-tower/overview' },
+            { key: 'ledger', label: '塔机台账', path: '/construction-tower/ledger' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-tower/overview' },
+          { path: 'overview', name: 'construction-tower-overview', component: () => import('@/views/construction/TowerOverviewView.vue'), meta: { title: '塔机总览' } },
+          { path: 'ledger', name: 'construction-tower-ledger', component: () => import('@/views/construction/TowerLedgerView.vue'), meta: { title: '塔机台账' } }
+        ]
+      },
+
+      // ===== 监控墙 =====
+      {
+        path: 'construction-monitor',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'wall', label: '监控墙', path: '/construction-monitor/wall' },
+            { key: 'device', label: '视频设备管理', path: '/construction-monitor/device' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-monitor/wall' },
+          { path: 'wall', name: 'construction-monitor-wall', component: () => import('@/views/video/WallView.vue'), meta: { title: '监控墙' } },
+          { path: 'device', name: 'construction-monitor-device', component: () => import('@/views/video/DeviceManageView.vue'), meta: { title: '视频设备管理' } }
+        ]
+      },
+
+      // ===== 文搜图（工地）=====
+      {
+        path: 'construction-image',
+        component: SubTabLayout,
+        meta: {
+          tabs: [
+            { key: 'person', label: '人员', path: '/construction-image/person' },
+            { key: 'vehicle', label: '车辆', path: '/construction-image/vehicle' }
+          ]
+        },
+        children: [
+          { path: '', redirect: '/construction-image/person' },
+          { path: 'person', name: 'construction-image-person', component: () => import('@/views/image-search/TextSearchView.vue'), meta: { title: '人员' } },
+          { path: 'vehicle', name: 'construction-image-vehicle', component: () => import('@/views/image-search/VehicleSearchView.vue'), meta: { title: '车辆' } }
         ]
       },
 
@@ -510,13 +660,6 @@ const routes: RouteRecordRaw[] = [
           { path: 'event', name: 'construction-alarm-event', component: () => import('@/views/alarm/AlarmEventView.vue'), meta: { title: '告警事件' } },
           { path: 'rule', name: 'construction-alarm-rule', ...ph('告警规则') }
         ]
-      },
-
-      // ===== 模型性能分析（无二级 tab）=====
-      {
-        path: 'construction-model',
-        name: 'construction-model',
-        ...ph('模型性能分析')
       }
     ]
   },
