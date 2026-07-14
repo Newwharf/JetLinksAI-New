@@ -1006,7 +1006,7 @@ void [
                   <span class="scan-intro__num">1</span>
                   <div class="scan-intro__text">
                     <strong>扫描网关二维码</strong>
-                    <span>使用微信或浏览器扫码，扫描网关背面的二维码</span>
+                    <span>使用微信或浏览器扫描网关背面的二维码</span>
                     <img :src="gatewayImg" class="scan-intro__hint-img" alt="网关背面二维码位置示意" draggable="false" />
                   </div>
                 </div>
@@ -1014,7 +1014,7 @@ void [
                   <span class="scan-intro__num">2</span>
                   <div class="scan-intro__text">
                     <strong>登录账号</strong>
-                    <span>扫码后跳转到登录页面，请使用当前平台账号完成授权完成账号登录</span>
+                    <span>跳转到登录页后，请使用当前平台账号完成授权</span>
                   </div>
                 </div>
                 <div class="scan-intro__step">
