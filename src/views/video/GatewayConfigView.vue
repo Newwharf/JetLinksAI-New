@@ -395,7 +395,6 @@ function goBack() {
             <button
               class="scan-hero__btn"
               type="button"
-              data-guide="scan-device"
               :disabled="scanning"
               @click="startScan"
             >
@@ -424,7 +423,7 @@ function goBack() {
             <i class="i-ant-design-loading-outlined sync-spin" />
             <span>扫描中...</span>
           </div>
-          <div class="select-grid" data-guide="select-device">
+          <div class="select-grid">
             <article
               v-for="cam in scanList"
               :key="cam.id"
@@ -489,7 +488,7 @@ function goBack() {
             <i class="i-ant-design-close-circle-filled" />
             <span>{{ authError }}</span>
           </div>
-          <div class="auth-form" data-guide="bind-device-auth">
+          <div class="auth-form">
             <div class="auth-field">
               <label class="auth-field__label">账号</label>
               <a-input

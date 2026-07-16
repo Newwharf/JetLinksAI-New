@@ -6,18 +6,15 @@ import { ref } from 'vue'
  */
 export type GuideStep =
   | ''               // 未激活
-  | 'add-gateway'    // 指向「新增网关」按钮
-  | 'bind-gateway'   // 绑定弹窗内
+  // 工作台接入网关引导步骤
+  | 'workbench-gateway-tab'
+  | 'workbench-gateway-access'
+  | 'bind-gateway'
   | 'gw-online-configured'  // 网关在线且已配置摄像头（center 提示页）
   | 'gw-online-empty'       // 网关在线但无摄像头（center 提示页）
   | 'gw-offline'            // 网关离线（center 提示页）
-  | 'gw-address'            // 网关地址页：指向「新增」按钮
-  | 'goto-config'    // 指向「配置设备」按钮
-  | 'scan-device'    // 配置页内指向「一键同步」
-  | 'select-device'  // 配置页内提示选择设备
-  | 'bind-device'    // 配置页内提示绑定
-  | 'done'           // 完成提示（仪表盘引导）
-  | 'video-done'     // 视联引导完成结束语
+  | 'workbench-gateway-detail' // 指向工作台网关卡片的「网关详情」
+  | 'gateway-detail-enter'     // 指向网关详情页的「进入网关」
   // IoT 引导步骤
   | 'iot-add'        // 指向「新增设备」按钮
   | 'iot-select'     // 选择设备库弹窗内
@@ -34,6 +31,26 @@ export type GuideStep =
   | 'alarm-step3'    // 生效时段
   | 'alarm-step4'    // 通知对象
   | 'alarm-done'     // 告警引导完成
+  // 系统总览引导步骤
+  | 'system-dashboard'
+  | 'system-space'
+  | 'system-video'
+  | 'system-image-search'
+  | 'system-flow'
+  | 'system-alarm'
+  | 'system-inspection'
+  | 'system-visualization'
+  | 'system-iot'
+  | 'system-archive'
+  | 'system-done'
+  // 网关地址页引导步骤
+  | 'gateway-workbench'
+  | 'gateway-iot'
+  | 'gateway-config'
+  | 'gateway-video'
+  | 'gateway-system'
+  | 'gateway-ai'
+  | 'gateway-resource'
 
 /**
  * 应用级全局状态
@@ -60,6 +77,8 @@ export const useAppStore = defineStore('app', () => {
 
   // 欢迎弹窗是否显示
   const welcomeVisible = ref(false)
+  // 从工作台进入项目后，只在仪表盘消费一次欢迎弹窗
+  const projectWelcomePending = ref(false)
   // 引导是否激活
   const guideActive = ref(false)
   // 当前引导步骤
@@ -70,11 +89,25 @@ export const useAppStore = defineStore('app', () => {
   const guideGatewayId = ref('')
   // 引导中选择的绑定结果（'configured' | 'empty' | 'offline'）
   const guideBindResult = ref('')
+  // 引导中网关所属项目名称
+  const guideGatewayProjectName = ref('')
   // 离线网关更新通道触发标记（DeviceManageView watch 此标记来切换网关状态）
   const guideOfflineUpdateTrigger = ref(0)
 
   function showWelcome() {
+    guideActive.value = false
+    guideStep.value = ''
     welcomeVisible.value = true
+  }
+
+  function requestProjectWelcome() {
+    projectWelcomePending.value = true
+  }
+
+  function consumeProjectWelcome() {
+    if (!projectWelcomePending.value) return false
+    projectWelcomePending.value = false
+    return true
   }
 
   function closeWelcome() {
@@ -90,19 +123,6 @@ export const useAppStore = defineStore('app', () => {
     localStorage.setItem(GUIDE_STORAGE_KEY, 'true')
   }
 
-  /** 启动视联设备引导 */
-  function startVideoGuide() {
-    welcomeVisible.value = false
-    guideActive.value = true
-    guideStep.value = 'add-gateway'
-  }
-
-  /** 从监控设备管理页直接启动引导（不跳转路由） */
-  function startVideoGuideDirect() {
-    guideActive.value = true
-    guideStep.value = 'add-gateway'
-  }
-
   /** 从物联设备列表页直接启动引导 */
   function startIotGuideDirect() {
     guideActive.value = true
@@ -113,6 +133,20 @@ export const useAppStore = defineStore('app', () => {
   function startAlarmGuideDirect() {
     guideActive.value = true
     guideStep.value = 'alarm-create'
+  }
+
+  /** 从项目欢迎页启动系统总览引导 */
+  function startSystemGuide() {
+    welcomeVisible.value = false
+    guideActive.value = true
+    guideStep.value = 'system-dashboard'
+  }
+
+  /** 从工作台项目创建成功页启动接入网关引导 */
+  function startWorkbenchGatewayGuide() {
+    welcomeVisible.value = false
+    guideActive.value = true
+    guideStep.value = 'workbench-gateway-tab'
   }
 
   /** 推进到下一步 */
@@ -135,10 +169,10 @@ export const useAppStore = defineStore('app', () => {
 
   return {
     darkMode, toggleDark, scenario, setScenario,
-    welcomeVisible, guideActive, guideStep, guideFinished,
-    guideGatewayId, guideBindResult, guideOfflineUpdateTrigger,
-    showWelcome, closeWelcome, skipGuide,
-    startVideoGuide, startVideoGuideDirect, startIotGuideDirect, startAlarmGuideDirect,
+    welcomeVisible, projectWelcomePending, guideActive, guideStep, guideFinished,
+    guideGatewayId, guideBindResult, guideGatewayProjectName, guideOfflineUpdateTrigger,
+    showWelcome, requestProjectWelcome, consumeProjectWelcome, closeWelcome, skipGuide,
+    startIotGuideDirect, startAlarmGuideDirect, startSystemGuide, startWorkbenchGatewayGuide,
     setGuideStep, finishGuide, triggerOfflineUpdate
   }
 })

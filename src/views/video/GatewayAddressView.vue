@@ -3,29 +3,219 @@
  * 网关地址页 — 独立全屏静态页面
  * 自带顶部导航 + 左侧菜单，不使用 ProjectLayout
  */
-import { ref, nextTick } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import { useRoute } from 'vue-router'
-import { useAppStore } from '@/stores/app'
 import GuideOverlay from '@/components/GuideOverlay.vue'
+import { useAppStore, type GuideStep } from '@/stores/app'
 import cameraImg from '@/assets/cameras/camera.png'
 import cam1 from '@/assets/text-search/result-01.jpg'
 import cam2 from '@/assets/text-search/result-02.jpg'
 import cam3 from '@/assets/text-search/result-03.jpg'
 import cam4 from '@/assets/text-search/result-04.jpg'
+import workbenchImg from '@/assets/gatewayURL/gongzuotai.png'
+import iotImg from '@/assets/gatewayURL/iot.png'
+import gatewayConfigImg from '@/assets/gatewayURL/wangguanpeizhi.png'
+import systemManageImg from '@/assets/gatewayURL/xitongguanli.png'
+import aiImg from '@/assets/gatewayURL/rengongzhineng.png'
+import resourceImg from '@/assets/gatewayURL/ziyaunku.png'
 
+type TopNav = 'workbench' | 'iot' | 'gatewayConfig' | 'video' | 'system' | 'ai' | 'resource'
+const activeTopNav = ref<TopNav>('video')
 const appStore = useAppStore()
-const route = useRoute()
+const gatewayGuideWelcomeVisible = ref(true)
+const videoDeviceGuideUrl = '/video/device-guide'
+
+const gatewayGuideStepToNav: Partial<Record<GuideStep, TopNav>> = {
+  'gateway-workbench': 'workbench',
+  'gateway-iot': 'iot',
+  'gateway-config': 'gatewayConfig',
+  'gateway-video': 'video',
+  'gateway-system': 'system',
+  'gateway-ai': 'ai',
+  'gateway-resource': 'resource',
+}
+
+function startGatewayGuide() {
+  gatewayGuideWelcomeVisible.value = false
+  activeTopNav.value = 'workbench'
+  appStore.guideActive = true
+  appStore.setGuideStep('gateway-workbench')
+}
+
+function skipGatewayGuide() {
+  gatewayGuideWelcomeVisible.value = false
+}
+
+watch(() => appStore.guideStep, (step) => {
+  const nav = gatewayGuideStepToNav[step]
+  if (nav) {
+    activeTopNav.value = nav
+    setTimeout(() => window.dispatchEvent(new Event('guide-position-refresh')), 80)
+  }
+})
+
+function openWorkbenchPage() {
+  activeTopNav.value = 'workbench'
+}
+
+function openIotPage() {
+  activeTopNav.value = 'iot'
+}
+
+function openGatewayConfigPage() {
+  activeTopNav.value = 'gatewayConfig'
+}
+
+function openVideoPage() {
+  activeTopNav.value = 'video'
+}
+
+function openSystemPage() {
+  activeTopNav.value = 'system'
+}
+
+function openAiPage() {
+  activeTopNav.value = 'ai'
+}
+
+function openResourcePage() {
+  activeTopNav.value = 'resource'
+}
+
+type HelpNav = Exclude<TopNav, 'workbench'>
+interface HelpQuestion {
+  text: string
+  link?: string
+}
+const helpQuestionMap: Record<HelpNav, { title: string; questions: HelpQuestion[] }> = {
+  iot: {
+    title: '物联网常见问题',
+    questions: [
+      { text: '如何新增物联网产品和设备？' },
+      { text: '设备创建完成后，如何配置设备接入？' },
+      { text: '设备在哪里查看运行状态？' },
+      { text: '如何配置设备告警规则？' },
+      { text: '如何配置场景联动？' },
+      { text: '采集器在哪里配置和查看？' },
+    ],
+  },
+  gatewayConfig: {
+    title: '网关配置常见问题',
+    questions: [
+      { text: '如何配置网关接入平台？' },
+      { text: '如何使用远程终端排查或维护网关？' },
+      { text: '插件包和插件实例在哪里上传、安装和管理？' },
+      { text: '网关固件如何升级，升级记录在哪里查看？' },
+      { text: '网关的网络信息在哪里配置？' },
+      { text: '串口连接能力如何配置和管理？' },
+    ],
+  },
+  video: {
+    title: '视频中心常见问题',
+    questions: [
+      { text: '如何新增或接入摄像头设备？', link: videoDeviceGuideUrl },
+      { text: '摄像头接入失败时，应该检查哪些配置？' },
+      { text: '如何分屏查看多个摄像头的实时画面？' },
+      { text: '如何配置国标级联，把摄像头画面分享给第三方调用？' },
+      { text: '如何设置摄像头自动录像计划？' },
+      { text: '已生成的录像记录在哪里按设备或目录查看？' },
+    ],
+  },
+  system: {
+    title: '系统管理常见问题',
+    questions: [
+      { text: '系统名称、Logo、浏览器页签和登录背景图在哪里修改？' },
+      { text: '网关访问地址和系统基础信息在哪里查看或编辑？' },
+      { text: '如何新增、编辑或停用用户账号？' },
+      { text: '如何给用户分配角色和权限？' },
+      { text: '角色权限范围在哪里配置？' },
+      { text: '场景联动中会用到的日历标签在哪里维护？' },
+    ],
+  },
+  ai: {
+    title: '人工智能常见问题',
+    questions: [
+      { text: '如何创建和配置智能体？' },
+      { text: '智能体可以调用的工具和技能在哪里配置？' },
+      { text: '大模型供应商如何接入和管理？' },
+      { text: '知识库如何创建、导入和维护？' },
+      { text: '如何使用知识库进行智能搜索？' },
+      { text: '机器视觉的分析场景在哪里配置和查看？' },
+    ],
+  },
+  resource: {
+    title: '资源库常见问题',
+    questions: [
+      { text: '如何新增采集器模板？' },
+      { text: '采集器模板创建后如何编辑或维护？' },
+      { text: '如何复用已有采集器模板来快速配置数据采集？' },
+      { text: '采集器模板中需要配置哪些采集参数？' },
+      { text: '如何区分不同设备或场景适用的采集器模板？' },
+      { text: '不再使用的采集器模板如何删除或停用？' },
+    ],
+  },
+}
+const helpPosition = ref<{ x: number; y: number } | null>(null)
+const helpDragOffset = ref({ x: 0, y: 0 })
+const helpDragging = ref(false)
+const helpMoved = ref(false)
+const helpOpen = ref(false)
+const helpSize = 42
+
+function currentHelpConfig() {
+  if (activeTopNav.value === 'workbench') return null
+  return helpQuestionMap[activeTopNav.value as HelpNav]
+}
+
+function startHelpDrag(event: PointerEvent) {
+  const target = event.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+  helpDragging.value = true
+  helpMoved.value = false
+  helpPosition.value = { x: rect.left, y: rect.top }
+  helpDragOffset.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  }
+  document.addEventListener('pointermove', moveHelp)
+  document.addEventListener('pointerup', stopHelpDrag)
+}
+
+function moveHelp(event: PointerEvent) {
+  if (!helpDragging.value) return
+  helpMoved.value = true
+  const minX = 0
+  const maxX = window.innerWidth - helpSize / 2
+  const minY = 48
+  const maxY = window.innerHeight - helpSize
+  helpPosition.value = {
+    x: Math.max(minX, Math.min(event.clientX - helpDragOffset.value.x, maxX)),
+    y: Math.max(minY, Math.min(event.clientY - helpDragOffset.value.y, maxY)),
+  }
+}
+
+function stopHelpDrag() {
+  helpDragging.value = false
+  document.removeEventListener('pointermove', moveHelp)
+  document.removeEventListener('pointerup', stopHelpDrag)
+}
+
+function toggleHelp() {
+  if (helpDragging.value || helpMoved.value) {
+    setTimeout(() => {
+      helpMoved.value = false
+    }, 0)
+    return
+  }
+  helpOpen.value = !helpOpen.value
+}
+
+onBeforeUnmount(() => {
+  stopHelpDrag()
+})
 
 // 页面视图：list(设备列表) / add(新增设备)
 const viewMode = ref<'list' | 'add'>('list')
-
-// 从 URL 参数启动引导（新标签页打开时传入）
-const guideParam = route.query.guide as string
-if (guideParam) {
-  appStore.guideActive = true
-  appStore.setGuideStep(guideParam as any)
-}
 
 // 接入方式
 type AccessMethod = 'gb28181' | 'fixed' | 'onvif' | 'plugin' | 'agent'
@@ -67,10 +257,6 @@ const scanning = ref(false)
 function openAddModal() {
   viewMode.value = 'add'
   addStep.value = 'scan'
-  // 引导联动：点击新增 → 推进到 scan-device
-  if (appStore.guideStep === 'gw-address') {
-    nextTick(() => appStore.setGuideStep('scan-device'))
-  }
 }
 
 // 绑定弹窗: auth(认证) → result(结果)
@@ -119,10 +305,6 @@ function startScan() {
   setTimeout(() => {
     scanning.value = false
     addStep.value = 'select'
-    // 引导联动：扫描完成 → 推进到 select-device
-    if (appStore.guideStep === 'scan-device') {
-      nextTick(() => appStore.setGuideStep('select-device'))
-    }
   }, 1500)
 }
 
@@ -137,11 +319,6 @@ function goToAuth() {
   successCollapsed.value = true
   failCollapsed.value = false
   bindModalVisible.value = true
-  // 进入绑定弹窗后，后续只保留弹窗流程，不再展示第八步/第九步引导。
-  if (appStore.guideStep === 'select-device') {
-    appStore.guideActive = false
-    appStore.guideStep = ''
-  }
 }
 
 function handleBind() {
@@ -254,13 +431,69 @@ function goBackToList() {
         <span>高通网关</span>
       </div>
       <nav class="ga-topbar__nav">
-        <span class="ga-topnav">工作台</span>
-        <span class="ga-topnav">物联网</span>
-        <span class="ga-topnav">网关配置</span>
-        <span class="ga-topnav ga-topnav--active">视频中心</span>
-        <span class="ga-topnav">系统管理</span>
-        <span class="ga-topnav">人工智能</span>
-        <span class="ga-topnav">资源库</span>
+        <span
+          class="ga-topnav"
+          :class="{ 'ga-topnav--active': activeTopNav === 'workbench' }"
+          data-guide="gateway-nav-workbench"
+          @click="openWorkbenchPage"
+        >
+          <i class="i-ant-design-home-outlined" />
+          <span>工作台</span>
+        </span>
+        <span
+          class="ga-topnav"
+          :class="{ 'ga-topnav--active': activeTopNav === 'iot' }"
+          data-guide="gateway-nav-iot"
+          @click="openIotPage"
+        >
+          <i class="i-ant-design-api-outlined" />
+          <span>物联网</span>
+        </span>
+        <span
+          class="ga-topnav"
+          :class="{ 'ga-topnav--active': activeTopNav === 'gatewayConfig' }"
+          data-guide="gateway-nav-config"
+          @click="openGatewayConfigPage"
+        >
+          <i class="i-ant-design-cloud-server-outlined" />
+          <span>网关配置</span>
+        </span>
+        <span
+          class="ga-topnav"
+          :class="{ 'ga-topnav--active': activeTopNav === 'video' }"
+          data-guide="gateway-nav-video"
+          @click="openVideoPage"
+        >
+          <i class="i-ant-design-video-camera-outlined" />
+          <span>视频中心</span>
+        </span>
+        <span
+          class="ga-topnav"
+          :class="{ 'ga-topnav--active': activeTopNav === 'system' }"
+          data-guide="gateway-nav-system"
+          @click="openSystemPage"
+        >
+          <i class="i-ant-design-setting-outlined" />
+          <span>系统管理</span>
+        </span>
+        <span
+          class="ga-topnav"
+          :class="{ 'ga-topnav--active': activeTopNav === 'ai' }"
+          data-guide="gateway-nav-ai"
+          @click="openAiPage"
+        >
+          <i class="i-ant-design-robot-outlined" />
+          <span>人工智能</span>
+        </span>
+        <span
+          class="ga-topnav"
+          :class="{ 'ga-topnav--active': activeTopNav === 'resource' }"
+          data-guide="gateway-nav-resource"
+          @click="openResourcePage"
+        >
+          <i class="i-ant-design-database-outlined" />
+          <span>资源库</span>
+        </span>
       </nav>
       <div class="ga-topbar__right">
         <i class="i-ant-design-user-outlined" />
@@ -268,6 +501,131 @@ function goBackToList() {
     </header>
 
     <div class="ga-body">
+      <div v-if="activeTopNav === 'workbench'" class="ga-screenshot-page">
+        <img :src="workbenchImg" alt="工作台" draggable="false" />
+      </div>
+      <template v-else-if="activeTopNav === 'iot'">
+        <aside class="ga-sider">
+          <div class="ga-menu">
+            <span class="ga-menu__item ga-menu__item--active">
+              <i class="i-ant-design-appstore-outlined" />
+              <span>设备管理</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-tool-outlined" />
+              <span>运维管理</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-alert-outlined" />
+              <span>告警中心</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-branches-outlined" />
+              <span>规则引擎</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-database-outlined" />
+              <span>数据采集</span>
+            </span>
+          </div>
+        </aside>
+        <div class="ga-screenshot-page">
+          <img :src="iotImg" alt="物联网" draggable="false" />
+        </div>
+      </template>
+      <template v-else-if="activeTopNav === 'gatewayConfig'">
+        <aside class="ga-sider">
+          <div class="ga-menu">
+            <span class="ga-menu__item ga-menu__item--active">
+              <i class="i-ant-design-cloud-server-outlined" />
+              <span>平台接入</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-code-outlined" />
+              <span>远程终端</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-appstore-add-outlined" />
+              <span>插件管理</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-upload-outlined" />
+              <span>固件升级</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-global-outlined" />
+              <span>网络配置</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-partition-outlined" />
+              <span>串口管理</span>
+            </span>
+          </div>
+        </aside>
+        <div class="ga-screenshot-page">
+          <img :src="gatewayConfigImg" alt="网关配置" draggable="false" />
+        </div>
+      </template>
+      <template v-else-if="activeTopNav === 'system'">
+        <aside class="ga-sider">
+          <div class="ga-menu">
+            <span class="ga-menu__item ga-menu__item--active">
+              <i class="i-ant-design-info-circle-outlined" />
+              <span>基本信息</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-user-outlined" />
+              <span>用户管理</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-team-outlined" />
+              <span>角色管理</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-calendar-outlined" />
+              <span>日历维护</span>
+            </span>
+          </div>
+        </aside>
+        <div class="ga-screenshot-page">
+          <img :src="systemManageImg" alt="系统管理" draggable="false" />
+        </div>
+      </template>
+      <template v-else-if="activeTopNav === 'ai'">
+        <aside class="ga-sider">
+          <div class="ga-menu">
+            <span class="ga-menu__item ga-menu__item--active">
+              <i class="i-ant-design-robot-outlined" />
+              <span>智能体开发</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-book-outlined" />
+              <span>知识库管理</span>
+            </span>
+            <span class="ga-menu__item">
+              <i class="i-ant-design-eye-outlined" />
+              <span>机器视觉</span>
+            </span>
+          </div>
+        </aside>
+        <div class="ga-screenshot-page">
+          <img :src="aiImg" alt="人工智能" draggable="false" />
+        </div>
+      </template>
+      <template v-else-if="activeTopNav === 'resource'">
+        <aside class="ga-sider">
+          <div class="ga-menu">
+            <span class="ga-menu__item ga-menu__item--active">
+              <i class="i-ant-design-file-text-outlined" />
+              <span>采集器模版</span>
+            </span>
+          </div>
+        </aside>
+        <div class="ga-screenshot-page">
+          <img :src="resourceImg" alt="资源库" draggable="false" />
+        </div>
+      </template>
+      <template v-else>
       <!-- ===== 左侧菜单 ===== -->
       <aside class="ga-sider">
         <div class="ga-menu">
@@ -323,7 +681,6 @@ function goBackToList() {
           </div>
           <button
             class="ga-filter__add"
-            :data-guide="appStore.guideStep === 'gw-address' ? 'gw-address-add' : undefined"
             @click="openAddModal"
           >
             <i class="i-ant-design-plus-outlined" />
@@ -392,7 +749,7 @@ function goBackToList() {
                   </div>
                   <h3 class="ga-scan-hero__title">扫描局域网设备</h3>
                   <p class="ga-scan-hero__desc">点击「一键同步」扫描当前局域网内所有可用的摄像头设备</p>
-                  <button class="ga-scan-hero__btn" data-guide="scan-device" :disabled="scanning" @click="startScan">
+                  <button class="ga-scan-hero__btn" :disabled="scanning" @click="startScan">
                     <i :class="scanning ? 'i-ant-design-loading-outlined ga-spin' : 'i-ant-design-sync-outlined'" />
                     <span>{{ scanning ? '扫描中...' : '一键同步' }}</span>
                   </button>
@@ -400,7 +757,7 @@ function goBackToList() {
               </div>
 
               <!-- 步骤二：选择设备 -->
-              <div v-if="addStep === 'select'" class="ga-select-area" data-guide="select-device">
+              <div v-if="addStep === 'select'" class="ga-select-area">
                 <div class="ga-select-bar">
                   <span>共扫描到 <strong>{{ scannedDevices.length }}</strong> 台，已选 <strong>{{ selectedCount }}</strong> 台</span>
                 </div>
@@ -451,8 +808,68 @@ function goBackToList() {
           </div>
         </template>
       </main>
+      </template>
+      <div
+        v-if="currentHelpConfig()"
+        class="ga-help"
+        :class="{ 'is-dragging': helpDragging, 'is-open': helpOpen }"
+        :style="helpPosition ? { left: `${helpPosition.x}px`, top: `${helpPosition.y}px`, right: 'auto', bottom: 'auto' } : undefined"
+      >
+        <button
+          class="ga-help__trigger"
+          type="button"
+          :aria-label="currentHelpConfig()?.title"
+          @pointerdown="startHelpDrag"
+          @click="toggleHelp"
+        >
+          <i class="i-ant-design-question-circle-outlined" />
+        </button>
+        <div class="ga-help__bubble">
+          <div class="ga-help__title">{{ currentHelpConfig()?.title }}</div>
+          <ul class="ga-help__list">
+            <li v-for="question in currentHelpConfig()?.questions" :key="question.text">
+              <a
+                v-if="question.link"
+                :href="question.link"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ question.text }}
+              </a>
+              <span v-else>{{ question.text }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
+
+  <a-modal
+    v-model:open="gatewayGuideWelcomeVisible"
+    :title="null"
+    :footer="null"
+    :width="460"
+    centered
+    :closable="false"
+    :mask-closable="false"
+    :z-index="1900"
+  >
+    <div class="gateway-guide-welcome">
+      <div class="gateway-guide-welcome__icon">
+        <i class="i-ant-design-compass-outlined" />
+      </div>
+      <h2 class="gateway-guide-welcome__title">欢迎来到边缘网关</h2>
+      <p class="gateway-guide-welcome__desc">
+        接下来带您快速认识应用各大功能分区，清晰掌握各功能入口对应的操作，快速上手使用。
+      </p>
+      <div class="gateway-guide-welcome__actions">
+        <button class="gateway-guide-welcome__skip" type="button" @click="skipGatewayGuide">跳过</button>
+        <button class="gateway-guide-welcome__primary" type="button" @click="startGatewayGuide">开始新手引导</button>
+      </div>
+    </div>
+  </a-modal>
+
+  <GuideOverlay />
 
   <!-- ===== 绑定弹窗 ===== -->
   <a-modal
@@ -461,8 +878,8 @@ function goBackToList() {
     :width="440"
     :footer="null"
     centered
-    :mask-closable="!appStore.guideActive"
-    :z-index="appStore.guideActive ? 2000 : 1000"
+    :mask-closable="true"
+    :z-index="1000"
     wrap-class-name="add-device-modal-wrap"
     @cancel="closeBindModal"
   >
@@ -610,7 +1027,6 @@ function goBackToList() {
   </a-modal>
 
   <!-- 引导浮层 -->
-  <GuideOverlay />
 </template>
 
 <style scoped lang="scss">
@@ -620,19 +1036,23 @@ function goBackToList() {
   inset: 0;
   display: flex;
   flex-direction: column;
-  background: #f0f2f5;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  color: #333;
+  background: #fafbfc;
+  font-family: AliRegular, 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: 0;
+  color: #111418;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ===== 顶部导航栏 ===== */
 .ga-topbar {
-  height: 56px;
+  height: 48px;
   background: #132329;
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 16px;
   flex-shrink: 0;
   gap: 40px;
 
@@ -640,12 +1060,13 @@ function goBackToList() {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 17px;
+    font-size: 15px;
+    line-height: 22px;
     font-weight: 600;
     color: #fff;
     white-space: nowrap;
 
-    i { font-size: 22px; color: #3b82f6; }
+    i { font-size: 20px; color: #6e4bff; }
   }
 
   &__nav {
@@ -661,14 +1082,27 @@ function goBackToList() {
 }
 
 .ga-topnav {
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
   color: #94a3b8;
-  padding: 0 18px;
-  height: 56px;
-  line-height: 56px;
+  padding: 0 14px;
+  height: 48px;
   cursor: pointer;
   transition: color 0.15s;
   position: relative;
+
+  i {
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  span {
+    white-space: nowrap;
+  }
 
   &:hover { color: #e2e8f0; }
 
@@ -683,7 +1117,7 @@ function goBackToList() {
       left: 18px;
       right: 18px;
       height: 2px;
-      background: #3b82f6;
+      background: #6e4bff;
       border-radius: 1px;
     }
   }
@@ -696,12 +1130,149 @@ function goBackToList() {
   overflow: hidden;
 }
 
+.ga-screenshot-page {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
+
+  img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: fill;
+  }
+}
+
+.ga-help {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 5;
+
+  &.is-open {
+    .ga-help__bubble {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+  }
+
+  &.is-dragging {
+    .ga-help__trigger {
+      cursor: grabbing;
+      transform: none;
+    }
+  }
+
+  &__trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 50%;
+    background: #6e4bff;
+    color: #fff;
+    box-shadow: 0 10px 28px rgba(17, 20, 24, 0.22);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+
+    i {
+      font-size: 22px;
+    }
+
+    &:hover,
+    &:focus-visible {
+      background: #7b5cff;
+      box-shadow: 0 12px 32px rgba(17, 20, 24, 0.28);
+      transform: translateY(-1px);
+      outline: none;
+    }
+  }
+
+  &__bubble {
+    position: absolute;
+    right: 0;
+    bottom: 54px;
+    width: 320px;
+    padding: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 16px 42px rgba(17, 20, 24, 0.18);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+
+    &::after {
+      content: '';
+      position: absolute;
+      right: 14px;
+      bottom: -7px;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-right: 1px solid rgba(15, 23, 42, 0.08);
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      transform: rotate(45deg);
+    }
+  }
+
+  &__title {
+    margin-bottom: 10px;
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 600;
+    color: #111418;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    li {
+      display: block;
+      min-height: 34px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 20px;
+      color: #334155;
+      cursor: default;
+      transition: background 0.15s ease, color 0.15s ease;
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      &:hover {
+        background: rgba(110, 75, 255, 0.08);
+        color: #6e4bff;
+      }
+    }
+  }
+}
+
 /* ===== 左侧菜单 ===== */
 .ga-sider {
-  width: 200px;
+  width: 224px;
   background: #132329;
   flex-shrink: 0;
-  padding: 12px 0;
+  padding: 8px;
   overflow-y: auto;
 
   &__group {
@@ -721,24 +1292,27 @@ function goBackToList() {
   &__item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 20px;
-    font-size: 13px;
+    gap: 12px;
+    height: 48px;
+    padding: 0 14px;
+    margin: 8px 0;
+    border-radius: 6px;
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 500;
     color: #94a3b8;
     cursor: pointer;
     transition: all 0.15s;
-    border-left: 3px solid transparent;
 
-    i { font-size: 15px; flex-shrink: 0; }
+    i { font-size: 24px; flex-shrink: 0; }
 
     &:hover { color: #e2e8f0; background: rgba(255, 255, 255, 0.03); }
 
     &--active {
       color: #fff;
-      background: rgba(59, 130, 246, 0.15);
-      border-left-color: #3b82f6;
+      background: rgba(110, 75, 255, 0.18);
 
-      i { color: #3b82f6; }
+      i { color: #6e4bff; }
     }
   }
 }
@@ -759,10 +1333,11 @@ function goBackToList() {
   align-items: center;
   gap: 6px;
   font-size: 13px;
+  line-height: 20px;
   color: #64748b;
 
   i { font-size: 11px; }
-  span:last-child { color: #333; }
+  span:last-child { color: #111418; }
 }
 
 /* 筛选栏 */
@@ -1198,6 +1773,90 @@ function goBackToList() {
   color: #ccc;
   i { font-size: 40px; }
   span { font-size: 14px; }
+}
+
+.gateway-guide-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 30px 24px;
+  text-align: center;
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 54px;
+    height: 54px;
+    margin-bottom: 16px;
+    border-radius: 14px;
+    background: rgba(110, 75, 255, 0.1);
+    color: #6e4bff;
+
+    i {
+      font-size: 28px;
+    }
+  }
+
+  &__title {
+    margin: 0 0 10px;
+    font-size: 18px;
+    line-height: 26px;
+    font-weight: 600;
+    color: #111418;
+  }
+
+  &__desc {
+    margin: 0 0 22px;
+    font-size: 14px;
+    line-height: 24px;
+    color: #64748b;
+    text-align: left;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  &__skip,
+  &__primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 128px;
+    height: 36px;
+    padding: 0 18px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  &__skip {
+    border: 1px solid #d9d9d9;
+    background: #fff;
+    color: #64748b;
+
+    &:hover {
+      border-color: #6e4bff;
+      color: #6e4bff;
+    }
+  }
+
+  &__primary {
+    border: 1px solid #6e4bff;
+    background: #6e4bff;
+    color: #fff;
+
+    &:hover {
+      background: #7b5cff;
+      border-color: #7b5cff;
+    }
+  }
 }
 
 /* ===== 绑定弹窗 ===== */

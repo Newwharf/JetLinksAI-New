@@ -226,8 +226,14 @@ const businessOptions = ['消防安全', '环境监测', '能耗分析', '安全
           </tr>
         </thead>
         <tbody>
-          <tr v-for="dev in pagedDevices" :key="dev.id">
-            <td class="col-check"><input type="checkbox" :checked="selectedIds.has(dev.id)" @change="toggleSelect(dev.id)" /></td>
+          <tr
+            v-for="dev in pagedDevices"
+            :key="dev.id"
+            class="dl-row"
+            :data-guide="appStore.guideStep === 'iot-detail' && dev.id === devices[0]?.id ? 'iot-device-row' : undefined"
+            @click="appStore.guideStep === 'iot-detail' ? gotoDetailGuide(dev) : gotoDetail(dev)"
+          >
+            <td class="col-check" @click.stop><input type="checkbox" :checked="selectedIds.has(dev.id)" @change="toggleSelect(dev.id)" /></td>
             <td>
               <div class="dl-device">
                 <span class="dl-device__icon" :style="{ background: iconColor(dev.id) }">
@@ -235,12 +241,7 @@ const businessOptions = ['消防安全', '环境监测', '能耗分析', '安全
                   <img v-else :src="dev.icon" alt="icon" />
                 </span>
                 <span class="dl-device__text">
-                  <button
-                    class="dl-device__name"
-                    type="button"
-                    :data-guide="appStore.guideStep === 'iot-detail' && dev.id === devices[0]?.id ? 'iot-device-name' : undefined"
-                    @click="appStore.guideStep === 'iot-detail' ? gotoDetailGuide(dev) : gotoDetail(dev)"
-                  >{{ dev.name }}</button>
+                  <span class="dl-device__name">{{ dev.name }}</span>
                   <small class="dl-device__sn">{{ dev.sn }}</small>
                 </span>
               </div>
@@ -409,12 +410,14 @@ const businessOptions = ['消防安全', '环境监测', '能耗分析', '安全
   thead th { padding: 12px 12px; text-align: left; font-weight: 600; font-size: 12px; color: $text-secondary; background: $bg-page; border-bottom: 1px solid $border-color-card; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
   tbody td { padding: 18px 12px; border-bottom: 1px solid $border-color-card; color: $text-secondary; vertical-align: middle; }
   tbody tr { transition: background 0.15s; &:hover { background: #faf9ff; } }
+  tbody tr.dl-row { cursor: pointer; }
   .col-check { width: 40px; text-align: center; } .col-ops { width: 48px; text-align: center; } }
 
 .dl-device { display: flex; align-items: center; gap: 10px; }
 .dl-device__icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; overflow: hidden; i { font-size: 20px; } img { width: 100%; height: 100%; object-fit: cover; } }
 .dl-device__text { display: flex; flex-direction: column; }
-.dl-device__name { border: none; background: transparent; color: $text-base; font-weight: 600; font-size: 14px; cursor: pointer; font-family: inherit; padding: 0; text-align: left; &:hover { color: $color-primary; } }
+.dl-device__name { color: $text-base; font-weight: 600; font-size: 14px; }
+.dl-row:hover .dl-device__name { color: $color-primary; }
 .dl-device__sn { font-size: 11px; color: $text-muted; font-family: 'Courier New', monospace; }
 .dl-muted { font-size: 12px; color: $text-muted; }
 .dl-area { font-size: 12px; color: $text-muted; }

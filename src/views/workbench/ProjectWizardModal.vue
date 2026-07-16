@@ -52,14 +52,17 @@ watch(() => props.open, (v) => {
     form.logoImg = ''
     form.logoPrompt = ''
     Object.keys(dirty).forEach(k => (dirty[k] = false))
-    advancedOpen.value = false
     createStage.value = 'form'
     currentStep.value = 0
+    templateDetail.value = null
     if (createTimer) { clearInterval(createTimer); createTimer = null }
   }
 })
 
-// 选择模板 → 仅填充未被用户修改过的字段（空白模板不填充任何内容）
+const availableTemplates = computed(() => scenarioOptions.filter(item => item.value !== 'blank'))
+const templateDetail = ref<(typeof scenarioOptions)[number] | null>(null)
+
+// 选择模板 → 仅填充未被用户修改过的字段
 function selectTemplate(value: string) {
   // 切换选中态（再次点击同一模板 = 取消选择）
   if (form.template === value) {
@@ -67,13 +70,15 @@ function selectTemplate(value: string) {
     return
   }
   form.template = value
-  // 空白模板：不填充任何字段
-  if (value === 'blank') return
   const t = scenarioOptions.find(o => o.value === value)
   if (!t) return
   if (!dirty.name) form.name = t.name
   if (!dirty.description) form.description = t.desc
   if (!dirty.urlSuffix) form.urlSuffix = t.value + '-' + Math.random().toString(36).slice(2, 6)
+}
+
+function openTemplateDetail(t: (typeof scenarioOptions)[number]) {
+  templateDetail.value = t
 }
 
 // ===== Logo 图片上传（隐藏 input）=====
@@ -103,31 +108,8 @@ function aiGenerateLogo() {
 // ===== 区域选项 =====
 const regions = ['西南1', '华东1', '华东2', '华北1', '华北2', '华南1', '华南2']
 
-// ===== 高级选项 =====
-const advancedOpen = ref(false)
-
-// 项目模块（基础能力）
-interface ModuleItem {
-  key: string
-  title: string
-  desc: string
-  icon: string
-  iconColor: string
-  enabled: boolean
-}
-const modules = reactive<ModuleItem[]>([
-  { key: 'situation', title: '空间态势', desc: '空间资源可视化、设备分布与实时态势', icon: 'i-ant-design-global-outlined', iconColor: '#3b82f6', enabled: true },
-  { key: 'video', title: '物联视联', desc: '监控墙、视频播放、问图检索与设备管理', icon: 'i-ant-design-video-camera-outlined', iconColor: '#8b5cf6', enabled: true },
-  { key: 'alarm', title: '巡检告警中心', desc: '告警事件管理、告警规则与巡检配置', icon: 'i-ant-design-alert-outlined', iconColor: '#ef4444', enabled: true },
-  { key: 'visualization', title: '可视化', desc: '数据看板与数据资产展示', icon: 'i-ant-design-dashboard-outlined', iconColor: '#10b981', enabled: true },
-  { key: 'elderly', title: '养老场景专用', desc: '老人行为分析、护工管理与床位态势', icon: 'i-ant-design-medicine-box-outlined', iconColor: '#ec4899', enabled: false }
-])
-function toggleModule(m: ModuleItem) {
-  m.enabled = !m.enabled
-}
-
-// ===== 创建流程：creating（创建中）→ success（成功）=====
-type CreateStage = 'form' | 'creating' | 'success'
+// ===== 创建流程：form（填写）→ creating（创建中）=====
+type CreateStage = 'form' | 'creating'
 const createStage = ref<CreateStage>('form')
 
 // 创建步骤
@@ -141,6 +123,7 @@ const currentStep = ref(0)
 let createTimer: ReturnType<typeof setInterval> | null = null
 
 const pendingProject = ref<Project | null>(null)
+const createProgress = computed(() => Math.round(((currentStep.value + 1) / createSteps.length) * 100))
 
 function close() {
   // 重置到表单态
@@ -173,32 +156,19 @@ function confirmCreate() {
     } else {
       // 最后一步完成
       if (createTimer) { clearInterval(createTimer); createTimer = null }
-      createStage.value = 'success'
+      if (pendingProject.value) {
+        emit('submit', pendingProject.value)
+      }
+      close()
     }
   }, 700)
-}
-
-// 成功后：进入项目
-function enterCreatedProject() {
-  if (pendingProject.value) {
-    emit('submit', pendingProject.value)
-  }
-  close()
-}
-
-// 成功后：不进入，仅关闭（项目仍创建）
-function justClose() {
-  if (pendingProject.value) {
-    emit('submit', pendingProject.value)
-  }
-  close()
 }
 </script>
 
 <template>
   <a-modal
     :open="open"
-    :width="createStage === 'form' ? (advancedOpen ? 1220 : 880) : 460"
+    :width="createStage === 'form' ? 940 : 520"
     centered
     :footer="null"
     :closable="createStage === 'form'"
@@ -208,7 +178,6 @@ function justClose() {
     <template #title>
       <span>{{
         createStage === 'creating' ? '正在创建项目'
-        : createStage === 'success' ? '创建成功'
         : '新建项目'
       }}</span>
     </template>
@@ -225,7 +194,7 @@ function justClose() {
         <div class="pw-section-title">选择模板</div>
         <div class="tpl-list">
           <div
-            v-for="t in scenarioOptions"
+            v-for="t in availableTemplates"
             :key="t.value"
             class="tpl-item"
             :class="{ active: form.template === t.value }"
@@ -238,7 +207,14 @@ function justClose() {
               <span class="tpl-item__name">{{ t.label }}</span>
               <span class="tpl-item__desc">{{ t.desc }}</span>
             </div>
-            <i v-if="form.template === t.value" class="i-ant-design-check-circle-filled tpl-item__check" />
+            <button
+              class="tpl-item__detail"
+              type="button"
+              @mousedown.stop
+              @click.stop.prevent="openTemplateDetail(t)"
+            >
+              查看详情
+            </button>
           </div>
         </div>
       </div>
@@ -247,131 +223,105 @@ function justClose() {
       <div class="pw-right">
         <div class="pw-right-head">
           <div class="pw-section-title">基本信息</div>
-          <button class="pw-advanced-btn" :class="{ active: advancedOpen }" @click="advancedOpen = !advancedOpen">
-            <i class="i-ant-design-setting-outlined" />
-            高级选项
-            <i class="i-ant-design-down-outlined pw-advanced-arrow" />
-          </button>
         </div>
 
-        <!-- 第一行：项目名称 + 所在区域 -->
-        <div class="pw-row pw-row--2">
-          <div class="pw-field">
-            <label class="pw-label"><span class="req">*</span>项目名称</label>
-            <a-input
-              v-model:value="form.name"
-              placeholder="请输入项目名称"
-              :maxlength="30"
-              @input="markDirty('name')"
-            />
-          </div>
-          <div class="pw-field">
-            <label class="pw-label">所在区域</label>
-            <a-select
-              v-model:value="form.region"
-              class="pw-field__ctl"
-              :options="regions.map(r => ({ value: r, label: r }))"
-              @change="markDirty('region')"
-            />
-          </div>
-        </div>
-
-        <!-- 第二行：项目说明 -->
-        <div class="pw-row">
-          <div class="pw-field">
-            <label class="pw-label">项目说明</label>
-            <a-textarea
-              v-model:value="form.description"
-              placeholder="请输入项目说明"
-              :rows="2"
-              :maxlength="100"
-              @input="markDirty('description')"
-            />
-          </div>
-        </div>
-
-        <!-- 第三行：访问地址 -->
-        <div class="pw-row">
-          <div class="pw-field">
-            <label class="pw-label"><span class="req">*</span>项目访问地址</label>
-            <div class="url-wrap">
-              <span class="url-prefix">https://jetlinks.cn/p/</span>
+        <div class="pw-right-body">
+          <!-- 第一行：项目名称 -->
+          <div class="pw-row">
+            <div class="pw-field">
+              <label class="pw-label"><span class="req">*</span>项目名称</label>
               <a-input
-                v-model:value="form.urlSuffix"
-                class="url-suffix"
-                placeholder="仅字母、数字、连字符"
-                @input="markDirty('urlSuffix')"
+                v-model:value="form.name"
+                placeholder="请输入项目名称"
+                :maxlength="30"
+                @input="markDirty('name')"
               />
             </div>
-            <span v-if="!suffixValid" class="pw-error">后缀仅允许字母、数字、连字符（3-20 位）</span>
           </div>
-        </div>
 
-        <!-- 第四行：Logo（上传 + AI 生成）-->
-        <div class="pw-row">
-          <div class="pw-field">
-            <label class="pw-label">项目 Logo</label>
-            <div class="logo-area">
-              <!-- 上传 -->
-              <div v-if="form.logoImg" class="logo-preview">
-                <img :src="form.logoImg" alt="Logo" />
-                <button class="logo-clear" @click="clearLogo">
-                  <i class="i-ant-design-close-outlined" />
-                </button>
-              </div>
-              <button v-else class="logo-upload" @click="triggerUpload">
-                <i class="i-ant-design-plus-outlined" />
-                <span>上传 Logo</span>
-              </button>
-              <input ref="fileInput" type="file" accept="image/*" hidden @change="onFileChange" />
+          <!-- 第二行：所在区域 -->
+          <div class="pw-row">
+            <div class="pw-field">
+              <label class="pw-label">所在区域</label>
+              <a-select
+                v-model:value="form.region"
+                class="pw-field__ctl"
+                :options="regions.map(r => ({ value: r, label: r }))"
+                @change="markDirty('region')"
+              />
+            </div>
+          </div>
 
-              <!-- AI 生成输入框（生成按钮内嵌右侧）-->
-              <div class="logo-ai">
+          <!-- 第三行：项目地址 -->
+          <div class="pw-row">
+            <div class="pw-field">
+              <label class="pw-label"><span class="req">*</span>项目地址</label>
+              <div class="url-wrap">
+                <span class="url-prefix">https://jetlinks.cn/p/</span>
                 <a-input
-                  v-model:value="form.logoPrompt"
-                  placeholder="描述 Logo 风格，AI 帮你生成"
-                  @keyup.enter="aiGenerateLogo"
-                >
-                  <template #suffix>
-                    <button
-                      class="logo-ai-btn"
-                      :disabled="!form.logoPrompt.trim()"
-                      @click="aiGenerateLogo"
-                    >
-                      <i class="i-lucide-wand-sparkles" />
-                      生成
-                    </button>
-                  </template>
-                </a-input>
+                  v-model:value="form.urlSuffix"
+                  class="url-suffix"
+                  placeholder="仅字母、数字、连字符"
+                  @input="markDirty('urlSuffix')"
+                />
               </div>
+              <span v-if="!suffixValid" class="pw-error">后缀仅允许字母、数字、连字符（3-20 位）</span>
             </div>
           </div>
-        </div>
 
-      </div>
+          <!-- 第四行：项目说明 -->
+          <div class="pw-row pw-row--desc">
+            <div class="pw-field">
+              <label class="pw-label">项目说明</label>
+              <a-textarea
+                v-model:value="form.description"
+                placeholder="请输入项目说明"
+                :rows="2"
+                :maxlength="100"
+                @input="markDirty('description')"
+              />
+            </div>
+          </div>
 
-      <!-- ===== 右侧第三栏：高级选项-模块展示（点击高级选项后显示）===== -->
-      <div v-if="advancedOpen" class="pw-advanced">
-        <div class="pw-advanced__title">基础能力 · 项目模块</div>
-        <div class="pw-advanced__body">
-          <div
-            v-for="m in modules"
-            :key="m.key"
-            class="mod-item"
-            :class="{ disabled: !m.enabled }"
-          >
-            <a-checkbox :checked="m.enabled" @change="toggleModule(m)" class="mod-item__check" />
-            <div class="mod-item__icon" :style="{ background: m.iconColor }">
-              <i :class="m.icon" />
+          <!-- 第五行：Logo（上传 + AI 生成）-->
+          <div class="pw-row pw-row--logo">
+            <div class="pw-field">
+              <label class="pw-label">项目 Logo</label>
+              <div class="logo-area">
+                <!-- 上传 -->
+                <div v-if="form.logoImg" class="logo-preview">
+                  <img :src="form.logoImg" alt="Logo" />
+                  <button class="logo-clear" @click="clearLogo">
+                    <i class="i-ant-design-close-outlined" />
+                  </button>
+                </div>
+                <button v-else class="logo-upload" @click="triggerUpload">
+                  <i class="i-ant-design-plus-outlined" />
+                  <span>上传 Logo</span>
+                </button>
+                <input ref="fileInput" type="file" accept="image/*" hidden @change="onFileChange" />
+
+                <!-- AI 生成输入框（生成按钮内嵌右侧）-->
+                <div class="logo-ai">
+                  <a-input
+                    v-model:value="form.logoPrompt"
+                    placeholder="描述 Logo 风格，AI 帮你生成"
+                    @keyup.enter="aiGenerateLogo"
+                  >
+                    <template #suffix>
+                      <button
+                        class="logo-ai-btn"
+                        :disabled="!form.logoPrompt.trim()"
+                        @click="aiGenerateLogo"
+                      >
+                        <i class="i-lucide-wand-sparkles" />
+                        生成
+                      </button>
+                    </template>
+                  </a-input>
+                </div>
+              </div>
             </div>
-            <div class="mod-item__text">
-              <a-tooltip :title="m.desc" placement="top">
-                <span class="mod-item__title">{{ m.title }}</span>
-              </a-tooltip>
-            </div>
-            <button class="mod-item__usage">
-              <i class="i-ant-design-bar-chart-outlined" />
-            </button>
           </div>
         </div>
       </div>
@@ -387,11 +337,24 @@ function justClose() {
     <!-- ===== 创建中：加载动画 + 步骤 ===== -->
     <template v-else-if="createStage === 'creating'">
       <div class="creating">
-        <div class="creating__spinner">
-          <i class="i-ant-design-loading-outlined" />
+        <div class="creating__status">
+          <div class="creating__spinner">
+            <i class="i-ant-design-loading-outlined" />
+          </div>
+          <div class="creating__text">
+            <div class="creating__title">正在创建「{{ pendingProject?.name }}」</div>
+            <div class="creating__sub">系统正在初始化项目资源，完成后将进入下一步配置</div>
+          </div>
         </div>
-        <div class="creating__title">正在创建「{{ pendingProject?.name }}」</div>
-        <div class="creating__sub">请稍候，系统正在为您初始化项目资源</div>
+        <div class="creating__progress">
+          <div class="creating__progress-head">
+            <span>{{ createSteps[currentStep] }}</span>
+            <strong>{{ createProgress }}%</strong>
+          </div>
+          <div class="creating__progress-bar">
+            <i :style="{ width: createProgress + '%' }" />
+          </div>
+        </div>
         <div class="creating__steps">
           <div
             v-for="(s, i) in createSteps"
@@ -410,20 +373,31 @@ function justClose() {
       </div>
     </template>
 
-    <!-- ===== 创建成功 ===== -->
-    <template v-else>
-      <div class="success">
-        <div class="success__icon">
-          <i class="i-ant-design-check-circle-filled" />
-        </div>
-        <div class="success__title">项目创建成功！</div>
-        <div class="success__sub">项目「{{ pendingProject?.name }}」已准备就绪</div>
-        <div class="success__actions">
-          <a-button @click="justClose">暂不进入</a-button>
-          <a-button type="primary" @click="enterCreatedProject">立即进入项目</a-button>
+  </a-modal>
+
+  <a-modal
+    :open="!!templateDetail"
+    :width="420"
+    :z-index="2200"
+    centered
+    :footer="null"
+    title="模板详情"
+    wrap-class-name="project-template-detail-modal"
+    @cancel="templateDetail = null"
+  >
+    <div v-if="templateDetail" class="tpl-detail">
+      <div class="tpl-detail__icon" :style="{ background: templateDetail.iconColor }">
+        <i :class="templateDetail.icon" />
+      </div>
+      <div class="tpl-detail__main">
+        <h3>{{ templateDetail.label }}</h3>
+        <p>{{ templateDetail.desc }}</p>
+        <div class="tpl-detail__meta">
+          <span>默认名称</span>
+          <strong>{{ templateDetail.name }}</strong>
         </div>
       </div>
-    </template>
+    </div>
   </a-modal>
 </template>
 
@@ -440,47 +414,12 @@ function justClose() {
   background: $border-color-card;
 }
 
-/* 右侧标题行：基本信息 + 高级选项 */
+/* 右侧标题行：基本信息 */
 .pw-right-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   margin-bottom: 14px;
-}
-
-/* 高级选项按钮 */
-.pw-advanced-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid $border-color-card;
-  border-radius: 9999px;
-  background: #fff;
-  font-size: 12px;
-  font-family: inherit;
-  color: $text-secondary;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  i {
-    font-size: 13px;
-  }
-
-  &:hover,
-  &.active {
-    border-color: $saas-primary;
-    color: $saas-primary;
-  }
-
-  .pw-advanced-arrow {
-    transition: transform 0.2s;
-  }
-
-  &.active .pw-advanced-arrow {
-    transform: rotate(180deg);
-  }
 }
 
 /* ===== 左右布局 ===== */
@@ -491,7 +430,7 @@ function justClose() {
 }
 
 .pw-left {
-  width: 260px;
+  width: 320px;
   flex-shrink: 0;
   border-right: 1px solid $border-color-card;
   padding-right: 20px;
@@ -504,6 +443,14 @@ function justClose() {
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+.pw-right-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 68px 68px 68px minmax(120px, 1fr) 104px;
+  row-gap: 12px;
 }
 
 .pw-section-title {
@@ -558,7 +505,7 @@ function justClose() {
 .tpl-item {
   position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid $border-color-card;
@@ -613,22 +560,48 @@ function justClose() {
   overflow: hidden;
 }
 
-.tpl-item__check {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  font-size: 16px;
+.tpl-item__detail {
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid $border-color-card;
+  border-radius: 5px;
+  background: #fff;
   color: $saas-primary;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: $saas-primary;
+    background: $saas-primary-bg;
+  }
 }
 
 /* ===== 表单（右）===== */
 .pw-row {
-  margin-bottom: 16px;
+  min-height: 0;
+  padding-bottom: 12px;
 
-  &--2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
+  &--desc,
+  &--logo {
+    display: flex;
+  }
+
+  &--desc .pw-field,
+  &--logo .pw-field {
+    flex: 1;
+  }
+
+  &--desc {
+    padding-bottom: 12px;
+  }
+
+  &--desc :deep(.ant-input) {
+    flex: 1;
+    min-height: 98px;
+    resize: none;
   }
 }
 
@@ -708,18 +681,21 @@ function justClose() {
 /* Logo 区：上传 + AI 输入 */
 .logo-area {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 12px;
+  flex: 1;
 }
 
 /* AI 生成输入框（与上传按钮等高 64px）*/
 .logo-ai {
   flex: 1;
+  display: flex;
 
   :deep(.ant-input-affix-wrapper) {
-    height: 64px;
-    align-items: flex-end;  /* 内容靠下 */
-    padding: 0 8px 6px 12px;
+    flex: 1;
+    min-height: 78px;
+    align-items: flex-end;
+    padding: 0 8px 8px 12px;
   }
 
   :deep(.ant-input) {
@@ -760,8 +736,8 @@ function justClose() {
 
 .logo-preview {
   position: relative;
-  width: 64px;
-  height: 64px;
+  width: 78px;
+  height: 78px;
 
   img {
     width: 100%;
@@ -793,8 +769,8 @@ function justClose() {
 }
 
 .logo-upload {
-  width: 64px;
-  height: 64px;
+  width: 78px;
+  height: 78px;
   border: 1px dashed $border-color-input;
   border-radius: 10px;
   background: $bg-page;
@@ -817,110 +793,6 @@ function justClose() {
   }
 }
 
-/* ===== 高级选项：第三栏（右侧模块展示）===== */
-.pw-advanced {
-  width: 340px;
-  flex-shrink: 0;
-  padding-left: 20px;
-  border-left: 1px solid $border-color-card;
-  display: flex;
-  flex-direction: column;
-}
-
-.pw-advanced__title {
-  font-size: 13px;
-  font-weight: 600;
-  color: $text-secondary;
-  margin-bottom: 12px;
-}
-
-.pw-advanced__body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
-}
-
-/* 模块项 */
-.mod-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid $border-color-card;
-  border-radius: 8px;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: $saas-primary;
-  }
-
-  &.disabled {
-    opacity: 0.5;
-  }
-}
-
-/* checkbox */
-.mod-item__check {
-  flex-shrink: 0;
-}
-
-.mod-item__icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  i {
-    font-size: 18px;
-    color: #fff;
-  }
-}
-
-.mod-item__text {
-  flex: 1;
-  min-width: 0;
-}
-
-.mod-item__title {
-  font-size: 13px;
-  font-weight: 600;
-  color: $text-base;
-  cursor: default;
-}
-
-/* 用量信息入口（纯图标按钮）*/
-.mod-item__usage {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid $border-color-card;
-  border-radius: 6px;
-  background: #fff;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  i {
-    font-size: 14px;
-    color: $text-muted;
-  }
-
-  &:hover {
-    border-color: $saas-primary;
-
-    i {
-      color: $saas-primary;
-    }
-  }
-}
-
 /* ===== 底部按钮 ===== */
 .pw-footer {
   display: flex;
@@ -936,38 +808,90 @@ function justClose() {
 .creating {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 20px 0 12px;
+  gap: 16px;
+  padding: 8px 4px 12px;
+
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px;
+    border: 1px solid $border-color-card;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #fbfaff 0%, #f7fbff 100%);
+  }
 
   &__spinner {
-    font-size: 48px;
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
     color: $saas-primary;
-    margin-bottom: 20px;
+    flex-shrink: 0;
 
     i {
       animation: pw-spin 1s linear infinite;
     }
   }
 
+  &__text {
+    min-width: 0;
+  }
+
   &__title {
     font-size: 16px;
     font-weight: 600;
     color: $text-base;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
 
   &__sub {
     font-size: 13px;
     color: $text-muted;
-    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  &__progress {
+    padding: 0 4px;
+  }
+
+  &__progress-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: $text-secondary;
+
+    strong {
+      color: $saas-primary;
+      font-weight: 650;
+    }
+  }
+
+  &__progress-bar {
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: $border-color-card;
+
+    i {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, $saas-primary 0%, #8b5cf6 100%);
+      transition: width 0.25s ease;
+    }
   }
 
   &__steps {
     width: 100%;
-    max-width: 320px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
+    padding: 0 4px;
   }
 }
 
@@ -980,6 +904,21 @@ function justClose() {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid #edf0f5;
+  background: #f4f7fb;
+
+  &.done {
+    border-color: rgba(50, 180, 166, 0.14);
+    background: #f0fbf8;
+  }
+
+  &.active {
+    border-color: rgba(110, 75, 255, 0.16);
+    background: #f4f1ff;
+  }
 
   .cs-icon {
     font-size: 16px;
@@ -1012,6 +951,63 @@ function justClose() {
   &.active .cs-label {
     color: $text-base;
     font-weight: 500;
+  }
+}
+
+.tpl-detail {
+  display: flex;
+  gap: 14px;
+}
+
+.tpl-detail__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  i {
+    font-size: 24px;
+    color: #fff;
+  }
+}
+
+.tpl-detail__main {
+  min-width: 0;
+
+  h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: $text-base;
+  }
+
+  p {
+    margin: 0 0 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: $text-secondary;
+  }
+}
+
+.tpl-detail__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: $bg-page;
+
+  span {
+    font-size: 12px;
+    color: $text-muted;
+  }
+
+  strong {
+    font-size: 13px;
+    color: $text-base;
   }
 }
 

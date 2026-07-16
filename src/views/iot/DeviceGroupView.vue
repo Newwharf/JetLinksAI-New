@@ -19,6 +19,7 @@ const groupMode = ref<GroupMode>('region')
 // 空间分组树
 const expandedKeys = ref<string[]>(['park', 'b-e', 'b-e-4f', 'b-a', 'b-a-1f'])
 const selectedGroupKey = ref('b-e-4f-rd')
+type TreeSelectInfo = { node: { key: string | number } }
 
 // 业务分组
 const selectedBizKey = ref('env')
@@ -138,6 +139,9 @@ const kpiCards = computed(() => [
 ])
 
 function selectTreeNode(key: string) { selectedGroupKey.value = key; statusFilter.value = 'all' }
+function handleRegionTreeSelect(_: unknown, info: TreeSelectInfo) {
+  selectTreeNode(String(info.node.key))
+}
 function selectBiz(key: string) { selectedBizKey.value = key; statusFilter.value = 'all' }
 
 function gotoDetail(dev: IotDevice) {
@@ -175,7 +179,7 @@ function gotoDetail(dev: IotDevice) {
             :selected-keys="[selectedGroupKey]"
             :block-node="true"
             class="grp-tree"
-            @select="(_, info) => selectTreeNode(String(info.node.key))"
+            @select="handleRegionTreeSelect"
           >
             <template #title="{ label, count, unbind }">
               <div class="grp-tree-node" :class="{ 'is-unbind': unbind }">

@@ -150,6 +150,140 @@ const activeTopKey = computed(() => {
 })
 
 // 侧边栏折叠状态（默认收起）
+interface PageHelpConfig {
+  title: string
+  questions: string[]
+}
+
+const pageHelpConfigs: { match: (path: string) => boolean; config: PageHelpConfig }[] = [
+  {
+    match: path => path.startsWith('/space') || path.startsWith('/security-posture') || path.startsWith('/elderly-security'),
+    config: {
+      title: '空间态势常见问题',
+      questions: ['空间态势在哪里查看？', '空间区域如何新建？', '空间层级如何维护？', '平面图如何上传？', '设备如何绑定到空间？', '设备标记如何放到平面图？'],
+    },
+  },
+  {
+    match: path => path.startsWith('/video') || path.startsWith('/construction-video'),
+    config: {
+      title: '视频中心常见问题',
+      questions: ['监控墙如何切换布局？', '摄像头画面如何预览？', '视频设备如何新增？', '网关视频如何配置？', '视频通道状态在哪里查看？', '摄像头回放在哪里查看？'],
+    },
+  },
+  {
+    match: path => path.startsWith('/image-search') || path.startsWith('/construction-image'),
+    config: {
+      title: '文搜图常见问题',
+      questions: ['文搜图如何搜索？', '人员记录如何检索？', '车辆记录如何检索？', '人员档案如何新建？', '人员轨迹在哪里查看？', '搜索条件如何筛选？'],
+    },
+  },
+  {
+    match: path => path.startsWith('/flow') || path.startsWith('/vehicle'),
+    config: {
+      title: '客流分析常见问题',
+      questions: ['客流趋势在哪里查看？', '客流点位如何新增？', '点位设备如何绑定？', '点位详情在哪里查看？', '车辆趋势在哪里查看？', '热力图点位如何维护？'],
+    },
+  },
+  {
+    match: path => path.startsWith('/alarm') || path.startsWith('/construction-alarm'),
+    config: {
+      title: '告警中心常见问题',
+      questions: ['告警事件在哪里查看？', '告警详情如何查看？', '告警状态如何处理？', '告警规则如何新增？', '通知方式如何配置？', '告警等级如何设置？'],
+    },
+  },
+  {
+    match: path => path.startsWith('/inspection'),
+    config: {
+      title: '巡检常见问题',
+      questions: ['巡检概况在哪里查看？', '巡检记录在哪里查看？', '巡检任务如何配置？', '巡检点位如何维护？', '巡检计划如何设置？', '异常巡检如何处理？'],
+    },
+  },
+  {
+    match: path => path.startsWith('/visualization'),
+    config: {
+      title: '可视化常见问题',
+      questions: ['数据看板在哪里查看？', '看板如何新建？', '看板组件如何配置？', '数据资产在哪里管理？', '数据来源如何绑定？', '看板如何预览？'],
+    },
+  },
+  {
+    match: path => path.startsWith('/iot') || path.startsWith('/construction-device'),
+    config: {
+      title: '物联中心常见问题',
+      questions: ['设备总览在哪里查看？', '设备如何新增？', '产品如何创建？', '设备分组如何维护？', '设备告警如何配置？', '设备详情在哪里查看？'],
+    },
+  },
+  {
+    match: path => path.startsWith('/archive'),
+    config: {
+      title: '归档常见问题',
+      questions: ['归档内容在哪里查看？', '归档记录如何搜索？', '归档分类如何筛选？', '归档详情如何查看？', '归档文件如何下载？', '归档数据如何追溯？'],
+    },
+  },
+]
+
+const currentPageHelpConfig = computed(() => {
+  const item = pageHelpConfigs.find(i => i.match(route.path))
+  return item?.config || null
+})
+
+const pageHelpPosition = ref<{ x: number; y: number } | null>(null)
+const pageHelpDragOffset = ref({ x: 0, y: 0 })
+const pageHelpDragging = ref(false)
+const pageHelpMoved = ref(false)
+const pageHelpOpen = ref(false)
+const pageHelpSize = 42
+
+watch(() => route.path, () => {
+  pageHelpOpen.value = false
+})
+
+function startPageHelpDrag(event: PointerEvent) {
+  const target = event.currentTarget as HTMLElement
+  const rect = target.getBoundingClientRect()
+  pageHelpDragging.value = true
+  pageHelpMoved.value = false
+  pageHelpPosition.value = { x: rect.left, y: rect.top }
+  pageHelpDragOffset.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  }
+  document.addEventListener('pointermove', movePageHelp)
+  document.addEventListener('pointerup', stopPageHelpDrag)
+}
+
+function movePageHelp(event: PointerEvent) {
+  if (!pageHelpDragging.value) return
+  pageHelpMoved.value = true
+  const minX = 0
+  const maxX = window.innerWidth - pageHelpSize / 2
+  const minY = 48
+  const maxY = window.innerHeight - pageHelpSize
+  pageHelpPosition.value = {
+    x: Math.max(minX, Math.min(event.clientX - pageHelpDragOffset.value.x, maxX)),
+    y: Math.max(minY, Math.min(event.clientY - pageHelpDragOffset.value.y, maxY)),
+  }
+}
+
+function stopPageHelpDrag() {
+  pageHelpDragging.value = false
+  document.removeEventListener('pointermove', movePageHelp)
+  document.removeEventListener('pointerup', stopPageHelpDrag)
+}
+
+function togglePageHelp() {
+  if (pageHelpDragging.value || pageHelpMoved.value) {
+    setTimeout(() => {
+      pageHelpMoved.value = false
+    }, 0)
+    return
+  }
+  pageHelpOpen.value = !pageHelpOpen.value
+}
+
+onBeforeUnmount(() => {
+  stopPageHelpDrag()
+})
+
 const collapsed = ref(true)
 function toggleCollapse() {
   collapsed.value = !collapsed.value
@@ -166,13 +300,14 @@ function handleMenuClick(m: MenuItem) {
 }
 
 // 启动新手引导
-function startGuide(type: 'iot' | 'video' | 'alarm') {
-  if (type === 'iot') {
+function startGuide(type: 'system' | 'iot' | 'alarm') {
+  if (type === 'system') {
+    currentScenario.value = 'general'
+    appStore.showWelcome()
+    router.push('/dashboard')
+  } else if (type === 'iot') {
     appStore.startIotGuideDirect()
     router.push('/iot/device')
-  } else if (type === 'video') {
-    appStore.startVideoGuideDirect()
-    router.push('/video/device')
   } else {
     appStore.startAlarmGuideDirect()
     router.push('/alarm/rule')
@@ -195,7 +330,7 @@ function startGuide(type: 'iot' | 'video' | 'alarm') {
           <span class="ai-entry-text">AI 对话</span>
         </button>
         <!-- 新手引导下拉 -->
-        <a-dropdown>
+        <a-dropdown v-if="!appStore.guideActive">
           <div class="guide-trigger" @click.prevent>
             <i class="i-ant-design-question-circle-outlined" />
             <span>新手引导</span>
@@ -203,13 +338,13 @@ function startGuide(type: 'iot' | 'video' | 'alarm') {
           </div>
           <template #overlay>
             <a-menu>
+              <a-menu-item @click="startGuide('system')">
+                <i class="i-ant-design-appstore-outlined" />
+                <span>系统总览</span>
+              </a-menu-item>
               <a-menu-item @click="startGuide('iot')">
                 <i class="i-ant-design-api-outlined" />
                 <span>创建物联设备</span>
-              </a-menu-item>
-              <a-menu-item @click="startGuide('video')">
-                <i class="i-ant-design-video-camera-outlined" />
-                <span>创建视联设备</span>
               </a-menu-item>
               <a-menu-item @click="startGuide('alarm')">
                 <i class="i-ant-design-bell-outlined" />
@@ -269,6 +404,7 @@ function startGuide(type: 'iot' | 'video' | 'alarm') {
             <a
               class="menu-item"
               :class="{ 'is-selected': activeTopKey === m.key }"
+              :data-guide="`nav-${m.key}`"
               @click="handleMenuClick(m)"
             >
               <i :class="m.icon" class="menu-icon" />
@@ -334,6 +470,28 @@ function startGuide(type: 'iot' | 'video' | 'alarm') {
     <WelcomeModal />
     <!-- 全局引导覆盖层 -->
     <GuideOverlay />
+    <div
+      v-if="currentPageHelpConfig"
+      class="page-help"
+      :class="{ 'is-dragging': pageHelpDragging, 'is-open': pageHelpOpen }"
+      :style="pageHelpPosition ? { left: `${pageHelpPosition.x}px`, top: `${pageHelpPosition.y}px`, right: 'auto', bottom: 'auto' } : undefined"
+    >
+      <button
+        class="page-help__trigger"
+        type="button"
+        :aria-label="currentPageHelpConfig.title"
+        @pointerdown="startPageHelpDrag"
+        @click="togglePageHelp"
+      >
+        <i class="i-ant-design-question-circle-outlined" />
+      </button>
+      <div class="page-help__bubble">
+        <div class="page-help__title">{{ currentPageHelpConfig.title }}</div>
+        <ul class="page-help__list">
+          <li v-for="question in currentPageHelpConfig.questions" :key="question">{{ question }}</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -754,5 +912,119 @@ function startGuide(type: 'iot' | 'video' | 'alarm') {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.page-help {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 20;
+
+  &.is-open {
+    .page-help__bubble {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+  }
+
+  &.is-dragging {
+    .page-help__trigger {
+      cursor: grabbing;
+      transform: none;
+    }
+  }
+
+  &__trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 50%;
+    background: #6e4bff;
+    color: #fff;
+    box-shadow: 0 10px 28px rgba(17, 20, 24, 0.22);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+
+    i {
+      font-size: 22px;
+    }
+
+    &:hover,
+    &:focus-visible {
+      background: #7b5cff;
+      box-shadow: 0 12px 32px rgba(17, 20, 24, 0.28);
+      transform: translateY(-1px);
+      outline: none;
+    }
+  }
+
+  &__bubble {
+    position: absolute;
+    right: 0;
+    bottom: 54px;
+    width: 320px;
+    padding: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 16px 42px rgba(17, 20, 24, 0.18);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+
+    &::after {
+      content: '';
+      position: absolute;
+      right: 14px;
+      bottom: -7px;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-right: 1px solid rgba(15, 23, 42, 0.08);
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      transform: rotate(45deg);
+    }
+  }
+
+  &__title {
+    margin-bottom: 10px;
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 600;
+    color: #111418;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    li {
+      min-height: 30px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 18px;
+      color: #4b5563;
+      transition: background 0.15s ease, color 0.15s ease;
+
+      &:hover {
+        background: rgba(110, 75, 255, 0.1);
+        color: #6e4bff;
+      }
+    }
+  }
 }
 </style>

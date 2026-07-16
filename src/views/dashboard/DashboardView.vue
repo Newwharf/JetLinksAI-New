@@ -220,10 +220,12 @@ const levelClass: Record<AlarmLevel, string> = {
   提示: 'is-info'
 }
 
-// 每次进入仪表盘自动弹出欢迎引导
+// 从工作台进入项目后，仅首次进入仪表盘弹出欢迎引导
 const appStore = useAppStore()
 onMounted(() => {
-  appStore.showWelcome()
+  if (appStore.consumeProjectWelcome()) {
+    appStore.showWelcome()
+  }
 })
 </script>
 

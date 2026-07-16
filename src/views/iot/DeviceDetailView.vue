@@ -68,6 +68,7 @@ const accessStep = computed<'init' | 'waiting' | 'done'>(() => {
 
 // 引导期间是否已通过复制触发完成（任意一个复制即可）
 const guideCopyDone = ref(false)
+const accessFinished = ref(false)
 
 // 监听步骤变化，done 时自动更新设备状态
 watch(accessStep, (step) => {
@@ -76,13 +77,21 @@ watch(accessStep, (step) => {
   }
 })
 
+watch(() => appStore.guideStep, (step) => {
+  if (step === 'iot-done') {
+    finishAccess(false)
+  }
+})
+
 /** 接入完成：更新设备状态 + 提示 + 推进引导 */
-function finishAccess() {
+function finishAccess(advanceGuide = true) {
+  if (accessFinished.value) return
+  accessFinished.value = true
   device.value.status = 'online'
   device.value.lastReport = '刚刚'
   device.value.healthScore = 100
   message.success('设备接入成功！')
-  if (appStore.guideActive) {
+  if (advanceGuide && appStore.guideActive) {
     setTimeout(() => appStore.setGuideStep('iot-done'), 600)
   }
 }
@@ -171,6 +180,9 @@ const eventLevelColor: Record<string, string> = {
   <div class="dd-page">
     <!-- Hero -->
     <div class="dd-hero">
+      <button class="dd-hero__back" type="button" @click="goBack">
+        <i class="i-ant-design-arrow-left-outlined" /><span>返回</span>
+      </button>
       <div class="dd-hero__main">
         <div class="dd-hero__icon" :style="{ background: scoreColor + '15', color: scoreColor }">
           <i v-if="!device.icon.startsWith('data:')" :class="device.icon" />
@@ -196,9 +208,6 @@ const eventLevelColor: Record<string, string> = {
         </div>
       </div>
       <div class="dd-hero__actions">
-        <button class="dd-back-btn" type="button" @click="goBack">
-          <i class="i-ant-design-arrow-left-outlined" /><span>返回</span>
-        </button>
         <button
           class="dd-toggle-btn"
           :class="{ 'dd-toggle-btn--disabled': isDisabled }"
@@ -397,8 +406,34 @@ const eventLevelColor: Record<string, string> = {
 
 /* Hero */
 .dd-hero {
+  position: relative;
   display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
-  background: #fff; border-radius: 14px; padding: 16px 20px; flex-shrink: 0;
+  background: #fff; border-radius: 14px; padding: 42px 20px 16px; flex-shrink: 0;
+}
+.dd-hero__back {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: $text-secondary;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease;
+
+  i {
+    font-size: 15px;
+  }
+
+  &:hover {
+    color: $color-primary;
+  }
 }
 .dd-hero__main { display: flex; align-items: flex-start; gap: 14px; flex: 1; min-width: 0; }
 .dd-hero__icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; overflow: hidden; img { width: 100%; height: 100%; object-fit: cover; } }
@@ -419,12 +454,6 @@ const eventLevelColor: Record<string, string> = {
   span { display: flex; align-items: center; gap: 4px; } i { font-size: 13px; color: $text-muted; flex-shrink: 0; }
 }
 .dd-hero__actions { display: flex; gap: 6px; flex-shrink: 0; }
-.dd-back-btn {
-  display: flex; align-items: center; gap: 4px; height: 32px; padding: 0 14px;
-  border: 1px solid $border-color-light; border-radius: 6px; background: #fff; color: $text-secondary;
-  font-size: 13px; cursor: pointer; font-family: inherit; transition: all 0.15s;
-  &:hover { border-color: $color-primary; color: $color-primary; } i { font-size: 14px; }
-}
 .dd-toggle-btn {
   display: flex; align-items: center; gap: 4px; height: 32px; padding: 0 14px;
   border: 1px solid $color-online; border-radius: 6px; background: $color-online; color: #fff;

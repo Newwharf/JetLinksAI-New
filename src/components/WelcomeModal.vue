@@ -1,7 +1,6 @@
 <script setup lang="ts">
 /**
- * 欢迎弹窗 — 首次进入项目时引导用户创建设备
- * 三个入口：创建物联设备、创建视联设备、跳过
+ * 欢迎弹窗 — 首次进入项目时引导用户了解系统板块
  */
 import { useAppStore } from '@/stores/app'
 import { useRouter } from 'vue-router'
@@ -9,17 +8,10 @@ import { useRouter } from 'vue-router'
 const appStore = useAppStore()
 const router = useRouter()
 
-function createIotDevice() {
-  appStore.welcomeVisible = false
-  appStore.guideActive = true
-  appStore.setGuideStep('iot-add')
-  router.push('/iot/device')
-}
-
-function createVideoDevice() {
-  // 先启动引导再跳转，确保引导状态在路由切换前就绪
-  appStore.startVideoGuide()
-  router.push('/video/device')
+function startGuide() {
+  appStore.setScenario('general')
+  appStore.startSystemGuide()
+  router.push('/dashboard')
 }
 
 function skip() {
@@ -39,32 +31,14 @@ function skip() {
         <!-- 标题 -->
         <h2 class="welcome-dialog__title">欢迎使用 JetLinks</h2>
         <p class="welcome-dialog__desc">
-          让我们添加第一个设备来开始使用平台。选择下方任意<br />
-          入口，跟随引导快速完成配置。
+          完成下面简单几步，快速了解项目中的核心功能和常用入口。
         </p>
 
-        <!-- 入口卡片 -->
-        <div class="welcome-dialog__cards">
-          <button class="welcome-card welcome-card--iot" type="button" @click="createIotDevice">
-            <div class="welcome-card__icon">
-              <i class="i-ant-design-api-outlined" />
-            </div>
-            <div class="welcome-card__body">
-              <span class="welcome-card__name">创建物联设备</span>
-              <span class="welcome-card__hint">接入传感器、网关等物联设备</span>
-            </div>
-            <i class="welcome-card__arrow i-ant-design-arrow-right-outlined" />
-          </button>
-
-          <button class="welcome-card welcome-card--video" type="button" @click="createVideoDevice">
-            <div class="welcome-card__icon">
-              <i class="i-ant-design-video-camera-outlined" />
-            </div>
-            <div class="welcome-card__body">
-              <span class="welcome-card__name">创建视联设备</span>
-              <span class="welcome-card__hint">接入摄像头、NVR 等视频设备</span>
-            </div>
-            <i class="welcome-card__arrow i-ant-design-arrow-right-outlined" />
+        <!-- 操作按钮 -->
+        <div class="welcome-dialog__actions">
+          <button class="welcome-dialog__primary" type="button" @click="startGuide">
+            <i class="i-ant-design-play-circle-outlined" />
+            开始新手引导
           </button>
         </div>
 
@@ -131,12 +105,34 @@ function skip() {
     text-align: center;
   }
 
-  &__cards {
+  &__actions {
     width: 100%;
     display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 16px;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+
+  &__primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 136px;
+    height: 34px;
+    padding: 0 18px;
+    border: 1px solid $color-primary;
+    border-radius: 6px;
+    background: $color-primary;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s;
+    gap: 6px;
+
+    i { font-size: 15px; }
+
+    &:hover { background: $color-primary-hover; }
   }
 
   &__skip {
@@ -148,87 +144,6 @@ function skip() {
     padding: 4px 8px;
     transition: color 0.15s;
     &:hover { color: $color-primary; }
-  }
-}
-
-/* 入口卡片 */
-.welcome-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 14px 16px;
-  border: 2px solid $border-color-card;
-  border-radius: 12px;
-  background: #fff;
-  cursor: pointer;
-  transition: all 0.15s;
-  text-align: left;
-  font-family: inherit;
-
-  &:hover:not(:disabled) {
-    border-color: $color-primary;
-    background: #faf9ff;
-  }
-
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
-  &__icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    flex-shrink: 0;
-  }
-
-  &--iot .welcome-card__icon {
-    background: rgba(24, 144, 255, 0.1);
-    color: #1890ff;
-  }
-
-  &--video .welcome-card__icon {
-    background: $color-primary-bg;
-    color: $color-primary;
-  }
-
-  &__body {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  &__name {
-    font-size: 14px;
-    font-weight: 600;
-    color: $text-base;
-  }
-
-  &__hint {
-    font-size: 12px;
-    color: $text-muted;
-  }
-
-  &__tag {
-    font-size: 10px;
-    color: $text-muted;
-    background: $bg-page;
-    padding: 2px 8px;
-    border-radius: 9999px;
-    flex-shrink: 0;
-  }
-
-  &__arrow {
-    font-size: 16px;
-    color: $color-primary;
-    flex-shrink: 0;
   }
 }
 

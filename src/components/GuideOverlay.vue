@@ -7,7 +7,7 @@
 import { useAppStore, type GuideStep } from '@/stores/app'
 import { useRouter } from 'vue-router'
 import loginImg from '@/assets/cameras/image.png'
-import gatewayImg from '@/assets/cameras/gateway.png'
+import gatewayDisplayImg from '@/assets/gatewaypic/gatew1.png'
 import cameraThumb01 from '@/assets/text-search/result-01.jpg'
 import cameraThumb02 from '@/assets/text-search/result-02.jpg'
 import cameraThumb03 from '@/assets/text-search/result-03.jpg'
@@ -21,36 +21,56 @@ interface StepConfig {
   targetSelector?: boolean  // 为 true 时 target 作为 CSS 选择器
   title: string
   desc: string
+  keywords?: string[]
+  points?: string[]
   placement?: 'bottom' | 'top' | 'right' | 'left' | 'center' | 'highlight-modal'
 }
 
 const stepConfigs: Record<Exclude<GuideStep, ''>, StepConfig> = {
-  'add-gateway': {
-    target: 'add-gateway',
-    title: '第一步：新增网关',
-    desc: '点击此按钮接入你的第一个边缘网关，网关是管理视频设备的入口。',
+  'workbench-gateway-tab': {
+    target: 'workbench-gateway-tab',
+    title: '第一步：切换到我的网关',
+    desc: '点击「我的网关」标签，进入当前账号下的网关列表。',
     placement: 'bottom'
   },
+  'workbench-gateway-access': {
+    target: 'workbench-gateway-access',
+    title: '第二步：接入网关',
+    desc: '点击列表末尾的「接入网关」，通过 SN 码或扫码把边缘网关接入账号。',
+    placement: 'top'
+  },
   'bind-gateway': {
-    target: '.gateway-pool-modal-wrap .ant-modal, .bind-modal-wrap .ant-modal',
+    target: '.bind-modal-wrap .ant-modal-content',
     targetSelector: true,
-    title: '第二步：绑定网关',
-    desc: '先选择可加入当前项目的网关；如果没有合适的网关，可点击「新增网关」通过 SN 码或扫码接入新的网关。',
+    title: '第三步：新增网关',
+    desc: '可以输入网关 SN 码，也可以切换到扫码接入。识别成功后选择网关当前状态。',
     placement: 'highlight-modal'
   },
   'gw-online-configured': {
-    target: '.gw-online-modal-wrap .ant-modal',
+    target: '.gw-online-modal-wrap .ant-modal-content',
     targetSelector: true,
-    title: '第三步：网关已接入',
-    desc: '该网关已配置了部分摄像头设备，你可以查看已接入的摄像头画面，也可以继续绑定更多摄像头。',
+    title: '第四步：网关已接入',
+    desc: '该网关已配置了设备，你现在可以进入项目探索功能或进入网关接入更多设备。',
     placement: 'highlight-modal'
   },
   'gw-online-empty': {
-    target: '.gw-online-modal-wrap .ant-modal',
+    target: '.gw-online-modal-wrap .ant-modal-content',
     targetSelector: true,
-    title: '第三步：网关已接入',
-    desc: '该网关尚未接入任何摄像头设备，请前往绑定摄像头以开始使用视频功能。',
+    title: '第四步：网关已接入',
+    desc: '当前网关还未接入设备，可前往网关继续接入摄像头、采集器或其他边缘设备。',
     placement: 'highlight-modal'
+  },
+  'workbench-gateway-detail': {
+    target: 'workbench-gateway-detail',
+    title: '第五步：进入网关详情',
+    desc: '点击该网关卡片，进入详情页查看状态和配置入口。',
+    placement: 'top'
+  },
+  'gateway-detail-enter': {
+    target: 'gateway-detail-enter',
+    title: '第六步：进入网关',
+    desc: '点击「进入网关」，打开网关地址页继续接入和配置设备。',
+    placement: 'left'
   },
   'gw-offline': {
     target: 'gw-offline',
@@ -58,47 +78,71 @@ const stepConfigs: Record<Exclude<GuideStep, ''>, StepConfig> = {
     desc: '',
     placement: 'center'
   },
-  'goto-config': {
-    target: 'goto-config',
-    title: '第四步：配置设备',
-    desc: '点击「配置设备」按钮，进入网关地址页面绑定摄像头。',
+  // ===== 系统总览引导步骤 =====
+  'system-dashboard': {
+    target: 'nav-dashboard',
+    title: '仪表盘',
+    desc: '在此处可查看系统整体运行情况。',
     placement: 'right'
   },
-  'gw-address': {
-    target: 'gw-address-add',
-    title: '第五步：新增设备',
-    desc: '点击「新增」按钮，开始为网关接入摄像头设备。',
-    placement: 'bottom'
+  'system-space': {
+    target: 'nav-space',
+    title: '空间态势',
+    desc: '在此处可查看空间、楼层、区域和设备分布，快速定位现场状态。',
+    placement: 'right'
   },
-  'scan-device': {
-    target: 'scan-device',
-    title: '第六步：一键同步',
-    desc: '点击「一键同步」，系统会自动扫描局域网内所有可用的摄像头设备。',
-    placement: 'bottom'
+  'system-video': {
+    target: 'nav-video',
+    title: '视联中心',
+    desc: '在此处可分屏查看摄像头的实时画面、查看每个摄像头的告警记录以及录像回放。',
+    placement: 'right'
   },
-  'select-device': {
-    target: 'select-device',
-    title: '第七步：选择设备',
-    desc: '勾选你需要绑定的摄像头，可以多选。选好后点击「绑定」按钮。',
-    placement: 'bottom'
+  'system-image-search': {
+    target: 'nav-image-search',
+    title: '文搜图',
+    desc: '在此处可通过自然语言快速搜索目标人员和车辆。',
+    placement: 'right'
   },
-  'bind-device': {
-    target: '.add-device-modal-wrap .ant-modal',
-    targetSelector: true,
-    title: '第八步：输入密码绑定',
-    desc: '输入摄像头的账号密码，点击绑定完成设备接入。如果部分摄像头的账号或密码错误，可以在结果页中逐个重新输入。',
-    placement: 'highlight-modal'
+  'system-flow': {
+    target: 'nav-flow',
+    title: '客流分析',
+    desc: '在此处可为每个摄像头画面划线，统计该点位的人员进出情况和人员画像。',
+    placement: 'right'
   },
-  'done': {
-    target: 'done',
-    title: '视联设备绑定成功！',
-    desc: '你已经完成了视联设备的接入，现在可以开始配置告警规则了。',
-    placement: 'center'
+  'system-alarm': {
+    target: 'nav-alarm',
+    title: '告警中心',
+    desc: '在此处可配置告警规则，查看和处理告警事件。',
+    placement: 'right'
   },
-  'video-done': {
-    target: 'video-done',
-    title: '🎉 设备接入成功！',
-    desc: '恭喜你完成了视联设备的接入流程。现在你可以在监控墙中查看实时画面，配置告警规则让系统自动守护你的安全。',
+  'system-inspection': {
+    target: 'nav-inspection',
+    title: '巡检',
+    desc: '在此处可配置巡检方案，分析巡检完成情况并留下完整记录。',
+    placement: 'right'
+  },
+  'system-visualization': {
+    target: 'nav-visualization',
+    title: '可视化',
+    desc: '在此处可搭建可视化大屏，配置设备连接集中展示设备数据。',
+    placement: 'right'
+  },
+  'system-iot': {
+    target: 'nav-iot',
+    title: '物联设备',
+    desc: '在此处可新增和管理物联设备，查看设备状态和告警。',
+    placement: 'right'
+  },
+  'system-archive': {
+    target: 'nav-archive',
+    title: '归档',
+    desc: '系统中的告警、拍摄的画面和巡检记录归档后会集中在这里统一管理。',
+    placement: 'right'
+  },
+  'system-done': {
+    target: 'system-done',
+    title: '已浏览系统功能',
+    desc: '您已熟悉系统核心功能板块，推荐您开始后续业务配置',
     placement: 'center'
   },
   // ===== IoT 引导步骤 =====
@@ -123,9 +167,9 @@ const stepConfigs: Record<Exclude<GuideStep, ''>, StepConfig> = {
     placement: 'highlight-modal'
   },
   'iot-detail': {
-    target: 'iot-device-name',
+    target: 'iot-device-row',
     title: '第四步：进入设备详情',
-    desc: '点击设备名称进入设备详情页，查看和管理设备。',
+    desc: '点击设备所在行进入设备详情页，查看和管理设备。',
     placement: 'bottom'
   },
   'iot-access': {
@@ -193,6 +237,63 @@ const stepConfigs: Record<Exclude<GuideStep, ''>, StepConfig> = {
     title: '🎉 告警规则创建成功！',
     desc: '系统将按照你设置的规则自动监控，发现异常时实时推送告警通知。',
     placement: 'center'
+  },
+  // ===== 网关地址页引导步骤 =====
+  'gateway-workbench': {
+    target: 'gateway-nav-workbench',
+    title: '工作台',
+    desc: '可在此处快速掌握边缘网关的整体健康状态。',
+    keywords: ['网关总览'],
+    points: ['查看资源使用、运行状态和本地时间', '查看设备在线、数据采集和网络数据量', '了解视频接入概况'],
+    placement: 'bottom'
+  },
+  'gateway-iot': {
+    target: 'gateway-nav-iot',
+    title: '物联网',
+    desc: '可在此处完成物联网设备接入、运行管理和数据采集配置。',
+    keywords: ['设备接入', '规则告警', '数据采集'],
+    points: ['管理产品、设备和设备接入能力', '配置告警、规则编排和场景联动', '管理采集通道、采集器和点位运行情况'],
+    placement: 'bottom'
+  },
+  'gateway-config': {
+    target: 'gateway-nav-config',
+    title: '网关配置',
+    desc: '可在此处维护边缘网关本身的接入、运维和扩展能力。',
+    keywords: ['网关接入', '运维配置', '扩展管理'],
+    points: ['配置网关与平台的接入关系', '管理远程终端、文件、插件和固件升级', '配置网卡网络信息和串口连接能力'],
+    placement: 'bottom'
+  },
+  'gateway-video': {
+    target: 'gateway-nav-video',
+    title: '视频中心',
+    desc: '可在此处完成视频设备接入、实时查看和录像管理。',
+    keywords: ['视频接入', '实时预览', '录像管理'],
+    points: ['新增和管理摄像头等视频设备', '分屏查看摄像头实时画面', '配置国标级联、录像计划并查看录像记录'],
+    placement: 'bottom'
+  },
+  'gateway-system': {
+    target: 'gateway-nav-system',
+    title: '系统管理',
+    desc: '可在此处管理系统基础信息、用户权限和日历标签。',
+    keywords: ['系统配置', '用户权限', '日历维护'],
+    points: ['查看和编辑系统信息、访问地址及个性化配置', '管理用户、角色和权限', '维护可被场景联动引用的日历标签'],
+    placement: 'bottom'
+  },
+  'gateway-ai': {
+    target: 'gateway-nav-ai',
+    title: '人工智能',
+    desc: '可在此处配置智能体、知识库和机器视觉能力。',
+    keywords: ['智能体', '知识库', '机器视觉'],
+    points: ['创建和管理智能体、大模型供应商、工具和技能', '管理知识库并进行智能搜索', '配置视觉分析、模型、驱动、工作计划和识别记录'],
+    placement: 'bottom'
+  },
+  'gateway-resource': {
+    target: 'gateway-nav-resource',
+    title: '资源库',
+    desc: '可在此处沉淀可复用的数据采集配置资源。',
+    keywords: ['采集器模板'],
+    points: ['新增和管理采集器模板', '复用常用采集配置'],
+    placement: 'bottom'
   }
 }
 
@@ -202,9 +303,23 @@ const tooltipStyle = ref<Record<string, string>>({})
 const targetFound = ref(false)
 // highlight-modal 模式下弹窗的水平偏移量（右侧空间不足时左移弹窗）
 const modalShiftX = ref(0)
+let activeTargetEl: HTMLElement | null = null
 
 const currentStep = computed(() => appStore.guideStep)
 const currentConfig = computed(() => currentStep.value ? stepConfigs[currentStep.value] : null)
+
+function clearActiveTarget() {
+  if (!activeTargetEl) return
+  activeTargetEl.classList.remove('guide-target-active')
+  activeTargetEl = null
+}
+
+function setActiveTarget(el: HTMLElement) {
+  if (activeTargetEl === el) return
+  clearActiveTarget()
+  activeTargetEl = el
+  activeTargetEl.classList.add('guide-target-active')
+}
 
 function resolveGuideTarget(selector: string): HTMLElement | null {
   const elements = Array.from(document.querySelectorAll(selector)) as HTMLElement[]
@@ -217,7 +332,10 @@ function resolveGuideTarget(selector: string): HTMLElement | null {
 }
 
 function updatePosition() {
-  if (!currentConfig.value) return
+  if (!currentConfig.value) {
+    clearActiveTarget()
+    return
+  }
 
   // 非 highlight-modal 模式重置弹窗偏移
   if (currentConfig.value.placement !== 'highlight-modal') {
@@ -226,6 +344,7 @@ function updatePosition() {
 
   // center 模式不需要 target 元素，直接居中
   if (currentConfig.value.placement === 'center') {
+    clearActiveTarget()
     targetFound.value = true
     highlightRect.value = { top: 0, left: 0, width: 0, height: 0 }
     tooltipStyle.value = {
@@ -240,6 +359,7 @@ function updatePosition() {
     ? resolveGuideTarget(currentConfig.value.target)
     : document.querySelector(`[data-guide="${currentConfig.value.target}"]`) as HTMLElement | null
   if (!el) {
+    clearActiveTarget()
     targetFound.value = false
     return
   }
@@ -247,8 +367,14 @@ function updatePosition() {
   const rect = el.getBoundingClientRect()
 
   if (currentConfig.value.placement === 'highlight-modal') {
+    clearActiveTarget()
     // 高亮弹窗模式：全屏蒙版 + 气泡在弹窗外侧（优先右侧）
-    highlightRect.value = { top: 0, left: 0, width: 0, height: 0 }
+    highlightRect.value = {
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      height: rect.height
+    }
     const tooltipWidth = 320
     // 测量气泡实际高度，避免与弹窗重叠
     const tipEl = document.querySelector('.guide-tip') as HTMLElement | null
@@ -285,6 +411,7 @@ function updatePosition() {
     }
     return
   }
+  setActiveTarget(el)
 
   // 高亮目标元素
   highlightRect.value = {
@@ -407,18 +534,27 @@ function onGuidePositionRefresh() {
     setTimeout(updatePosition, 320)
   })
 }
+function completeIotAccessGuide() {
+  if (appStore.guideActive && currentStep.value === 'iot-access-config') {
+    appStore.setGuideStep('iot-done')
+  }
+}
 onMounted(() => {
   window.addEventListener('resize', onResize)
   window.addEventListener('guide-position-refresh', onGuidePositionRefresh)
+  document.addEventListener('click', completeIotAccessGuide, true)
   nextTick(() => setTimeout(updatePosition, 100))
 })
 onBeforeUnmount(() => {
+  clearActiveTarget()
   window.removeEventListener('resize', onResize)
   window.removeEventListener('guide-position-refresh', onGuidePositionRefresh)
+  document.removeEventListener('click', completeIotAccessGuide, true)
 })
 
 // ===== 步骤控制 =====
 function closeGuide() {
+  clearActiveTarget()
   if (appStore.guideActive) {
     appStore.finishGuide()
   } else {
@@ -450,33 +586,20 @@ watch(() => appStore.guideStep, (step) => {
   }
 }, { immediate: true })
 
-function goToAlarm() {
-  if (appStore.guideActive) appStore.setGuideStep('alarm-create')
-  else appStore.setGuideStep('')
-  router.push('/alarm/rule')
-}
-
-function goToGatewayAddress() {
-  const gatewayId = appStore.guideGatewayId || 'gw-guide'
+function goToProject() {
   appStore.setGuideStep('')
+  appStore.requestProjectWelcome()
   gwOnlineModalVisible.value = false
-  router.push(`/video/device/gateway/${gatewayId}/address`)
+  router.push('/dashboard')
 }
 
-/** 从 center 提示页推进到 goto-config（继续绑定/前往绑定） */
+/** 从网关接入结果页继续引导到工作台网关详情 */
 function goToConfig() {
-  if (appStore.guideActive) {
-    appStore.setGuideStep('goto-config')
-  } else {
-    goToGatewayAddress()
-  }
-}
-
-/** 从 center 提示页直接去配置告警 */
-function goToAlarmFromGuide() {
-  if (appStore.guideActive) appStore.setGuideStep('alarm-create')
-  else appStore.setGuideStep('')
-  router.push('/alarm/rule')
+  gwOnlineModalVisible.value = false
+  appStore.setGuideStep('workbench-gateway-detail')
+  router.push('/workbench').then(() => {
+    nextTick(() => window.dispatchEvent(new Event('guide-position-refresh')))
+  })
 }
 
 // ===== 离线网关：视频教程播放 =====
@@ -514,7 +637,7 @@ function handleDetectSelect(result: 'has-device' | 'no-device') {
 function startDetect() {
   if (detectStatus.value !== 'idle') return
   detectStatus.value = 'detecting'
-  // 模拟检测：3 秒后发现网关上线
+  // 模拟检测：0.3 秒后发现网关上线
   const targetStep = detectResult === 'has-device' ? 'gw-online-configured' : 'gw-online-empty'
   setTimeout(() => {
     detectStatus.value = 'online'
@@ -525,7 +648,7 @@ function startDetect() {
       onlineToastVisible.value = false
       appStore.setGuideStep(targetStep as GuideStep)
     }, 3000)
-  }, 3000)
+  }, 300)
 }
 
 // ===== 网络配置弹窗（手机模拟器） =====
@@ -567,6 +690,11 @@ const onlineCameras = [
   { name: '前门摄像头', status: 'online', thumb: cameraThumb01 },
   { name: '大厅摄像头', status: 'online', thumb: cameraThumb02 },
   { name: '走廊摄像头', status: 'offline', thumb: cameraThumb03 },
+  { name: '电梯厅摄像头', status: 'online', thumb: cameraThumb01 },
+  { name: '后门摄像头', status: 'online', thumb: cameraThumb02 },
+  { name: '仓库入口摄像头', status: 'offline', thumb: cameraThumb03 },
+  { name: '停车场入口摄像头', status: 'online', thumb: cameraThumb01 },
+  { name: '消防通道摄像头', status: 'online', thumb: cameraThumb02 },
 ]
 const cameraPreviewVisible = ref(false)
 const cameraPreviewTarget = ref<typeof onlineCameras[number] | null>(null)
@@ -577,21 +705,84 @@ function openCameraPreview(cam: typeof onlineCameras[number]) {
 }
 
 const stepIndex = computed(() => {
-  const videoSteps: GuideStep[] = ['add-gateway', 'bind-gateway', 'gw-online-configured', 'goto-config', 'gw-address', 'scan-device', 'select-device']
+  const systemSteps: GuideStep[] = ['system-dashboard', 'system-space', 'system-video', 'system-image-search', 'system-flow', 'system-alarm', 'system-inspection', 'system-visualization', 'system-iot', 'system-archive', 'system-done']
+  const workbenchGatewaySteps: GuideStep[] = ['workbench-gateway-tab', 'workbench-gateway-access', 'bind-gateway', 'gw-online-empty', 'workbench-gateway-detail', 'gateway-detail-enter']
   const iotSteps: GuideStep[] = ['iot-add', 'iot-select', 'iot-config', 'iot-detail', 'iot-access', 'iot-access-config', 'iot-done']
   const alarmSteps: GuideStep[] = ['alarm-create', 'alarm-step0', 'alarm-step1', 'alarm-step2', 'alarm-step3', 'alarm-step4', 'alarm-done']
-  let idx = alarmSteps.indexOf(currentStep.value)
+  const gatewaySteps: GuideStep[] = ['gateway-workbench', 'gateway-iot', 'gateway-config', 'gateway-video', 'gateway-system', 'gateway-ai', 'gateway-resource']
+  let idx = systemSteps.indexOf(currentStep.value)
+  if (idx >= 0) return idx
+  idx = workbenchGatewaySteps.indexOf(currentStep.value === 'gw-online-configured' ? 'gw-online-empty' : currentStep.value)
+  if (idx >= 0) return idx
+  idx = alarmSteps.indexOf(currentStep.value)
   if (idx >= 0) return idx
   idx = iotSteps.indexOf(currentStep.value)
   if (idx >= 0) return idx
-  // gw-online-empty 和 gw-online-configured 共享同一步骤位置
-  if (currentStep.value === 'gw-online-empty') return videoSteps.indexOf('gw-online-configured')
-  return videoSteps.indexOf(currentStep.value)
+  idx = gatewaySteps.indexOf(currentStep.value)
+  if (idx >= 0) return idx
+  return -1
 })
 const totalSteps = computed(() => {
+  const systemSteps: GuideStep[] = ['system-dashboard', 'system-space', 'system-video', 'system-image-search', 'system-flow', 'system-alarm', 'system-inspection', 'system-visualization', 'system-iot', 'system-archive', 'system-done']
+  const workbenchGatewaySteps: GuideStep[] = ['workbench-gateway-tab', 'workbench-gateway-access', 'bind-gateway', 'gw-online-empty', 'workbench-gateway-detail', 'gateway-detail-enter']
   const iotSteps: GuideStep[] = ['iot-add', 'iot-select', 'iot-config', 'iot-detail', 'iot-access', 'iot-access-config', 'iot-done']
+  const gatewaySteps: GuideStep[] = ['gateway-workbench', 'gateway-iot', 'gateway-config', 'gateway-video', 'gateway-system', 'gateway-ai', 'gateway-resource']
+  if (systemSteps.includes(currentStep.value)) return systemSteps.length
+  if (workbenchGatewaySteps.includes(currentStep.value) || currentStep.value === 'gw-online-configured') return workbenchGatewaySteps.length
+  if (gatewaySteps.includes(currentStep.value)) return gatewaySteps.length
   return iotSteps.includes(currentStep.value) ? 7 : 7
 })
+
+const systemGuideSteps: GuideStep[] = ['system-dashboard', 'system-space', 'system-video', 'system-image-search', 'system-flow', 'system-alarm', 'system-inspection', 'system-visualization', 'system-iot', 'system-archive', 'system-done']
+const isSystemGuideStep = computed(() => systemGuideSteps.includes(currentStep.value))
+const systemGuideIndex = computed(() => systemGuideSteps.indexOf(currentStep.value))
+const gatewayGuideSteps: GuideStep[] = ['gateway-workbench', 'gateway-iot', 'gateway-config', 'gateway-video', 'gateway-system', 'gateway-ai', 'gateway-resource']
+const isGatewayGuideStep = computed(() => gatewayGuideSteps.includes(currentStep.value))
+const gatewayGuideIndex = computed(() => gatewayGuideSteps.indexOf(currentStep.value))
+
+function goSystemGuidePrev() {
+  const index = systemGuideIndex.value
+  if (index <= 0) return
+  appStore.setGuideStep(systemGuideSteps[index - 1])
+}
+
+function goSystemGuideNext() {
+  const index = systemGuideIndex.value
+  if (index < 0) return
+  const nextStep = systemGuideSteps[index + 1]
+  if (nextStep) {
+    appStore.setGuideStep(nextStep)
+  } else {
+    closeGuide()
+  }
+}
+
+function startIotFromSystemGuide() {
+  appStore.startIotGuideDirect()
+  router.push('/iot/device')
+}
+
+function startAlarmFromSystemGuide() {
+  appStore.startAlarmGuideDirect()
+  router.push('/alarm/rule')
+}
+
+function goGatewayGuidePrev() {
+  const index = gatewayGuideIndex.value
+  if (index <= 0) return
+  appStore.setGuideStep(gatewayGuideSteps[index - 1])
+}
+
+function goGatewayGuideNext() {
+  const index = gatewayGuideIndex.value
+  if (index < 0) return
+  const nextStep = gatewayGuideSteps[index + 1]
+  if (nextStep) {
+    appStore.setGuideStep(nextStep)
+  } else {
+    closeGuide()
+  }
+}
 
 /** 分支提示页（center 模式，不显示步骤号） */
 const gatewayResultSteps: GuideStep[] = ['gw-online-configured', 'gw-online-empty', 'gw-offline']
@@ -617,10 +808,37 @@ const isBranchStep = computed(() =>
       class="guide-mask-full"
     />
     <template v-if="appStore.guideActive && currentConfig?.placement !== 'center' && currentConfig?.placement !== 'highlight-modal' && targetFound">
-      <div class="guide-mask-piece" :style="{ top: '0', left: '0', right: '0', height: (highlightRect.top - 4) + 'px' }" />
-      <div class="guide-mask-piece" :style="{ top: (highlightRect.top + highlightRect.height + 4) + 'px', left: '0', right: '0', bottom: '0' }" />
-      <div class="guide-mask-piece" :style="{ top: (highlightRect.top - 4) + 'px', left: '0', width: (highlightRect.left - 4) + 'px', height: (highlightRect.height + 8) + 'px' }" />
-      <div class="guide-mask-piece" :style="{ top: (highlightRect.top - 4) + 'px', left: (highlightRect.left + highlightRect.width + 4) + 'px', right: '0', height: (highlightRect.height + 8) + 'px' }" />
+      <div
+        class="guide-mask-piece"
+        :style="{ top: '0px', left: '0px', width: '100vw', height: Math.max(0, highlightRect.top - 4) + 'px' }"
+      />
+      <div
+        class="guide-mask-piece"
+        :style="{
+          top: highlightRect.top - 4 + 'px',
+          left: '0px',
+          width: Math.max(0, highlightRect.left - 4) + 'px',
+          height: highlightRect.height + 8 + 'px'
+        }"
+      />
+      <div
+        class="guide-mask-piece"
+        :style="{
+          top: highlightRect.top - 4 + 'px',
+          left: highlightRect.left + highlightRect.width + 4 + 'px',
+          width: `calc(100vw - ${highlightRect.left + highlightRect.width + 4}px)`,
+          height: highlightRect.height + 8 + 'px'
+        }"
+      />
+      <div
+        class="guide-mask-piece"
+        :style="{
+          top: highlightRect.top + highlightRect.height + 4 + 'px',
+          left: '0px',
+          width: '100vw',
+          height: `calc(100vh - ${highlightRect.top + highlightRect.height + 4}px)`
+        }"
+      />
       <div
         class="guide-highlight"
         :style="{
@@ -631,43 +849,99 @@ const isBranchStep = computed(() =>
         }"
       />
     </template>
+    <template v-if="appStore.guideActive && currentConfig?.placement === 'highlight-modal' && targetFound">
+      <div
+        class="guide-highlight guide-highlight--modal"
+        :style="{
+          top: highlightRect.top - 6 + 'px',
+          left: highlightRect.left - 6 + 'px',
+          width: highlightRect.width + 12 + 'px',
+          height: highlightRect.height + 12 + 'px'
+        }"
+      />
+    </template>
     <Transition name="guide-tip">
       <div
         v-if="showGuideContent && (targetFound || currentConfig?.placement === 'center' || currentConfig?.placement === 'highlight-modal')"
         class="guide-tip"
         :class="[
           currentConfig?.placement === 'highlight-modal' ? 'tip-arrow tip-arrow--right guide-tip--above-modal' : (currentConfig?.placement ? `tip-arrow tip-arrow--${currentConfig?.placement}` : ''),
-          currentStep === 'gw-offline' ? 'guide-tip--wide' : ''
+          currentStep === 'gw-offline' ? 'guide-tip--wide' : '',
+          currentStep === 'system-done' ? 'guide-tip--system-done' : ''
         ]"
         :style="tooltipStyle"
       >
-        <div v-if="!isBranchStep && currentStep !== 'video-done' && currentStep !== 'iot-done' && currentStep !== 'alarm-done'" class="guide-tip__header">
+        <div v-if="!isBranchStep && currentStep !== 'iot-done' && currentStep !== 'alarm-done' && currentStep !== 'system-done'" class="guide-tip__header">
           <span class="guide-tip__step">{{ stepIndex >= 0 ? stepIndex + 1 : '' }} / {{ totalSteps }}</span>
           <button class="guide-tip__close" type="button" @click="closeGuide">
             <i class="i-ant-design-close-outlined" />
           </button>
         </div>
-        <div v-else class="guide-tip__header">
+        <div v-else-if="currentStep !== 'system-done'" class="guide-tip__header">
           <span class="guide-tip__step"></span>
           <button class="guide-tip__close" type="button" @click="closeGuide">
             <i class="i-ant-design-close-outlined" />
           </button>
         </div>
 
-        <h3 class="guide-tip__title">
-          <i v-if="currentStep === 'done' || currentStep === 'video-done' || currentStep === 'iot-done' || currentStep === 'alarm-done'" class="i-ant-design-check-circle-filled guide-tip__done-icon" />
+        <div v-if="currentStep === 'system-done'" class="system-done-card">
+          <button class="system-done-card__close" type="button" @click="closeGuide">
+            <i class="i-ant-design-close-outlined" />
+          </button>
+          <div class="system-done-card__icon">
+            <i class="i-ant-design-check-outlined" />
+          </div>
+          <h3 class="system-done-card__title">{{ currentConfig?.title }}</h3>
+          <p class="system-done-card__desc">{{ currentConfig?.desc }}</p>
+          <div class="system-done-card__actions">
+            <button class="system-done-card__entry system-done-card__entry--iot" type="button" @click="startIotFromSystemGuide">
+              <span class="system-done-card__entry-icon">
+                <i class="i-ant-design-api-outlined" />
+              </span>
+              <span class="system-done-card__entry-body">
+                <strong>创建物联设备</strong>
+                <small>接入传感器、网关等物联设备</small>
+              </span>
+              <i class="system-done-card__entry-arrow i-ant-design-arrow-right-outlined" />
+            </button>
+            <button class="system-done-card__entry system-done-card__entry--alarm" type="button" @click="startAlarmFromSystemGuide">
+              <span class="system-done-card__entry-icon">
+                <i class="i-ant-design-bell-outlined" />
+              </span>
+              <span class="system-done-card__entry-body">
+                <strong>配置告警规则</strong>
+                <small>设置检测场景、摄像头和通知对象</small>
+              </span>
+              <i class="system-done-card__entry-arrow i-ant-design-arrow-right-outlined" />
+            </button>
+          </div>
+          <button class="system-done-card__skip" type="button" @click="closeGuide">稍后再说</button>
+        </div>
+
+        <h3 v-else class="guide-tip__title">
+          <i v-if="currentStep === 'iot-done' || currentStep === 'alarm-done'" class="i-ant-design-check-circle-filled guide-tip__done-icon" />
           <i v-else-if="currentStep === 'gw-offline'" class="i-ant-design-exclamation-circle-filled guide-tip__done-icon" style="color: #ff4d4f;" />
           {{ currentConfig?.title }}
         </h3>
-        <p v-if="currentConfig?.desc" class="guide-tip__desc">{{ currentConfig?.desc }}</p>
+        <p v-if="currentStep !== 'system-done' && currentConfig?.desc" class="guide-tip__desc">{{ currentConfig?.desc }}</p>
+        <ul v-if="currentStep !== 'system-done' && currentConfig?.points?.length" class="guide-tip__points">
+          <li v-for="point in currentConfig.points" :key="point">{{ point }}</li>
+        </ul>
+        <div v-if="currentStep !== 'system-done' && currentConfig?.keywords?.length" class="guide-tip__keywords">
+          <span v-for="keyword in currentConfig.keywords" :key="keyword" class="guide-tip__keyword">
+            {{ keyword }}
+          </span>
+        </div>
 
         <div v-if="currentStep === 'gw-offline'" class="gw-online-modal__gateway gw-offline-gateway">
-          <img :src="gatewayImg" class="gw-online-modal__gateway-img" alt="网关设备" draggable="false" />
+          <img :src="gatewayDisplayImg" class="gw-online-modal__gateway-img" alt="网关设备" draggable="false" />
           <div class="gw-online-modal__gateway-info">
             <span class="gw-online-modal__gateway-label">网关名称</span>
             <strong class="gw-online-modal__gateway-name">JetLinks 边缘网关</strong>
             <span class="gw-online-modal__gateway-label">网关序列号</span>
             <strong class="gw-online-modal__gateway-sn">GW-58740736</strong>
+            <span class="gw-online-modal__gateway-label">所属项目</span>
+            <strong class="gw-online-modal__gateway-name">{{ appStore.guideGatewayProjectName || '未加入项目' }}</strong>
           </div>
         </div>
 
@@ -706,23 +980,47 @@ const isBranchStep = computed(() =>
         <div v-if="currentStep === 'alarm-done'" class="guide-tip__actions">
           <button class="guide-tip__btn guide-tip__btn--primary" type="button" @click="closeGuide" style="flex: 1;">确定</button>
         </div>
-        <div v-if="currentStep === 'done'" class="guide-tip__actions">
-          <button class="guide-tip__btn guide-tip__btn--default" type="button" @click="closeGuide">跳过</button>
-          <button class="guide-tip__btn guide-tip__btn--primary" type="button" @click="goToAlarm">
-            <i class="i-ant-design-bell-outlined" />
-            去配置告警
-          </button>
-        </div>
         <div v-if="currentStep === 'gw-offline'" class="guide-tip__offline-actions">
           <button class="guide-tip__skip" type="button" @click="closeGuide">跳过，稍后再说</button>
-        </div>
-        <div v-if="currentStep === 'video-done'" class="guide-tip__actions">
-          <button class="guide-tip__btn guide-tip__btn--primary" type="button" @click="closeGuide" style="flex: 1;">确定</button>
         </div>
         <div v-if="currentStep === 'iot-done'" class="guide-tip__actions">
           <button class="guide-tip__btn guide-tip__btn--primary" type="button" @click="closeGuide" style="flex: 1;">完成</button>
         </div>
-        <div v-if="currentConfig?.placement !== 'center' && currentConfig?.placement !== 'highlight-modal'" class="guide-tip__footer">
+        <div v-if="isSystemGuideStep && currentStep !== 'system-done'" class="guide-tip__actions guide-tip__actions--nav">
+          <button
+            v-if="systemGuideIndex > 0"
+            class="guide-tip__btn guide-tip__btn--default"
+            type="button"
+            @click="goSystemGuidePrev"
+          >
+            上一步
+          </button>
+          <button
+            class="guide-tip__btn guide-tip__btn--primary"
+            type="button"
+            @click="goSystemGuideNext"
+          >
+            {{ systemGuideIndex === systemGuideSteps.length - 2 ? '完成' : '下一步' }}
+          </button>
+        </div>
+        <div v-if="isGatewayGuideStep" class="guide-tip__actions guide-tip__actions--nav">
+          <button
+            v-if="gatewayGuideIndex > 0"
+            class="guide-tip__btn guide-tip__btn--default"
+            type="button"
+            @click="goGatewayGuidePrev"
+          >
+            上一步
+          </button>
+          <button
+            class="guide-tip__btn guide-tip__btn--primary"
+            type="button"
+            @click="goGatewayGuideNext"
+          >
+            {{ gatewayGuideIndex === gatewayGuideSteps.length - 1 ? '完成' : '下一步' }}
+          </button>
+        </div>
+        <div v-if="!isSystemGuideStep && !isGatewayGuideStep && currentConfig?.placement !== 'center' && currentConfig?.placement !== 'highlight-modal'" class="guide-tip__footer">
           <span class="guide-tip__hint">
             <i class="i-ant-design-info-circle-outlined" />
             请点击高亮按钮完成此步骤
@@ -737,6 +1035,7 @@ const isBranchStep = computed(() =>
       :footer="null"
       :width="440"
       centered
+      :closable="false"
       :mask-closable="false"
       :z-index="1900"
       wrap-class-name="gw-offline-modal-wrap"
@@ -751,12 +1050,14 @@ const isBranchStep = computed(() =>
           <h3>网关离线</h3>
         </div>
         <div class="gw-online-modal__gateway gw-offline-gateway">
-          <img :src="gatewayImg" class="gw-online-modal__gateway-img" alt="网关设备" draggable="false" />
+          <img :src="gatewayDisplayImg" class="gw-online-modal__gateway-img" alt="网关设备" draggable="false" />
           <div class="gw-online-modal__gateway-info">
             <span class="gw-online-modal__gateway-label">网关名称</span>
             <strong class="gw-online-modal__gateway-name">JetLinks 边缘网关</strong>
             <span class="gw-online-modal__gateway-label">网关序列号</span>
             <strong class="gw-online-modal__gateway-sn">GW-58740736</strong>
+            <span class="gw-online-modal__gateway-label">所属项目</span>
+            <strong class="gw-online-modal__gateway-name">{{ appStore.guideGatewayProjectName || '未加入项目' }}</strong>
           </div>
         </div>
         <div class="gw-radar" :class="detectStatus">
@@ -808,7 +1109,7 @@ const isBranchStep = computed(() =>
       v-model:open="gwOnlineModalVisible"
       :title="null"
       :footer="null"
-      :width="440"
+      :width="680"
       centered
       :mask-closable="false"
       :z-index="2000"
@@ -817,19 +1118,18 @@ const isBranchStep = computed(() =>
     >
       <div class="gw-online-modal">
         <div class="gw-online-modal__icon">
-          <i v-if="currentStep === 'gw-online-configured'" class="i-ant-design-video-camera-filled" style="color: #52c41a;" />
-          <i v-else class="i-ant-design-info-circle-filled" style="color: #faad14;" />
+          <i class="i-ant-design-video-camera-filled" style="color: #52c41a;" />
         </div>
         <h3 class="gw-online-modal__title">网关已接入</h3>
-        <p v-if="currentStep === 'gw-online-configured'" class="gw-online-modal__desc">该网关已配置了部分摄像头设备，你可以查看已接入的摄像头画面，也可以继续绑定更多摄像头。</p>
-        <p v-else class="gw-online-modal__desc">该网关尚未接入任何摄像头设备，请前往绑定摄像头以开始使用视频功能。</p>
         <div class="gw-online-modal__gateway">
-          <img :src="gatewayImg" class="gw-online-modal__gateway-img" alt="网关设备" draggable="false" />
+          <img :src="gatewayDisplayImg" class="gw-online-modal__gateway-img" alt="网关设备" draggable="false" />
           <div class="gw-online-modal__gateway-info">
             <span class="gw-online-modal__gateway-label">网关名称</span>
             <strong class="gw-online-modal__gateway-name">JetLinks 边缘网关</strong>
             <span class="gw-online-modal__gateway-label">网关序列号</span>
             <strong class="gw-online-modal__gateway-sn">GW-58740736</strong>
+            <span class="gw-online-modal__gateway-label">所属项目</span>
+            <strong class="gw-online-modal__gateway-name">{{ appStore.guideGatewayProjectName || '未加入项目' }}</strong>
           </div>
         </div>
         <div v-if="currentStep === 'gw-online-configured'" class="gw-online-modal__cameras">
@@ -844,21 +1144,26 @@ const isBranchStep = computed(() =>
             </span>
           </button>
         </div>
+        <div v-else class="gw-online-modal__empty-devices">
+          <i class="i-ant-design-inbox-outlined" />
+          <strong>当前网关还未接入设备</strong>
+          <span>进入网关后可继续接入摄像头、采集器或其他边缘设备。</span>
+        </div>
         <div class="gw-online-modal__actions">
           <template v-if="currentStep === 'gw-online-configured'">
             <button class="guide-tip__btn guide-tip__btn--default" type="button" @click="goToConfig">
               <i class="i-ant-design-plus-outlined" />
-              继续接入
+              进入网关
             </button>
-            <button class="guide-tip__btn guide-tip__btn--primary" type="button" @click="goToAlarmFromGuide">
-              <i class="i-ant-design-bell-outlined" />
-              去新增告警规则
+            <button class="guide-tip__btn guide-tip__btn--primary" type="button" @click="goToProject">
+              <i class="i-ant-design-appstore-outlined" />
+              进入项目
             </button>
           </template>
           <template v-else>
             <button class="guide-tip__btn guide-tip__btn--primary" type="button" @click="goToConfig">
               <i class="i-ant-design-arrow-right-outlined" />
-              前往绑定
+              前往网关接入设备
             </button>
           </template>
         </div>
@@ -932,7 +1237,7 @@ const isBranchStep = computed(() =>
     <!-- ===== 发现网关上线：场景选择弹窗 ===== -->
     <a-modal
       v-model:open="detectSelectModalVisible"
-      title="发现网关上线"
+      title="场景模拟"
       :width="400"
       :footer="null"
       centered
@@ -1098,27 +1403,43 @@ const isBranchStep = computed(() =>
   inset: 0;
   z-index: 1998;
   background: rgba(0, 0, 0, 0.45);
-  /* highlight-modal 模式下不拦截点击，让弹窗自带遮罩处理点击关闭 */
-  pointer-events: none;
+  pointer-events: auto;
 }
 
-/* 普通高亮模式：4 块蒙版拼接镂空 */
+/* 普通高亮模式：四块遮罩只覆盖空白区域，高亮洞口保持真实可点击 */
 .guide-mask-piece {
   position: fixed;
-  z-index: 1998;
+  z-index: 1997;
   background: rgba(0, 0, 0, 0.45);
   pointer-events: auto;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 镂空高亮区域（边框，不拦截点击） */
+/* 镂空高亮区域：所有引导步骤统一使用紫色边界，不拦截点击 */
 .guide-highlight {
   position: fixed;
-  z-index: 1999;
+  z-index: 1998;
   border-radius: 8px;
   border: 2px solid $color-primary;
+  box-shadow: 0 0 0 4px rgba($color-primary, 0.14);
   pointer-events: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: none;
+
+  &--modal {
+    z-index: 2001;
+    border-radius: 12px;
+    border: 2px solid $color-primary;
+    box-shadow: 0 0 0 4px rgba($color-primary, 0.18);
+  }
+}
+
+:global(.guide-target-active) {
+  position: relative !important;
+  z-index: 1999 !important;
+}
+
+:global(tr.guide-target-active > td) {
+  position: relative;
+  z-index: 1999;
 }
 
 /* 提示气泡 */
@@ -1133,7 +1454,7 @@ const isBranchStep = computed(() =>
 
   /* highlight-modal 模式：气泡浮在弹窗（z-index 2000）之上 */
   &.guide-tip--above-modal {
-    z-index: 2001;
+    z-index: 2002;
   }
 
   /* 箭头朝向目标元素 */
@@ -1226,10 +1547,61 @@ const isBranchStep = computed(() =>
     word-break: break-all;
   }
 
+  &__points {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: -4px 0 12px;
+    padding: 0;
+    list-style: none;
+
+    li {
+      position: relative;
+      padding-left: 12px;
+      font-size: 12px;
+      line-height: 18px;
+      color: $text-secondary;
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 8px;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: $color-primary;
+      }
+    }
+  }
+
+  &__keywords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: -2px 0 12px;
+  }
+
+  &__keyword {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 9px;
+    border-radius: 6px;
+    background: rgba(110, 75, 255, 0.08);
+    color: $color-primary;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
   &__actions {
     display: flex;
     gap: 8px;
     margin-top: 4px;
+
+    &--nav {
+      margin-top: 10px;
+    }
   }
 
   &__btn {
@@ -1265,6 +1637,14 @@ const isBranchStep = computed(() =>
     padding-top: 8px;
     border-top: 1px solid $border-color-card;
     margin-top: 4px;
+  }
+
+  &__actions--stack {
+    flex-direction: column;
+
+    .guide-tip__btn {
+      width: 100%;
+    }
   }
 
   &__hint {
@@ -1313,8 +1693,8 @@ const isBranchStep = computed(() =>
 .guide-tip__offline {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 2px;
+  gap: 8px;
+  margin-bottom: 0;
 }
 
 .gw-video-link {
@@ -1346,8 +1726,8 @@ const isBranchStep = computed(() =>
 .gw-methods {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  padding-top: 2px;
+  gap: 6px;
+  padding-top: 0;
 }
 
 .gw-method {
@@ -1375,6 +1755,166 @@ const isBranchStep = computed(() =>
 /* 离线提示页加宽 */
 .guide-tip--wide {
   width: 420px;
+}
+
+.guide-tip--system-done {
+  width: 440px;
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.system-done-card {
+  position: relative;
+  padding: 28px 28px 22px;
+  text-align: center;
+  background: #fff;
+
+  &__close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: $text-tertiary;
+    cursor: pointer;
+    transition: all 0.15s;
+
+    i { font-size: 14px; }
+
+    &:hover {
+      background: $bg-hover;
+      color: $text-base;
+    }
+  }
+
+  &__icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 14px;
+    border-radius: 14px;
+    background: rgba(43, 179, 163, 0.1);
+    color: $color-online;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    i { font-size: 26px; }
+  }
+
+  &__title {
+    margin: 0 0 6px;
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 600;
+    color: $text-base;
+  }
+
+  &__desc {
+    max-width: 320px;
+    margin: 0 auto 18px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: $text-secondary;
+  }
+
+  &__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  &__entry {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid $border-color-card;
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: all 0.15s;
+
+    &:hover {
+      border-color: $color-primary;
+      background: #faf9ff;
+    }
+  }
+
+  &__entry-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    i { font-size: 20px; }
+  }
+
+  &__entry--iot .system-done-card__entry-icon {
+    background: rgba(24, 144, 255, 0.1);
+    color: #1890ff;
+  }
+
+  &__entry--alarm .system-done-card__entry-icon {
+    background: $color-primary-bg;
+    color: $color-primary;
+  }
+
+  &__entry-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong {
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 600;
+      color: $text-base;
+    }
+
+    small {
+      font-size: 12px;
+      line-height: 18px;
+      color: $text-muted;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &__entry-arrow {
+    font-size: 16px;
+    color: $color-primary;
+    flex-shrink: 0;
+  }
+
+  &__skip {
+    border: none;
+    background: transparent;
+    color: $text-muted;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 2px 8px;
+    transition: color 0.15s;
+
+    &:hover { color: $color-primary; }
+  }
 }
 
 .gw-offline-gateway {
@@ -1421,12 +1961,11 @@ const isBranchStep = computed(() =>
 
   &__gateway-img {
     flex-shrink: 0;
-    width: 104px;
-    height: 76px;
-    object-fit: contain;
+    width: 112px;
+    height: 84px;
+    object-fit: cover;
     border-radius: 8px;
-    border: 1px solid $border-color-card;
-    background: #fff;
+    display: block;
   }
 
   &__gateway-info {
@@ -1461,17 +2000,62 @@ const isBranchStep = computed(() =>
 
   &__cameras {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
-    margin: 0 0 20px;
+    max-height: 300px;
+    margin: 0 0 18px;
+    padding-right: 4px;
+    overflow-y: auto;
     text-align: left;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(15, 23, 42, 0.16);
+      border-radius: 999px;
+    }
+  }
+
+  &__empty-devices {
+    min-height: 132px;
+    margin: 0 0 18px;
+    border: 1px dashed rgba(82, 196, 26, 0.32);
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(82, 196, 26, 0.06), rgba(82, 196, 26, 0.025));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    color: $text-secondary;
+
+    i {
+      font-size: 26px;
+      color: $color-online;
+    }
+
+    strong {
+      font-size: 14px;
+      font-weight: 600;
+      color: $text-base;
+    }
+
+    span {
+      font-size: 12.5px;
+      color: $text-tertiary;
+    }
   }
 
   &__camera {
     display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
+    align-items: center;
+    gap: 10px;
     padding: 8px;
     border: 1px solid $border-color-card;
     border-radius: 10px;
@@ -1488,8 +2072,9 @@ const isBranchStep = computed(() =>
   }
 
   &__cam-thumb {
-    width: 100%;
-    aspect-ratio: 4 / 3;
+    width: 76px;
+    height: 56px;
+    flex-shrink: 0;
     object-fit: cover;
     border-radius: 8px;
     background: #101214;
@@ -1499,6 +2084,7 @@ const isBranchStep = computed(() =>
     display: flex;
     flex-direction: column;
     gap: 4px;
+    flex: 1;
     min-width: 0;
   }
 
@@ -1672,8 +2258,8 @@ const isBranchStep = computed(() =>
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 28px;
+  gap: 12px;
+  padding: 24px 28px 22px;
   background: #fff;
   border-radius: 12px;
   text-align: left;
@@ -1685,19 +2271,23 @@ const isBranchStep = computed(() =>
 
 .gw-offline-modal__close {
   position: absolute;
-  top: 18px;
-  right: 18px;
+  top: 16px;
+  right: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 50%;
+  border-radius: 6px;
   background: transparent;
   color: $text-tertiary;
   cursor: pointer;
   transition: all 0.15s ease;
+
+  i {
+    font-size: 15px;
+  }
 
   &:hover {
     background: $bg-page;
@@ -1730,8 +2320,8 @@ const isBranchStep = computed(() =>
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 22px 0 18px;
-  margin: 4px 0 12px;
+  padding: 18px 0 16px;
+  margin: 0 0 4px;
   border-radius: 14px;
   background:
     radial-gradient(circle at center 42%, rgba(110, 75, 255, 0.14), transparent 58%),

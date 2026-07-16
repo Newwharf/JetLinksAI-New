@@ -36,6 +36,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/workbench/WorkbenchView.vue'),
         meta: { title: '工作台' }
       },
+      {
+        path: 'workbench/gateway/:id',
+        name: 'workbench-gateway-detail',
+        component: () => import('@/views/workbench/GatewayDetailView.vue'),
+        meta: { title: '网关详情' }
+      },
       { path: 'apps', name: 'apps', ...ph('应用中心') },
       { path: 'docs', name: 'docs', ...ph('文档中心') },
       { path: 'dev', name: 'dev', ...ph('开发中心') },
@@ -672,6 +678,12 @@ const routes: RouteRecordRaw[] = [
     name: 'video-gateway-address',
     component: () => import('@/views/video/GatewayAddressView.vue'),
     meta: { title: '网关地址' }
+  },
+  {
+    path: '/video/device-guide',
+    name: 'video-device-guide',
+    component: () => import('@/views/video/VideoDeviceGuideView.vue'),
+    meta: { title: '新增视频设备' }
   }
 ]
 

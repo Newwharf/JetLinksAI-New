@@ -107,6 +107,7 @@ function channelCount(gwId: string): number {
 
 // ===== 当前选中的区域 =====
 const activeAreaKey = ref<string>('')
+type TreeSelectInfo = { node: { key: string | number } }
 const activeArea = computed<AreaTreeNode | undefined>(() => {
   if (!activeAreaKey.value) return undefined
   // 在树中查找
@@ -180,19 +181,11 @@ function selectGateway(id: string) {
 // 进入网关设备配置页
 function gotoGatewayConfig(gw: GatewayDevice, e: Event) {
   e.stopPropagation()
-  // 引导联动：进入配置页时结束当前引导
-  const isGuide = appStore.guideStep === 'goto-config'
-  // 打开新标签页，并将引导状态传到地址页
   const routeHref = router.resolve({
-    path: `/video/device/gateway/${gw.id}/address`,
-    query: isGuide ? { guide: 'gw-address' } : {}
+    path: `/video/device/gateway/${gw.id}/address`
   }).href
   const url = new URL(routeHref, window.location.origin).href
   window.open(url, '_blank')
-  // 原页面只保留视频设备接入弹窗
-  if (isGuide) {
-    appStore.finishGuide()
-  }
   connectingStatus.value = 'pending'
   connectingModalVisible.value = true
 }
@@ -215,6 +208,10 @@ function goToAlarmFromConnecting() {
 function selectAreaNode(key: string) {
   activeAreaKey.value = key
   searchKey.value = ''
+}
+
+function handleAreaTreeSelect(_: unknown, info: TreeSelectInfo) {
+  selectAreaNode(String(info.node.key))
 }
 
 // 切换筛选模式时重置选中状态
@@ -276,9 +273,6 @@ const unjoinedGateways = ref<GatewayDevice[]>([
 
 function openGatewayPoolModal() {
   gatewayPoolModalVisible.value = true
-  if (appStore.guideStep === 'add-gateway') {
-    nextTick(() => appStore.setGuideStep('bind-gateway'))
-  }
 }
 
 function closeGatewayPoolModal() {
@@ -308,18 +302,12 @@ function openBindModalFromPool() {
   gatewayPoolModalVisible.value = false
   openBindModal()
   refreshGuidePosition()
-  if (appStore.guideStep === 'add-gateway') {
-    nextTick(() => appStore.setGuideStep('bind-gateway'))
-  }
 }
 
 function backToGatewayPool() {
   closeBindModal()
   gatewayPoolModalVisible.value = true
   refreshGuidePosition()
-  if (appStore.guideStep === 'add-gateway') {
-    nextTick(() => appStore.setGuideStep('bind-gateway'))
-  }
 }
 
 type BindMethod = 'sn' | 'scan'
@@ -492,28 +480,9 @@ function handleGuideBindSelect(result: GuideBindResult) {
   appStore.guideBindResult = result
   pendingJoinGateway.value = null
 
-  // 进入对应引导步骤
-  nextTick(() => {
-    if (result === 'configured') appStore.setGuideStep('gw-online-configured')
-    else if (result === 'empty') appStore.setGuideStep('gw-online-empty')
-    else appStore.setGuideStep('gw-offline')
-  })
+  message.success(result === 'offline' ? '网关已加入，当前离线' : '网关已加入项目')
 }
 
-// ===== 缁傝崵鍤庣純鎴濆彠閿涙碍娲块弬浼粹偓姘朵壕鐟欙箑褰?=====
-watch(() => appStore.guideOfflineUpdateTrigger, () => {
-  if (!appStore.guideActive) return
-  // 同网段处理后模拟网关上线
-  const gw = gateways.find(g => g.id === appStore.guideGatewayId || g.id === GUIDE_GW_ID)
-  if (gw) gw.status = 'online'
-})
-watch(() => appStore.guideStep, (step) => {
-  if (step === 'bind-gateway' && !bindModalVisible.value && !gatewayPoolModalVisible.value) {
-    nextTick(() => openBindModal())
-  }
-}, { immediate: true })
-
-// ===== 引导联动：点击新增网关后推进 bind-gateway =====
 // ===== 播放弹窗 =====
 const playModalVisible = ref(false)
 const playTarget = ref<VideoChannel | null>(null)
@@ -701,7 +670,6 @@ void [
               :key="gw.id"
               class="gw-item"
               :class="{ 'is-active': gw.id === activeGatewayId }"
-              :data-guide="gw.id === activeGatewayId && appStore.guideStep === 'goto-config' ? 'goto-config' : undefined"
               @click="selectGateway(gw.id)"
             >
               <span class="gw-item__icon-box" :class="gw.status">
@@ -730,9 +698,9 @@ void [
 
             <!-- 新增网关 -->
             <button
+              v-if="false"
               class="gw-add-card"
               type="button"
-              data-guide="add-gateway"
               @click="openGatewayPoolModal"
             >
               <i class="i-ant-design-plus-outlined" />
@@ -754,7 +722,7 @@ void [
               :block-node="true"
               :show-line="false"
               class="area-tree"
-              @select="(_, info) => selectAreaNode(String(info.node.key))"
+              @select="handleAreaTreeSelect"
             >
               <template #title="{ title, count, onlineCount }">
                 <div class="area-tree-node" :class="{ 'has-children': false }">
@@ -867,8 +835,8 @@ void [
       :footer="null"
       centered
       :body-style="{ padding: '0' }"
-      :mask-closable="!appStore.guideActive"
-      :z-index="appStore.guideStep === 'add-gateway' || appStore.guideStep === 'bind-gateway' ? 2000 : 1000"
+      :mask-closable="true"
+      :z-index="1000"
       wrap-class-name="gateway-pool-modal-wrap"
       @cancel="closeGatewayPoolModal"
     >
@@ -922,12 +890,12 @@ void [
       :footer="null"
       centered
       :body-style="{ padding: '0' }"
-      :mask-closable="!appStore.guideActive"
-      :z-index="appStore.guideStep === 'bind-gateway' ? 2000 : 1000"
+      :mask-closable="true"
+      :z-index="1000"
       wrap-class-name="bind-modal-wrap"
       @cancel="closeBindModal"
     >
-      <div class="bind-modal" data-guide="bind-modal">
+      <div class="bind-modal">
         <!-- 绑定方式 tab -->
         <div class="bind-tabs">
           <button

@@ -6,6 +6,7 @@
  */
 import { useRoute, useRouter } from 'vue-router'
 import logoImg from '@/assets/saas/logo.png'
+import GuideOverlay from '@/components/GuideOverlay.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -76,6 +77,8 @@ function handleMenuClick(m: TopMenu) {
     <main class="saas-main">
       <RouterView />
     </main>
+
+    <GuideOverlay />
   </div>
 </template>
 
