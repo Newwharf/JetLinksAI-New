@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="360" viewBox="0 0 760 360">
+  <rect width="760" height="360" rx="12" fill="#f7f9fc"/>
+  <rect x="34" y="32" width="692" height="296" rx="12" fill="#fff" stroke="#e5eaf3"/>
+  <text x="58" y="68" font-size="18" font-weight="700" fill="#111827">设备接入参数</text>
+  <text x="58" y="96" font-size="12" fill="#7b8798">查看接入地址和设备连接参数，了解设备接入平台所需信息</text>
+  <rect x="58" y="124" width="644" height="62" rx="10" fill="#f0ecff" stroke="#6e4bff"/>
+  <text x="82" y="150" font-size="13" fill="#8a73ff">接入地址</text>
+  <rect x="82" y="162" width="420" height="10" rx="5" fill="#d8d0ff"/>
+  <rect x="58" y="210" width="644" height="86" rx="10" fill="#fff" stroke="#dbe4f0"/>
+  <text x="82" y="238" font-size="13" fill="#111827">设备连接参数</text>
+  <rect x="82" y="256" width="190" height="10" rx="5" fill="#e1e7f0"/>
+  <rect x="306" y="256" width="190" height="10" rx="5" fill="#e1e7f0"/>
+  <rect x="530" y="256" width="120" height="10" rx="5" fill="#e1e7f0"/>
+</svg>

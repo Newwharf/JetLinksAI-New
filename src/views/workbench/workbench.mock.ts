@@ -13,6 +13,10 @@ export interface Project {
   alarmCount: number             // 待处理告警数
   iconColor: string              // 图标背景色
   iconChar: string               // 图标里的单字
+  template?: string              // 创建时选择的项目模板
+  urlSuffix?: string             // 项目访问地址后缀
+  logoImg?: string               // 上传或生成的 Logo 图片
+  createdAt?: string             // 创建时间
 }
 
 export const projects = ref<Project[]>([

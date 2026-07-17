@@ -144,7 +144,11 @@ function confirmCreate() {
     status: 'running',
     alarmCount: 0,
     iconColor: scenarioOptions.find(o => o.value === form.template)?.iconColor || '#3b82f6',
-    iconChar: form.name.trim().charAt(0)
+    iconChar: form.name.trim().charAt(0),
+    template: form.template || 'blank',
+    urlSuffix: form.urlSuffix,
+    logoImg: form.logoImg,
+    createdAt: new Date().toISOString()
   }
   // 进入创建中
   createStage.value = 'creating'

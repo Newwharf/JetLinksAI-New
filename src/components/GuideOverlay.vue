@@ -156,7 +156,7 @@ const stepConfigs: Record<Exclude<GuideStep, ''>, StepConfig> = {
     target: '.iot-add-modal .ant-modal',
     targetSelector: true,
     title: '第二步：选择设备库',
-    desc: '左侧选择设备大类，右侧选择具体的设备模板，点击模板进入下一步。',
+    desc: '左侧选择设备大类，右侧选择具体的设备模板，配置好设备的相关信息。',
     placement: 'highlight-modal'
   },
   'iot-config': {
@@ -208,7 +208,7 @@ const stepConfigs: Record<Exclude<GuideStep, ''>, StepConfig> = {
     target: '.alarm-wizard-modal .ant-modal',
     targetSelector: true,
     title: '第三步：场景算法',
-    desc: '选择检测场景和算法，决定摄像头检测什么行为，可跨场景多选。选好后点击「下一步」。',
+    desc: '选择检测场景和算法，决定摄像头可以智能检测的行为类型，可跨场景多选。',
     placement: 'highlight-modal'
   },
   'alarm-step2': {
@@ -306,7 +306,66 @@ const modalShiftX = ref(0)
 let activeTargetEl: HTMLElement | null = null
 
 const currentStep = computed(() => appStore.guideStep)
-const currentConfig = computed(() => currentStep.value ? stepConfigs[currentStep.value] : null)
+const guideTextOverrides: Partial<Record<GuideStep, Partial<StepConfig>>> = {
+  'iot-add': {
+    title: '第一步：新增设备',
+    desc: '通过新增设备入口了解物联设备接入流程。'
+  },
+  'iot-select': {
+    title: '第二步：选择设备库',
+    desc: '从设备库选择设备模板，确认设备所属类型。'
+  },
+  'iot-config': {
+    title: '第三步：填写配置信息',
+    desc: '补充设备名称、图标、区域等基础信息。'
+  },
+  'iot-detail': {
+    title: '第四步：进入设备详情',
+    desc: '通过设备列表行进入详情，查看设备状态和管理入口。'
+  },
+  'iot-access': {
+    title: '第五步：设备接入',
+    desc: '切换到设备接入页，查看设备接入配置入口。'
+  },
+  'iot-access-config': {
+    title: '第六步：配置设备接入参数',
+    desc: '查看接入地址和连接参数，了解设备接入平台所需信息。'
+  },
+  'alarm-create': {
+    title: '第一步：新建规则',
+    desc: '在此处可进入告警规则配置流程，集中管理项目中的智能告警能力。'
+  },
+  'alarm-step0': {
+    title: '第二步：基础信息',
+    desc: '完成规则名称、告警等级和规则说明等基础配置项。'
+  },
+  'alarm-step1': {
+    title: '第三步：场景算法',
+    desc: '在此处可跨场景多选算法，为摄像头配置智能识别能力。'
+  },
+  'alarm-step2': {
+    title: '第四步：生效摄像头',
+    desc: '在此处可选择规则生效的摄像头范围，决定哪些点位参与智能识别。'
+  },
+  'alarm-step3': {
+    title: '第五步：生效时段',
+    desc: '在此处可配置规则生效时间，支持全天、工作日、夜间和自定义时段。'
+  },
+  'alarm-step4': {
+    title: '第六步：通知对象',
+    desc: '在此处可配置告警通知方式、通知人员和去重推送策略。'
+  }
+}
+const currentConfig = computed(() => {
+  if (!currentStep.value) return null
+  if (currentStep.value.startsWith('iot-')) return null
+  if (currentStep.value.startsWith('alarm-')) return null
+  const config = stepConfigs[currentStep.value]
+  const override = guideTextOverrides[currentStep.value]
+  return override ? { ...config, ...override } : config
+})
+const iotGuideSteps: GuideStep[] = ['iot-add', 'iot-select', 'iot-config', 'iot-detail', 'iot-access', 'iot-access-config']
+const alarmGuideSteps: GuideStep[] = ['alarm-create', 'alarm-step0', 'alarm-step1', 'alarm-step2', 'alarm-step3', 'alarm-step4']
 
 function clearActiveTarget() {
   if (!activeTargetEl) return
@@ -375,12 +434,23 @@ function updatePosition() {
       width: rect.width,
       height: rect.height
     }
-    const tooltipWidth = 320
+    const tooltipWidth = String(currentStep.value).startsWith('alarm-step') ? 440 : 320
     // 测量气泡实际高度，避免与弹窗重叠
     const tipEl = document.querySelector('.guide-tip') as HTMLElement | null
     const tooltipHeight = tipEl ? tipEl.offsetHeight : 160
     const gap = 24
     const margin = 16
+
+    if (String(currentStep.value).startsWith('alarm-step')) {
+      modalShiftX.value = 0
+      const top = rect.top + rect.height - tooltipHeight - 56
+      const left = rect.left + Math.max(96, rect.width * 0.08)
+      tooltipStyle.value = {
+        top: `${Math.max(margin, Math.min(top, window.innerHeight - tooltipHeight - margin))}px`,
+        left: `${Math.max(margin, Math.min(left, window.innerWidth - tooltipWidth - margin))}px`
+      }
+      return
+    }
 
     // 计算右侧是否有足够空间放气泡
     const rightSpace = window.innerWidth - rect.right - margin
@@ -489,6 +559,10 @@ function updatePosition() {
 // 监听步骤变化，更新位置（延迟 + 重试，等 ant-design modal 打开动画完成）
 let retryTimer: ReturnType<typeof setTimeout> | null = null
 watch(() => appStore.guideStep, () => {
+  if (appStore.guideStep === 'iot-done' || appStore.guideStep === 'alarm-done') {
+    appStore.finishGuide()
+    return
+  }
   if (retryTimer) { clearTimeout(retryTimer); retryTimer = null }
   nextTick(() => {
     // 多次更新：覆盖弹窗延迟打开 + 动画过程
@@ -534,22 +608,15 @@ function onGuidePositionRefresh() {
     setTimeout(updatePosition, 320)
   })
 }
-function completeIotAccessGuide() {
-  if (appStore.guideActive && currentStep.value === 'iot-access-config') {
-    appStore.setGuideStep('iot-done')
-  }
-}
 onMounted(() => {
   window.addEventListener('resize', onResize)
   window.addEventListener('guide-position-refresh', onGuidePositionRefresh)
-  document.addEventListener('click', completeIotAccessGuide, true)
   nextTick(() => setTimeout(updatePosition, 100))
 })
 onBeforeUnmount(() => {
   clearActiveTarget()
   window.removeEventListener('resize', onResize)
   window.removeEventListener('guide-position-refresh', onGuidePositionRefresh)
-  document.removeEventListener('click', completeIotAccessGuide, true)
 })
 
 // ===== 步骤控制 =====
@@ -707,16 +774,14 @@ function openCameraPreview(cam: typeof onlineCameras[number]) {
 const stepIndex = computed(() => {
   const systemSteps: GuideStep[] = ['system-dashboard', 'system-space', 'system-video', 'system-image-search', 'system-flow', 'system-alarm', 'system-inspection', 'system-visualization', 'system-iot', 'system-archive', 'system-done']
   const workbenchGatewaySteps: GuideStep[] = ['workbench-gateway-tab', 'workbench-gateway-access', 'bind-gateway', 'gw-online-empty', 'workbench-gateway-detail', 'gateway-detail-enter']
-  const iotSteps: GuideStep[] = ['iot-add', 'iot-select', 'iot-config', 'iot-detail', 'iot-access', 'iot-access-config', 'iot-done']
-  const alarmSteps: GuideStep[] = ['alarm-create', 'alarm-step0', 'alarm-step1', 'alarm-step2', 'alarm-step3', 'alarm-step4', 'alarm-done']
   const gatewaySteps: GuideStep[] = ['gateway-workbench', 'gateway-iot', 'gateway-config', 'gateway-video', 'gateway-system', 'gateway-ai', 'gateway-resource']
   let idx = systemSteps.indexOf(currentStep.value)
   if (idx >= 0) return idx
   idx = workbenchGatewaySteps.indexOf(currentStep.value === 'gw-online-configured' ? 'gw-online-empty' : currentStep.value)
   if (idx >= 0) return idx
-  idx = alarmSteps.indexOf(currentStep.value)
+  idx = alarmGuideSteps.indexOf(currentStep.value)
   if (idx >= 0) return idx
-  idx = iotSteps.indexOf(currentStep.value)
+  idx = iotGuideSteps.indexOf(currentStep.value)
   if (idx >= 0) return idx
   idx = gatewaySteps.indexOf(currentStep.value)
   if (idx >= 0) return idx
@@ -725,12 +790,13 @@ const stepIndex = computed(() => {
 const totalSteps = computed(() => {
   const systemSteps: GuideStep[] = ['system-dashboard', 'system-space', 'system-video', 'system-image-search', 'system-flow', 'system-alarm', 'system-inspection', 'system-visualization', 'system-iot', 'system-archive', 'system-done']
   const workbenchGatewaySteps: GuideStep[] = ['workbench-gateway-tab', 'workbench-gateway-access', 'bind-gateway', 'gw-online-empty', 'workbench-gateway-detail', 'gateway-detail-enter']
-  const iotSteps: GuideStep[] = ['iot-add', 'iot-select', 'iot-config', 'iot-detail', 'iot-access', 'iot-access-config', 'iot-done']
   const gatewaySteps: GuideStep[] = ['gateway-workbench', 'gateway-iot', 'gateway-config', 'gateway-video', 'gateway-system', 'gateway-ai', 'gateway-resource']
   if (systemSteps.includes(currentStep.value)) return systemSteps.length
   if (workbenchGatewaySteps.includes(currentStep.value) || currentStep.value === 'gw-online-configured') return workbenchGatewaySteps.length
   if (gatewaySteps.includes(currentStep.value)) return gatewaySteps.length
-  return iotSteps.includes(currentStep.value) ? 7 : 7
+  if (iotGuideSteps.includes(currentStep.value)) return iotGuideSteps.length
+  if (alarmGuideSteps.includes(currentStep.value)) return alarmGuideSteps.length
+  return 7
 })
 
 const systemGuideSteps: GuideStep[] = ['system-dashboard', 'system-space', 'system-video', 'system-image-search', 'system-flow', 'system-alarm', 'system-inspection', 'system-visualization', 'system-iot', 'system-archive', 'system-done']
@@ -739,6 +805,10 @@ const systemGuideIndex = computed(() => systemGuideSteps.indexOf(currentStep.val
 const gatewayGuideSteps: GuideStep[] = ['gateway-workbench', 'gateway-iot', 'gateway-config', 'gateway-video', 'gateway-system', 'gateway-ai', 'gateway-resource']
 const isGatewayGuideStep = computed(() => gatewayGuideSteps.includes(currentStep.value))
 const gatewayGuideIndex = computed(() => gatewayGuideSteps.indexOf(currentStep.value))
+const isIotGuideStep = computed(() => iotGuideSteps.includes(currentStep.value))
+const iotGuideIndex = computed(() => iotGuideSteps.indexOf(currentStep.value))
+const isAlarmGuideStep = computed(() => alarmGuideSteps.includes(currentStep.value))
+const alarmGuideIndex = computed(() => alarmGuideSteps.indexOf(currentStep.value))
 
 function goSystemGuidePrev() {
   const index = systemGuideIndex.value
@@ -785,6 +855,61 @@ function goGatewayGuideNext() {
 }
 
 /** 分支提示页（center 模式，不显示步骤号） */
+function syncIotGuideRoute(step: GuideStep) {
+  if (['iot-add', 'iot-select', 'iot-config', 'iot-detail'].includes(step)) {
+    router.push('/iot/device')
+    return
+  }
+  if (['iot-access', 'iot-access-config'].includes(step)) {
+    router.push('/iot/device/guide-demo')
+  }
+}
+
+function goIotGuidePrev() {
+  const index = iotGuideIndex.value
+  if (index <= 0) return
+  const prevStep = iotGuideSteps[index - 1]
+  syncIotGuideRoute(prevStep)
+  appStore.setGuideStep(prevStep)
+}
+
+function goIotGuideNext() {
+  const index = iotGuideIndex.value
+  if (index < 0) return
+  const nextStep = iotGuideSteps[index + 1]
+  if (nextStep) {
+    syncIotGuideRoute(nextStep)
+    appStore.setGuideStep(nextStep)
+  } else {
+    closeGuide()
+    router.push('/iot/device')
+  }
+}
+
+function syncAlarmGuideRoute(step: GuideStep) {
+  if (alarmGuideSteps.includes(step)) router.push('/alarm/rule')
+}
+
+function goAlarmGuidePrev() {
+  const index = alarmGuideIndex.value
+  if (index <= 0) return
+  const prevStep = alarmGuideSteps[index - 1]
+  syncAlarmGuideRoute(prevStep)
+  appStore.setGuideStep(prevStep)
+}
+
+function goAlarmGuideNext() {
+  const index = alarmGuideIndex.value
+  if (index < 0) return
+  const nextStep = alarmGuideSteps[index + 1]
+  if (nextStep) {
+    syncAlarmGuideRoute(nextStep)
+    appStore.setGuideStep(nextStep)
+  } else {
+    closeGuide()
+  }
+}
+
 const gatewayResultSteps: GuideStep[] = ['gw-online-configured', 'gw-online-empty', 'gw-offline']
 const isGatewayResultStep = computed(() => gatewayResultSteps.includes(currentStep.value))
 const overlayVisible = computed(() => Boolean(currentConfig.value) && (appStore.guideActive || isGatewayResultStep.value))
@@ -865,7 +990,9 @@ const isBranchStep = computed(() =>
         v-if="showGuideContent && (targetFound || currentConfig?.placement === 'center' || currentConfig?.placement === 'highlight-modal')"
         class="guide-tip"
         :class="[
-          currentConfig?.placement === 'highlight-modal' ? 'tip-arrow tip-arrow--right guide-tip--above-modal' : (currentConfig?.placement ? `tip-arrow tip-arrow--${currentConfig?.placement}` : ''),
+          currentConfig?.placement === 'highlight-modal'
+            ? (String(currentStep).startsWith('alarm-step') ? 'guide-tip--above-modal guide-tip--inside-modal' : 'tip-arrow tip-arrow--right guide-tip--above-modal')
+            : (currentConfig?.placement ? `tip-arrow tip-arrow--${currentConfig?.placement}` : ''),
           currentStep === 'gw-offline' ? 'guide-tip--wide' : '',
           currentStep === 'system-done' ? 'guide-tip--system-done' : ''
         ]"
@@ -1020,7 +1147,41 @@ const isBranchStep = computed(() =>
             {{ gatewayGuideIndex === gatewayGuideSteps.length - 1 ? '完成' : '下一步' }}
           </button>
         </div>
-        <div v-if="!isSystemGuideStep && !isGatewayGuideStep && currentConfig?.placement !== 'center' && currentConfig?.placement !== 'highlight-modal'" class="guide-tip__footer">
+        <div v-if="isIotGuideStep && currentStep !== 'iot-done'" class="guide-tip__actions guide-tip__actions--nav">
+          <button
+            v-if="iotGuideIndex > 0"
+            class="guide-tip__btn guide-tip__btn--default"
+            type="button"
+            @click="goIotGuidePrev"
+          >
+            上一步
+          </button>
+          <button
+            class="guide-tip__btn guide-tip__btn--primary"
+            type="button"
+            @click="goIotGuideNext"
+          >
+            {{ iotGuideIndex === iotGuideSteps.length - 1 ? '完成' : '下一步' }}
+          </button>
+        </div>
+        <div v-if="isAlarmGuideStep && currentStep !== 'alarm-done'" class="guide-tip__actions guide-tip__actions--nav">
+          <button
+            v-if="alarmGuideIndex > 0"
+            class="guide-tip__btn guide-tip__btn--default"
+            type="button"
+            @click="goAlarmGuidePrev"
+          >
+            上一步
+          </button>
+          <button
+            class="guide-tip__btn guide-tip__btn--primary"
+            type="button"
+            @click="goAlarmGuideNext"
+          >
+            {{ alarmGuideIndex === alarmGuideSteps.length - 1 ? '完成' : '下一步' }}
+          </button>
+        </div>
+        <div v-if="!isSystemGuideStep && !isGatewayGuideStep && !isIotGuideStep && !isAlarmGuideStep && currentConfig?.placement !== 'center' && currentConfig?.placement !== 'highlight-modal'" class="guide-tip__footer">
           <span class="guide-tip__hint">
             <i class="i-ant-design-info-circle-outlined" />
             请点击高亮按钮完成此步骤
@@ -1455,6 +1616,12 @@ const isBranchStep = computed(() =>
   /* highlight-modal 模式：气泡浮在弹窗（z-index 2000）之上 */
   &.guide-tip--above-modal {
     z-index: 2002;
+  }
+
+  &.guide-tip--inside-modal {
+    width: 440px;
+    border-radius: 18px;
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.12);
   }
 
   /* 箭头朝向目标元素 */

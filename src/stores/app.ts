@@ -67,9 +67,14 @@ export const useAppStore = defineStore('app', () => {
   // 当前场景（决定一级菜单组成 + 二级 tab 过滤）
   // general | commercial | security | apartment | factory | elderly | construction
   const scenario = ref<string>('construction')
+  const activeProjectId = ref<string>('p1')
 
   function setScenario(s: string) {
     scenario.value = s
+  }
+
+  function setActiveProject(id: string) {
+    activeProjectId.value = id
   }
 
   // ===== 引导流程状态 =====
@@ -132,7 +137,7 @@ export const useAppStore = defineStore('app', () => {
   /** 从告警规则页直接启动引导 */
   function startAlarmGuideDirect() {
     guideActive.value = true
-    guideStep.value = 'alarm-create'
+    guideStep.value = 'alarm-step0'
   }
 
   /** 从项目欢迎页启动系统总览引导 */
@@ -168,7 +173,7 @@ export const useAppStore = defineStore('app', () => {
   }
 
   return {
-    darkMode, toggleDark, scenario, setScenario,
+    darkMode, toggleDark, scenario, activeProjectId, setScenario, setActiveProject,
     welcomeVisible, projectWelcomePending, guideActive, guideStep, guideFinished,
     guideGatewayId, guideBindResult, guideGatewayProjectName, guideOfflineUpdateTrigger,
     showWelcome, requestProjectWelcome, consumeProjectWelcome, closeWelcome, skipGuide,

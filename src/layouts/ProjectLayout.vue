@@ -5,14 +5,103 @@
  * 数据来源：UAT 站 cloud-uat.jetlinks.cn computedStyle 提取
  */
 import { useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
 import { useAppStore } from '@/stores/app'
 import { scenarioOptions } from '@/views/workbench/templates'
 import WelcomeModal from '@/components/WelcomeModal.vue'
 import GuideOverlay from '@/components/GuideOverlay.vue'
+import aiChatIcon from '@/assets/AIchaticon.png'
+import serviceQrImg from '@/assets/iot/erweima.png'
+import aiTicketImage1 from '@/assets/text-search/result-01.jpg'
+import aiTicketImage2 from '@/assets/text-search/result-02.jpg'
+import cameraGuideImage1 from '@/assets/gatewayGuide/video-device-guide-1.png'
+import cameraGuideImage2 from '@/assets/gatewayGuide/video-device-guide-2.png'
+import cameraGuideImage3 from '@/assets/gatewayGuide/video-device-guide-3.png'
+import { createTicket } from '@/views/tickets/ticketData'
+import {
+  subscriptions,
+  packageComparison,
+  serviceNameMap,
+  formatNumber,
+  type Subscription
+} from '@/views/system/subscription/mock'
 
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
+const usageCapacityModalVisible = ref(false)
+const usageAlertOpen = ref(false)
+
+const serviceDisplayNames: Record<string, string> = {
+  basic: '基础服务',
+  dev: '开发',
+  alarm: '告警',
+  gateway: '网关',
+  iot: '物联',
+  visual: '可视化',
+  spatial: '空间态势',
+  inspect: '巡检',
+  video: '视联'
+}
+
+function usageMetricKey(feature: string, metric: string) {
+  return `${feature}:${metric}`
+}
+
+function getUsageComparisonGroup(serviceId: string) {
+  return packageComparison.find(group => group.service === serviceNameMap[serviceId])
+}
+
+interface UsageLimitAlert {
+  key: string
+  serviceName: string
+  metricName: string
+  used: number
+  total: number
+  percent: number
+}
+
+function getUsageLimitAlertsForService(sub: Subscription) {
+  const group = getUsageComparisonGroup(sub.id)
+  if (!group || group.noOwnMetrics || !group.rows) return []
+  return group.rows.reduce<UsageLimitAlert[]>((list, row) => {
+    const base = row.quotas[sub.tier]
+    if (base === undefined) return list
+    const key = usageMetricKey(row.feature, row.metric)
+    const total = base + (sub.expansions[key] || 0)
+    const used = sub.usage[key]?.used || 0
+    const percent = total > 0 ? Math.round((used / total) * 100) : 0
+    if (percent >= 80) {
+      list.push({
+        key: `${sub.id}-${key}`,
+        serviceName: serviceDisplayNames[sub.id] || sub.name,
+        metricName: `${row.feature} · ${row.metric}`,
+        used,
+        total,
+        percent
+      })
+    }
+    return list
+  }, [])
+}
+
+const usageLimitAlerts = computed(() => subscriptions.flatMap(getUsageLimitAlertsForService))
+const topUsageLimitAlerts = computed(() =>
+  [...usageLimitAlerts.value]
+    .sort((a, b) => b.percent - a.percent)
+    .slice(0, 3)
+)
+
+function openUsageCapacityModal() {
+  usageAlertOpen.value = false
+  usageCapacityModalVisible.value = true
+}
+
+function goUsageSettings() {
+  usageAlertOpen.value = false
+  usageCapacityModalVisible.value = false
+  router.push('/system/project')
+}
 
 // 亮色/暗色模式切换
 const isDark = ref(false)
@@ -231,11 +320,168 @@ const pageHelpDragOffset = ref({ x: 0, y: 0 })
 const pageHelpDragging = ref(false)
 const pageHelpMoved = ref(false)
 const pageHelpOpen = ref(false)
-const pageHelpSize = 42
+const pageHelpWide = ref(false)
+const pageHelpSize = 48
+const pageHelpInput = ref('')
+
+interface PageHelpMessage {
+  id: number
+  role: 'assistant' | 'user'
+  content: string
+  ticketDraft?: PageHelpTicketDraft
+  submitted?: boolean
+  ticketId?: string
+  cameraGuide?: boolean
+}
+
+interface PageHelpTicketDraft {
+  categories: string[]
+  description: string
+  contact: string
+  images: string[]
+}
+
+const defaultPageHelpMessage =
+  '我可以帮你快速定位可用入口、说明当前页面能做什么，并根据你的问题给出下一步操作建议。'
+let pageHelpMessageSeed = Date.now()
+
+function createPageHelpMessageId() {
+  pageHelpMessageSeed += 1
+  return pageHelpMessageSeed
+}
+
+const pageHelpMessages = ref<PageHelpMessage[]>([])
+const pageHelpHasConversation = computed(() => pageHelpMessages.value.length > 0)
+const pageHelpTicketMode = ref(false)
+const pageHelpQuickQuestions = [
+  '如何新增视联设备？',
+  '帮我找到设备管理入口',
+  '帮我找到告警处理入口',
+]
+const cameraDeviceQuestion = '如何新增视联设备？'
+const cameraGuideImages = [
+  { title: '进入视频设备', desc: '进入网关地址页，点击顶部导航栏中的“视频中心”，在左侧菜单中选择“视频设备”。', image: cameraGuideImage1 },
+  { title: '选择接入方式', desc: '点击“新增设备”进入流程，根据摄像头实际接入方式选择 Onvif、GB/T28181、固定地址、插件或 Agent 接入。', image: cameraGuideImage2 },
+  { title: '完成绑定认证', desc: '选择需要新增的摄像头，输入账号和密码完成认证，成功后设备会出现在视频设备列表中。', image: cameraGuideImage3 },
+]
+const cameraGuideSteps = [
+  '进入网关地址页，点击顶部导航栏中的“视频中心”。',
+  '在左侧菜单中选择“视频设备”。',
+  '点击页面中的“新增设备”按钮，进入视频设备新增流程。',
+  '选择设备接入方式。',
+  '可根据摄像头实际接入方式选择对应类型，例如 Onvif、GB/T28181、固定地址、插件或 Agent 接入。',
+  '如果选择 Onvif 接入，可先进行设备扫描。',
+  '系统会扫描当前网络环境中的摄像头设备，并展示可接入的设备列表。',
+  '在扫描结果中选择需要新增的摄像头。',
+  '已接入的设备不可重复选择，未接入的设备可以勾选后继续操作。',
+  '点击“下一步”或“绑定设备”，进入账号认证。',
+  '输入摄像头账号和密码。',
+  '通常需要填写摄像头自身的登录账号和密码，用于完成设备认证和接入。',
+  '提交认证信息。',
+  '系统会校验账号密码，并返回绑定结果。',
+  '查看绑定结果。',
+  '绑定成功的摄像头会加入视频设备列表；绑定失败的摄像头可重新输入账号密码后再次尝试。',
+  '确认完成新增。',
+  '新增成功后，可返回视频设备列表查看摄像头名称、IP、厂商、状态等信息。',
+  '后续可点击摄像头进行视频预览，也可以在分屏展示、告警联动、自动录像等功能中使用该摄像头。',
+]
+const cameraGuideStepGroups = [
+  {
+    title: '进入新增入口',
+    steps: cameraGuideSteps.slice(0, 3),
+  },
+  {
+    title: '选择接入方式',
+    steps: cameraGuideSteps.slice(3, 9),
+  },
+  {
+    title: '认证并完成绑定',
+    steps: [
+      '点击“下一步”或“绑定设备”，进入账号认证。',
+      '输入摄像头账号和密码，通常需要填写摄像头自身的登录账号和密码，用于完成设备认证和接入。',
+      '提交认证信息，系统会校验账号密码，并返回绑定结果。',
+      '绑定成功的摄像头会加入视频设备列表；绑定失败的摄像头可重新输入账号密码后再次尝试。',
+    ],
+  },
+  {
+    title: '查看与后续使用',
+    steps: cameraGuideSteps.slice(17),
+  },
+]
 
 watch(() => route.path, () => {
   pageHelpOpen.value = false
+  pageHelpWide.value = false
 })
+
+function resetPageHelpConversation() {
+  pageHelpInput.value = ''
+  pageHelpMessages.value = []
+  pageHelpTicketMode.value = false
+}
+
+function createTicketDraft(content: string): PageHelpTicketDraft {
+  return {
+    categories: ['物联中心'],
+    description: content,
+    contact: '13637564734',
+    images: [aiTicketImage1, aiTicketImage2],
+  }
+}
+
+function sendPageHelpQuestion(question = pageHelpInput.value) {
+  const content = question.trim()
+  if (!content) return
+  pageHelpMessages.value.push({
+    id: createPageHelpMessageId(),
+    role: 'user',
+    content: pageHelpTicketMode.value ? content : cameraDeviceQuestion,
+  })
+  if (pageHelpTicketMode.value) {
+    pageHelpMessages.value.push({
+      id: createPageHelpMessageId(),
+      role: 'assistant',
+      content: '我已根据你的描述整理了一份工单，请确认后提交。',
+      ticketDraft: createTicketDraft(content),
+    })
+    pageHelpInput.value = ''
+    return
+  }
+  pageHelpMessages.value.push({
+    id: createPageHelpMessageId(),
+    role: 'assistant',
+    content: '可以，下面是新增视频设备的操作方式。',
+    cameraGuide: true,
+  })
+  pageHelpInput.value = ''
+}
+
+function togglePageHelpTicketMode() {
+  pageHelpTicketMode.value = !pageHelpTicketMode.value
+}
+
+function confirmPageHelpTicket(messageItem: PageHelpMessage) {
+  if (!messageItem.ticketDraft || messageItem.submitted) return
+  const ticket = createTicket({
+    categories: messageItem.ticketDraft.categories,
+    description: messageItem.ticketDraft.description,
+    contact: messageItem.ticketDraft.contact,
+    attachments: ['image1.png', 'image.png'],
+  })
+  messageItem.submitted = true
+  message.success('工单已提交')
+  pageHelpMessages.value.push({
+    id: createPageHelpMessageId(),
+    role: 'assistant',
+    content: `工单 ${ticket.id} 已提交，你可以在工单管理中查看处理进度。`,
+    ticketId: ticket.id,
+  })
+}
+
+function openPageHelpTicketList() {
+  pageHelpOpen.value = false
+  router.push('/tickets')
+}
 
 function startPageHelpDrag(event: PointerEvent) {
   const target = event.currentTarget as HTMLElement
@@ -278,6 +524,10 @@ function togglePageHelp() {
     return
   }
   pageHelpOpen.value = !pageHelpOpen.value
+}
+
+function togglePageHelpWide() {
+  pageHelpWide.value = !pageHelpWide.value
 }
 
 onBeforeUnmount(() => {
@@ -324,16 +574,54 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
         <span class="project-name">{{ currentScenarioInfo.name }}</span>
       </div>
       <div class="header-right">
-        <!-- AI 对话入口 -->
-        <button class="ai-entry-btn" @click="router.push('/ai-search-hub')">
-          <i class="i-ant-design-robot-outlined ai-entry-icon" />
-          <span class="ai-entry-text">AI 对话</span>
+        <a-popover v-model:open="usageAlertOpen" trigger="click" placement="bottomRight" overlay-class-name="usage-alert-popover">
+          <button class="usage-alert-btn" type="button">
+            <i class="i-ant-design-warning-outlined" />
+            <span>用量提醒</span>
+            <em v-if="usageLimitAlerts.length">{{ usageLimitAlerts.length }}</em>
+          </button>
+          <template #content>
+            <div class="usage-alert-panel">
+              <div class="usage-alert-panel__head">
+                <div class="usage-alert-panel__summary">
+                  <strong>{{ usageLimitAlerts.length }}</strong>
+                  <span>项指标接近或达到上限</span>
+                </div>
+                <button type="button" @click="goUsageSettings">查看更多</button>
+              </div>
+              <div v-if="topUsageLimitAlerts.length" class="usage-alert-panel__list">
+                <div v-for="item in topUsageLimitAlerts" :key="item.key" class="usage-alert-item">
+                  <span class="usage-alert-item__name">
+                    <strong>{{ item.serviceName }}</strong>
+                    <span>{{ item.metricName }}</span>
+                  </span>
+                  <span class="usage-alert-item__value">
+                    <strong class="usage-alert-item__percent">{{ item.percent }}%</strong>
+                    <span> · </span>
+                    <strong>{{ formatNumber(item.used) }}</strong>
+                    <span> / {{ formatNumber(item.total) }}</span>
+                  </span>
+                </div>
+              </div>
+              <div v-else class="usage-alert-panel__empty">
+                当前没有接近上限的指标
+              </div>
+              <button class="usage-alert-panel__expand" type="button" @click="openUsageCapacityModal">
+                扩容
+              </button>
+            </div>
+          </template>
+        </a-popover>
+        <!-- 工单管理入口 -->
+        <button class="ticket-entry-btn" @click="router.push('/tickets')">
+          <i class="i-ant-design-profile-outlined ticket-entry-icon" />
+          <span class="ticket-entry-text">工单管理</span>
         </button>
         <!-- 新手引导下拉 -->
         <a-dropdown v-if="!appStore.guideActive">
           <div class="guide-trigger" @click.prevent>
             <i class="i-ant-design-question-circle-outlined" />
-            <span>新手引导</span>
+            <span>引导模拟</span>
             <i class="i-ant-design-down-outlined guide-arrow" />
           </div>
           <template #overlay>
@@ -470,26 +758,233 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
     <WelcomeModal />
     <!-- 全局引导覆盖层 -->
     <GuideOverlay />
+    <a-modal
+      v-model:open="usageCapacityModalVisible"
+      :width="420"
+      :footer="null"
+      centered
+      :title="null"
+    >
+      <div class="usage-capacity-modal">
+        <div class="usage-capacity-modal__icon">
+          <i class="i-ant-design-customer-service-outlined" />
+        </div>
+        <h3>请联系技术支持</h3>
+        <p>如需扩容项目用量，请扫码联系售后服务人员。</p>
+        <img :src="serviceQrImg" alt="售后服务二维码" class="usage-capacity-modal__qr">
+        <button class="usage-capacity-modal__btn" type="button" @click="goUsageSettings">
+          查看当前用量
+        </button>
+      </div>
+    </a-modal>
     <div
       v-if="currentPageHelpConfig"
       class="page-help"
-      :class="{ 'is-dragging': pageHelpDragging, 'is-open': pageHelpOpen }"
+      :class="{ 'is-dragging': pageHelpDragging, 'is-open': pageHelpOpen, 'is-wide': pageHelpWide }"
       :style="pageHelpPosition ? { left: `${pageHelpPosition.x}px`, top: `${pageHelpPosition.y}px`, right: 'auto', bottom: 'auto' } : undefined"
     >
       <button
         class="page-help__trigger"
         type="button"
-        :aria-label="currentPageHelpConfig.title"
+        aria-label="智能对话助手"
         @pointerdown="startPageHelpDrag"
         @click="togglePageHelp"
       >
-        <i class="i-ant-design-question-circle-outlined" />
+        <img :src="aiChatIcon" alt="" draggable="false">
       </button>
       <div class="page-help__bubble">
-        <div class="page-help__title">{{ currentPageHelpConfig.title }}</div>
-        <ul class="page-help__list">
-          <li v-for="question in currentPageHelpConfig.questions" :key="question">{{ question }}</li>
-        </ul>
+        <div class="page-help__toolbar">
+          <div class="page-help__brand">
+            <div>
+              <strong>AI 智能助手</strong>
+            </div>
+          </div>
+          <div class="page-help__actions">
+            <button type="button" title="新对话" aria-label="新对话" @click.stop="resetPageHelpConversation">
+              <i class="i-ant-design-plus-outlined" />
+            </button>
+            <button type="button" title="对话记录" aria-label="对话记录" @click.stop>
+              <i class="i-ant-design-history-outlined" />
+            </button>
+            <button
+              type="button"
+              :title="pageHelpWide ? '恢复宽度' : '放大宽度'"
+              :aria-label="pageHelpWide ? '恢复宽度' : '放大宽度'"
+              :class="{ active: pageHelpWide }"
+              @click.stop="togglePageHelpWide"
+            >
+              <i :class="pageHelpWide ? 'i-ant-design-compress-outlined' : 'i-ant-design-expand-alt-outlined'" />
+            </button>
+            <button type="button" title="关闭" aria-label="关闭智能助手" @click.stop="pageHelpOpen = false">
+              <i class="i-ant-design-close-outlined" />
+            </button>
+          </div>
+        </div>
+        <div class="page-help__body">
+          <div v-if="!pageHelpHasConversation" class="page-help__empty">
+            <h3>开始和智能体对话</h3>
+            <p>{{ defaultPageHelpMessage }}</p>
+            <div class="page-help__quick-list">
+              <button
+                v-for="question in pageHelpQuickQuestions"
+                :key="question"
+                type="button"
+                @click="sendPageHelpQuestion(question)"
+              >
+                {{ question }}
+              </button>
+            </div>
+          </div>
+          <div v-else class="page-help__messages">
+            <div
+              v-for="message in pageHelpMessages"
+              :key="message.id"
+              class="page-help__message"
+              :class="`is-${message.role}`"
+            >
+              <div class="page-help__message-bubble">
+                {{ message.content }}
+                <div v-if="message.cameraGuide" class="page-help__camera-guide">
+                  <div class="page-help__camera-guide-hero">
+                    <div>
+                      <span>视频中心</span>
+                      <strong>新增视频设备</strong>
+                      <p>将摄像头接入边缘网关的视频中心，完成后可用于实时预览、分屏展示、告警联动和录像查看。</p>
+                    </div>
+                    <i class="i-ant-design-video-camera-outlined" />
+                  </div>
+                  <div class="page-help__camera-guide-info">
+                    <div>
+                      <span>路径</span>
+                      <strong>视频中心 → 视频设备 → 新增设备</strong>
+                    </div>
+                    <div>
+                      <span>适用场景</span>
+                      <strong>Onvif、GB/T28181、固定地址、插件或 Agent 接入</strong>
+                    </div>
+                  </div>
+                  <div class="page-help__camera-guide-summary">
+                    <span>概要</span>
+                    <p>视频设备新增功能用于将摄像头接入边缘网关的视频中心。用户可以通过新增设备入口进入接入流程，选择摄像头接入方式，扫描或填写摄像头信息，并完成账号认证。新增成功后，摄像头会出现在视频设备列表中，后续可用于实时预览、分屏展示、告警联动和录像查看。</p>
+                  </div>
+                  <div class="page-help__camera-guide-flow">
+                    <article
+                      v-for="(item, index) in cameraGuideImages"
+                      :key="item.title"
+                      class="page-help__camera-guide-step"
+                    >
+                      <div class="page-help__camera-guide-shot">
+                        <img :src="item.image" :alt="item.title">
+                      </div>
+                      <div class="page-help__camera-guide-copy">
+                        <em>{{ index + 1 }}</em>
+                        <div>
+                          <strong>{{ item.title }}</strong>
+                          <p>{{ item.desc }}</p>
+                        </div>
+                      </div>
+                    </article>
+                  </div>
+                  <div class="page-help__camera-guide-steps">
+                    <span>操作步骤</span>
+                    <section
+                      v-for="(group, groupIndex) in cameraGuideStepGroups"
+                      :key="group.title"
+                      class="page-help__camera-guide-step-group"
+                    >
+                      <h4>
+                        <em>{{ groupIndex + 1 }}</em>
+                        {{ group.title }}
+                      </h4>
+                      <ol>
+                        <li v-for="step in group.steps" :key="step">{{ step }}</li>
+                      </ol>
+                    </section>
+                  </div>
+                </div>
+                <button
+                  v-if="message.ticketId"
+                  class="page-help__ticket-link"
+                  type="button"
+                  @click="openPageHelpTicketList"
+                >
+                  <i class="i-ant-design-profile-outlined" />
+                  去工单管理
+                </button>
+                <div v-if="message.ticketDraft" class="page-help__ticket-card">
+                  <div class="page-help__ticket-row">
+                    <span>板块分类</span>
+                    <div class="page-help__ticket-tags">
+                      <em v-for="category in message.ticketDraft.categories" :key="category">{{ category }}</em>
+                    </div>
+                  </div>
+                  <div class="page-help__ticket-row">
+                    <span>描述</span>
+                    <strong>{{ message.ticketDraft.description }}</strong>
+                    <div class="page-help__ticket-images">
+                      <img
+                        v-for="image in message.ticketDraft.images"
+                        :key="image"
+                        :src="image"
+                        alt="工单补充图片"
+                      >
+                    </div>
+                  </div>
+                  <div class="page-help__ticket-row">
+                    <span>联系方式</span>
+                    <strong>{{ message.ticketDraft.contact }}</strong>
+                  </div>
+                  <button
+                    class="page-help__ticket-submit"
+                    type="button"
+                    :disabled="message.submitted"
+                    @click="confirmPageHelpTicket(message)"
+                  >
+                    {{ message.submitted ? '已提交' : '确认提交' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="page-help__mode-bar">
+          <button
+            type="button"
+            :class="{ active: pageHelpTicketMode }"
+            @click="togglePageHelpTicketMode"
+          >
+            工单提交
+          </button>
+        </div>
+        <div class="page-help__composer">
+          <div class="page-help__composer-input">
+            <span v-if="pageHelpTicketMode" class="page-help__composer-tag">
+              工单提交
+              <button type="button" title="删除" aria-label="删除工单提交标签" @click="pageHelpTicketMode = false">
+                <i class="i-ant-design-close-outlined" />
+              </button>
+            </span>
+            <input
+              v-model="pageHelpInput"
+              type="text"
+              placeholder="输入问题并回车发送"
+              @keydown.enter="sendPageHelpQuestion()"
+            >
+          </div>
+          <div class="page-help__composer-bottom">
+            <div class="page-help__composer-tools">
+              <button class="page-help__tool-btn" type="button" aria-label="选择图片">
+                <i class="i-ant-design-plus-outlined" />
+              </button>
+              <button class="page-help__tool-btn" type="button" aria-label="选择文件夹">
+                <i class="i-ant-design-folder-open-outlined" />
+              </button>
+            </div>
+            <button class="page-help__send" type="button" aria-label="发送" @click="sendPageHelpQuestion()">
+              <i class="i-ant-design-arrow-up-outlined" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -550,40 +1045,267 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
   gap: 16px;
 }
 
-/* ===== AI 对话入口（紫色渐变胶囊 + 发光） ===== */
-.ai-entry-btn {
+.usage-alert-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 16px 0 6px;
-  border: none;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(250, 140, 22, 0.34);
+  border-radius: 9999px;
+  background: rgba(250, 140, 22, 0.08);
+  color: #fa8c16;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  transition: all 0.15s;
+
+  i {
+    font-size: 14px;
+  }
+
+  em {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #fa8c16;
+    color: #fff;
+    font-size: 11px;
+    line-height: 18px;
+    font-style: normal;
+    text-align: center;
+  }
+
+  &:hover {
+    border-color: #fa8c16;
+    background: rgba(250, 140, 22, 0.12);
+  }
+}
+
+.usage-alert-panel {
+  width: 380px;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 2px 0 12px;
+    border-bottom: 1px solid $border-color-card;
+
+    button {
+      flex: 0 0 auto;
+      border: none;
+      background: transparent;
+      color: $color-primary;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      line-height: 18px;
+      padding: 0;
+
+      &:hover {
+        color: $color-primary-hover;
+      }
+    }
+  }
+
+  &__summary {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+
+    strong {
+      color: #ff4d4f;
+      font-size: 20px;
+      line-height: 24px;
+      font-weight: 700;
+    }
+
+    span {
+      color: $text-secondary;
+      font-size: 12px;
+      line-height: 18px;
+    }
+  }
+
+  &__list {
+    display: grid;
+    gap: 0;
+    max-height: 320px;
+    padding: 12px 0;
+    overflow-y: auto;
+  }
+
+  &__empty {
+    padding: 24px 0;
+    color: $text-tertiary;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  &__expand {
+    width: 100%;
+    height: 32px;
+    border: 1px solid $color-primary;
+    border-radius: 6px;
+    background: $color-primary;
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+
+    &:hover {
+      background: $color-primary-hover;
+    }
+  }
+}
+
+.usage-alert-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eef1f6;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  &__name {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+    overflow: hidden;
+
+    strong,
+    span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    strong {
+      color: $text-base;
+      font-size: 13px;
+      line-height: 18px;
+    }
+
+    span {
+      color: $text-secondary;
+      font-size: 12px;
+      line-height: 18px;
+    }
+  }
+
+  &__value {
+    flex: 0 0 auto;
+    font-size: 12px;
+    line-height: 18px;
+    white-space: nowrap;
+
+    strong {
+      color: #ff4d4f;
+      font-weight: 700;
+    }
+
+    span {
+      color: $text-tertiary;
+    }
+  }
+}
+
+.usage-capacity-modal {
+  display: grid;
+  justify-items: center;
+  padding: 10px 8px 4px;
+  text-align: center;
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin-bottom: 12px;
+    border-radius: 50%;
+    background: $color-primary-bg;
+    color: $color-primary;
+
+    i {
+      font-size: 22px;
+    }
+  }
+
+  h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    line-height: 26px;
+    color: $text-base;
+  }
+
+  p {
+    margin: 0 0 16px;
+    font-size: 13px;
+    line-height: 20px;
+    color: $text-tertiary;
+  }
+
+  &__qr {
+    width: 168px;
+    height: 168px;
+    object-fit: contain;
+    margin-bottom: 18px;
+    border: 1px solid #eef1f6;
+    border-radius: 8px;
+  }
+
+  &__btn {
+    min-width: 96px;
+    height: 32px;
+    border: 1px solid $color-primary;
+    border-radius: 6px;
+    background: $color-primary;
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+  }
+}
+
+/* ===== 工单管理入口 ===== */
+.ticket-entry-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid $border-color-card;
   border-radius: 9999px;
   cursor: pointer;
   font-family: inherit;
   font-size: 13px;
-  font-weight: 600;
-  color: #fff;
-  background: linear-gradient(135deg, #7d5cff 0%, #6e4bff 50%, #5d3bff 100%);
-  box-shadow: 0 2px 12px rgba(110, 75, 255, 0.35);
+  font-weight: 400;
+  color: $text-base;
+  background: #fff;
   transition: all 0.2s;
 
   &:hover {
-    box-shadow: 0 4px 18px rgba(110, 75, 255, 0.5);
-    transform: translateY(-1px);
+    color: $color-primary;
+    border-color: $color-primary;
   }
 
-  /* 图标圆形浅底 */
-  .ai-entry-icon {
+  .ticket-entry-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
     font-size: 15px;
-    color: #fff;
+    color: inherit;
   }
 }
 
@@ -916,9 +1638,9 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
 
 .page-help {
   position: fixed;
-  right: 28px;
-  bottom: 28px;
-  z-index: 20;
+  right: 72px;
+  bottom: 58px;
+  z-index: 120;
 
   &.is-open {
     .page-help__bubble {
@@ -926,6 +1648,12 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
       visibility: visible;
       transform: translateY(0);
       pointer-events: auto;
+    }
+  }
+
+  &.is-wide {
+    .page-help__bubble {
+      width: clamp(620px, 40vw, 720px);
     }
   }
 
@@ -940,25 +1668,28 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 42px;
-    height: 42px;
+    width: 48px;
+    height: 48px;
+    padding: 0;
     border: none;
     border-radius: 50%;
-    background: #6e4bff;
-    color: #fff;
+    background: #fff;
+    overflow: hidden;
     box-shadow: 0 10px 28px rgba(17, 20, 24, 0.22);
     cursor: grab;
     touch-action: none;
     user-select: none;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 
-    i {
-      font-size: 22px;
+    img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
     }
 
     &:hover,
     &:focus-visible {
-      background: #7b5cff;
       box-shadow: 0 12px 32px rgba(17, 20, 24, 0.28);
       transform: translateY(-1px);
       outline: none;
@@ -968,11 +1699,14 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
   &__bubble {
     position: absolute;
     right: 0;
-    bottom: 54px;
-    width: 320px;
-    padding: 14px;
+    bottom: 62px;
+    display: flex;
+    flex-direction: column;
+    width: clamp(500px, 32vw, 560px);
+    height: min(700px, calc(100vh - 88px));
+    padding: 0;
     border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 8px;
+    border-radius: 10px;
     background: #fff;
     box-shadow: 0 16px 42px rgba(17, 20, 24, 0.18);
     opacity: 0;
@@ -995,35 +1729,859 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
     }
   }
 
-  &__title {
-    margin-bottom: 10px;
-    font-size: 15px;
-    line-height: 22px;
-    font-weight: 600;
-    color: #111418;
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #eef1f6;
   }
 
-  &__list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
+  &__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    color: #111418;
 
-    li {
-      min-height: 30px;
-      padding: 6px 8px;
+    div {
+      min-width: 0;
+    }
+
+    strong {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 600;
+    }
+  }
+
+  &__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: none;
       border-radius: 6px;
-      font-size: 13px;
-      line-height: 18px;
-      color: #4b5563;
+      background: transparent;
+      color: #64748b;
+      font-size: 16px;
+      cursor: pointer;
       transition: background 0.15s ease, color 0.15s ease;
 
-      &:hover {
+      &:hover,
+      &.active {
         background: rgba(110, 75, 255, 0.1);
         color: #6e4bff;
       }
+    }
+  }
+
+  &__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+    padding: 18px 18px 12px;
+    background: linear-gradient(180deg, #fbfcff 0%, #fff 42%);
+    overflow: hidden;
+  }
+
+  &__empty {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-width: 360px;
+    margin: 0 auto;
+    text-align: center;
+
+    h3 {
+      margin: 0 0 12px;
+      color: #111418;
+      font-size: 22px;
+      line-height: 30px;
+      font-weight: 700;
+    }
+
+    p {
+      margin: 0;
+      color: #64748b;
+      font-size: 14px;
+      line-height: 22px;
+    }
+  }
+
+  &__quick-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 24px;
+
+    button {
+      max-width: 100%;
+      min-height: 32px;
+      padding: 6px 12px;
+      border: 1px solid #d8e2f0;
+      border-radius: 999px;
+      background: #fff;
+      color: #3a3f47;
+      font-size: 12px;
+      line-height: 18px;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+      transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+
+      &:hover {
+        border-color: rgba(110, 75, 255, 0.48);
+        background: rgba(110, 75, 255, 0.04);
+        color: #6e4bff;
+      }
+    }
+  }
+
+  &__messages {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    padding: 2px 4px 4px;
+    scrollbar-width: thin;
+  }
+
+  &__message {
+    display: flex;
+    align-items: flex-start;
+
+    &.is-user {
+      justify-content: flex-end;
+
+      .page-help__message-bubble {
+        border-color: #6e4bff;
+        background: #6e4bff;
+        color: #fff;
+        border-bottom-right-radius: 4px;
+      }
+    }
+
+    &.is-assistant {
+      justify-content: flex-start;
+
+      .page-help__message-bubble {
+        max-width: 92%;
+        border-bottom-left-radius: 4px;
+      }
+    }
+  }
+
+  &__message-bubble {
+    max-width: 78%;
+    padding: 10px 12px;
+    border: 1px solid #e5eaf3;
+    border-radius: 10px;
+    background: #fff;
+    color: #273142;
+    font-size: 13px;
+    line-height: 21px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+    word-break: break-word;
+  }
+
+  &__ticket-card {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid #e7edf5;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+    box-shadow: 0 8px 22px rgba(20, 23, 31, 0.05);
+  }
+
+  &__ticket-row {
+    display: grid;
+    gap: 6px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f0f3f8;
+
+    &:last-of-type {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    span {
+      color: #8a96a8;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    strong {
+      color: #273142;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 20px;
+    }
+  }
+
+  &__ticket-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    em {
+      height: 24px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: rgba(110, 75, 255, 0.1);
+      color: #6e4bff;
+      font-size: 12px;
+      font-style: normal;
+      line-height: 24px;
+      font-weight: 500;
+    }
+  }
+
+  &__ticket-images {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 4px;
+
+    img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 8px;
+      border: 1px solid #dbe4f1;
+      object-fit: cover;
+      background: #f7f9fc;
+      box-shadow: 0 1px 3px rgba(20, 23, 31, 0.06);
+    }
+  }
+
+  &__ticket-submit {
+    justify-self: end;
+    height: 32px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 6px;
+    background: #6e4bff;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(110, 75, 255, 0.28);
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+      background: #7d5cff;
+      box-shadow: 0 4px 16px rgba(110, 75, 255, 0.38);
+    }
+
+    &:active {
+      background: #5d3bff;
+      transform: scale(0.96);
+    }
+
+    &:disabled {
+      background: #eef1f6;
+      color: #8895ab;
+      box-shadow: none;
+      cursor: default;
+      transform: none;
+    }
+  }
+
+  &__ticket-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 32px;
+    margin-top: 10px;
+    padding: 0 14px;
+    border: 1px solid #6e4bff;
+    border-radius: 6px;
+    color: #fff;
+    background: #6e4bff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(110, 75, 255, 0.28);
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+      background: #7d5cff;
+      box-shadow: 0 4px 16px rgba(110, 75, 255, 0.38);
+    }
+
+    &:active {
+      background: #5d3bff;
+      transform: scale(0.96);
+    }
+  }
+
+  &__camera-guide {
+    display: grid;
+    gap: 12px;
+    width: min(100%, 520px);
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid #e7edf5;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
+    box-shadow: 0 8px 22px rgba(20, 23, 31, 0.05);
+  }
+
+  &__camera-guide-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(110, 75, 255, 0.10) 0%, rgba(245, 248, 255, 0.95) 100%);
+
+    span {
+      display: block;
+      margin-bottom: 4px;
+      color: #6e4bff;
+      font-size: 12px;
+      line-height: 18px;
+      font-weight: 600;
+    }
+
+    strong {
+      display: block;
+      color: #111418;
+      font-size: 18px;
+      line-height: 26px;
+      font-weight: 700;
+    }
+
+    p {
+      margin: 6px 0 0;
+      color: #64748b;
+      font-size: 12px;
+      line-height: 20px;
+    }
+
+    > i {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: #fff;
+      color: #6e4bff;
+      font-size: 22px;
+      box-shadow: 0 8px 18px rgba(110, 75, 255, 0.12);
+    }
+  }
+
+  &__camera-guide-flow {
+    display: grid;
+    gap: 10px;
+  }
+
+  &__camera-guide-info {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+
+    div {
+      display: grid;
+      gap: 5px;
+      padding: 10px;
+      border: 1px solid #eef1f6;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    span {
+      color: #8a96a8;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    strong {
+      margin: 0;
+      color: #273142;
+      font-size: 12px;
+      line-height: 20px;
+      font-weight: 600;
+    }
+  }
+
+  &__camera-guide-summary {
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border-left: 3px solid #6e4bff;
+    border-radius: 8px;
+    background: #fff;
+
+    span {
+      color: #8a96a8;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    p {
+      margin: 0;
+      color: #273142;
+      font-size: 12px;
+      line-height: 20px;
+    }
+  }
+
+  &__camera-guide-step {
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid #eef1f6;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  &__camera-guide-shot {
+    overflow: hidden;
+    aspect-ratio: 16 / 10;
+    border: 1px solid #dbe4f1;
+    border-radius: 6px;
+    background: #f7f9fc;
+
+    img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  &__camera-guide-copy {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+
+    em {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(110, 75, 255, 0.1);
+      color: #6e4bff;
+      font-size: 12px;
+      line-height: 22px;
+      font-style: normal;
+      font-weight: 700;
+    }
+
+    div {
+      min-width: 0;
+    }
+
+    strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #273142;
+      font-size: 13px;
+      line-height: 20px;
+      font-weight: 600;
+    }
+
+    p {
+      margin: 0;
+      color: #64748b;
+      font-size: 12px;
+      line-height: 18px;
+    }
+  }
+
+  &__camera-guide-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 9px 10px;
+    border: 1px solid rgba(110, 75, 255, 0.12);
+    border-radius: 8px;
+    background: #faf9ff;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 18px;
+
+    i {
+      flex: 0 0 auto;
+      margin-top: 1px;
+      color: #6e4bff;
+      font-size: 14px;
+    }
+  }
+
+  &__camera-guide-steps {
+    display: grid;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #eef1f6;
+    border-radius: 8px;
+    background: #fff;
+
+    > span {
+      color: #8a96a8;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+  }
+
+  &__camera-guide-step-group {
+    display: grid;
+    gap: 7px;
+    padding: 10px;
+    border-radius: 8px;
+    background: #fafbfc;
+
+    h4 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      color: #273142;
+      font-size: 13px;
+      line-height: 20px;
+      font-weight: 600;
+
+      em {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(110, 75, 255, 0.10);
+        color: #6e4bff;
+        font-size: 12px;
+        line-height: 20px;
+        font-style: normal;
+      }
+    }
+
+    ol {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      padding-left: 18px;
+      color: #273142;
+      font-size: 12px;
+      line-height: 19px;
+    }
+
+    li {
+      padding-left: 2px;
+    }
+  }
+
+  &__welcome {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+    max-width: 430px;
+    margin: 0 auto 24px;
+
+    h3 {
+      margin: 18px 0 10px;
+      font-size: 22px;
+      line-height: 30px;
+      font-weight: 700;
+      color: #111418;
+    }
+
+    p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 22px;
+      color: #64748b;
+    }
+  }
+
+  &__avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 58px;
+    height: 58px;
+    flex: 0 0 auto;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 12px 28px rgba(110, 75, 255, 0.18);
+
+    img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+  }
+
+  &__prompt-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    max-width: 520px;
+    margin: 0 auto;
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 36px;
+      max-width: 100%;
+      padding: 7px 12px;
+      border: 1px solid #cfe0ff;
+      border-radius: 999px;
+      background: #fff;
+      color: #486180;
+      font-size: 13px;
+      line-height: 20px;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(20, 23, 31, 0.04);
+      transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+
+      i {
+        flex: 0 0 auto;
+        color: #6e4bff;
+        font-size: 15px;
+      }
+
+      span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      &:hover {
+        border-color: rgba(110, 75, 255, 0.48);
+        color: #6e4bff;
+        box-shadow: 0 8px 22px rgba(110, 75, 255, 0.08);
+      }
+    }
+  }
+
+  &__suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 22px 18px;
+
+    button {
+      min-height: 36px;
+      padding: 7px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #f8fafc;
+      font-size: 13px;
+      line-height: 20px;
+      color: #4b5563;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+
+      &:hover {
+        border-color: rgba(110, 75, 255, 0.36);
+        background: rgba(110, 75, 255, 0.08);
+        color: #6e4bff;
+      }
+    }
+  }
+
+  &__composer {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin: 0 16px 16px;
+    min-height: 86px;
+    padding: 12px 12px 10px;
+    border: 1px solid #d8e2f0;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(20, 23, 31, 0.06);
+  }
+
+  &__mode-bar {
+    display: flex;
+    justify-content: flex-start;
+    padding: 0 16px 8px;
+
+    button {
+      height: 28px;
+      padding: 0 12px;
+      border: 1px solid #d8e2f0;
+      border-radius: 999px;
+      background: #fff;
+      color: #64748b;
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+
+      &.active,
+      &:hover {
+        border-color: rgba(110, 75, 255, 0.48);
+        background: rgba(110, 75, 255, 0.08);
+        color: #6e4bff;
+      }
+    }
+  }
+
+  &__composer-input {
+    min-width: 0;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .page-help__composer-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 24px;
+      padding: 0 4px 0 9px;
+      border-radius: 999px;
+      background: rgba(110, 75, 255, 0.1);
+      color: #6e4bff;
+      font-size: 12px;
+      line-height: 24px;
+      white-space: nowrap;
+
+      button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+
+        i {
+          font-size: 11px;
+        }
+      }
+    }
+
+    input {
+      width: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: #111418;
+      font-size: 14px;
+      line-height: 22px;
+
+      &::placeholder {
+        color: #9aa7b8;
+      }
+    }
+  }
+
+  &__composer-tools {
+    display: inline-flex;
+    gap: 6px;
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border: 1px solid #d8e2f0;
+      border-radius: 50%;
+      background: #fff;
+      color: #64748b;
+      cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease;
+
+      i {
+        font-size: 15px;
+      }
+
+      &:hover {
+        border-color: rgba(110, 75, 255, 0.48);
+        color: #6e4bff;
+      }
+    }
+  }
+
+  &__composer-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__send {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 32px;
+    flex: 0 0 auto;
+    border: none;
+    border-radius: 8px;
+    background: #6e4bff;
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(110, 75, 255, 0.22);
+
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 720px) {
+  .page-help {
+    right: 16px;
+    bottom: 16px;
+
+    &.is-wide {
+      .page-help__bubble {
+        width: calc(100vw - 32px);
+      }
+    }
+
+    &__bubble {
+      width: calc(100vw - 32px);
+      height: min(700px, calc(100vh - 64px));
     }
   }
 }

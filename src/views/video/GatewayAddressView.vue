@@ -3,10 +3,15 @@
  * 网关地址页 — 独立全屏静态页面
  * 自带顶部导航 + 左侧菜单，不使用 ProjectLayout
  */
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import GuideOverlay from '@/components/GuideOverlay.vue'
 import { useAppStore, type GuideStep } from '@/stores/app'
+import aiChatIcon from '@/assets/AIchaticon.png'
+import aiTicketImage1 from '@/assets/text-search/result-01.jpg'
+import aiTicketImage2 from '@/assets/text-search/result-02.jpg'
+import { createTicket } from '@/views/tickets/ticketData'
 import cameraImg from '@/assets/cameras/camera.png'
 import cam1 from '@/assets/text-search/result-01.jpg'
 import cam2 from '@/assets/text-search/result-02.jpg'
@@ -22,8 +27,8 @@ import resourceImg from '@/assets/gatewayURL/ziyaunku.png'
 type TopNav = 'workbench' | 'iot' | 'gatewayConfig' | 'video' | 'system' | 'ai' | 'resource'
 const activeTopNav = ref<TopNav>('video')
 const appStore = useAppStore()
+const router = useRouter()
 const gatewayGuideWelcomeVisible = ref(true)
-const videoDeviceGuideUrl = '/video/device-guide'
 
 const gatewayGuideStepToNav: Partial<Record<GuideStep, TopNav>> = {
   'gateway-workbench': 'workbench',
@@ -82,136 +87,185 @@ function openResourcePage() {
   activeTopNav.value = 'resource'
 }
 
-type HelpNav = Exclude<TopNav, 'workbench'>
-interface HelpQuestion {
-  text: string
-  link?: string
-}
-const helpQuestionMap: Record<HelpNav, { title: string; questions: HelpQuestion[] }> = {
-  iot: {
-    title: '物联网常见问题',
-    questions: [
-      { text: '如何新增物联网产品和设备？' },
-      { text: '设备创建完成后，如何配置设备接入？' },
-      { text: '设备在哪里查看运行状态？' },
-      { text: '如何配置设备告警规则？' },
-      { text: '如何配置场景联动？' },
-      { text: '采集器在哪里配置和查看？' },
-    ],
-  },
-  gatewayConfig: {
-    title: '网关配置常见问题',
-    questions: [
-      { text: '如何配置网关接入平台？' },
-      { text: '如何使用远程终端排查或维护网关？' },
-      { text: '插件包和插件实例在哪里上传、安装和管理？' },
-      { text: '网关固件如何升级，升级记录在哪里查看？' },
-      { text: '网关的网络信息在哪里配置？' },
-      { text: '串口连接能力如何配置和管理？' },
-    ],
-  },
-  video: {
-    title: '视频中心常见问题',
-    questions: [
-      { text: '如何新增或接入摄像头设备？', link: videoDeviceGuideUrl },
-      { text: '摄像头接入失败时，应该检查哪些配置？' },
-      { text: '如何分屏查看多个摄像头的实时画面？' },
-      { text: '如何配置国标级联，把摄像头画面分享给第三方调用？' },
-      { text: '如何设置摄像头自动录像计划？' },
-      { text: '已生成的录像记录在哪里按设备或目录查看？' },
-    ],
-  },
-  system: {
-    title: '系统管理常见问题',
-    questions: [
-      { text: '系统名称、Logo、浏览器页签和登录背景图在哪里修改？' },
-      { text: '网关访问地址和系统基础信息在哪里查看或编辑？' },
-      { text: '如何新增、编辑或停用用户账号？' },
-      { text: '如何给用户分配角色和权限？' },
-      { text: '角色权限范围在哪里配置？' },
-      { text: '场景联动中会用到的日历标签在哪里维护？' },
-    ],
-  },
-  ai: {
-    title: '人工智能常见问题',
-    questions: [
-      { text: '如何创建和配置智能体？' },
-      { text: '智能体可以调用的工具和技能在哪里配置？' },
-      { text: '大模型供应商如何接入和管理？' },
-      { text: '知识库如何创建、导入和维护？' },
-      { text: '如何使用知识库进行智能搜索？' },
-      { text: '机器视觉的分析场景在哪里配置和查看？' },
-    ],
-  },
-  resource: {
-    title: '资源库常见问题',
-    questions: [
-      { text: '如何新增采集器模板？' },
-      { text: '采集器模板创建后如何编辑或维护？' },
-      { text: '如何复用已有采集器模板来快速配置数据采集？' },
-      { text: '采集器模板中需要配置哪些采集参数？' },
-      { text: '如何区分不同设备或场景适用的采集器模板？' },
-      { text: '不再使用的采集器模板如何删除或停用？' },
-    ],
-  },
-}
-const helpPosition = ref<{ x: number; y: number } | null>(null)
-const helpDragOffset = ref({ x: 0, y: 0 })
-const helpDragging = ref(false)
-const helpMoved = ref(false)
-const helpOpen = ref(false)
-const helpSize = 42
+const aiHelpPosition = ref<{ x: number; y: number } | null>(null)
+const aiHelpDragOffset = ref({ x: 0, y: 0 })
+const aiHelpDragging = ref(false)
+const aiHelpMoved = ref(false)
+const aiHelpOpen = ref(false)
+const aiHelpWide = ref(false)
+const aiHelpSize = 48
+const aiHelpInput = ref('')
 
-function currentHelpConfig() {
-  if (activeTopNav.value === 'workbench') return null
-  return helpQuestionMap[activeTopNav.value as HelpNav]
+interface AiHelpMessage {
+  id: number
+  role: 'assistant' | 'user'
+  content: string
+  ticketDraft?: AiHelpTicketDraft
+  submitted?: boolean
+  ticketId?: string
 }
 
-function startHelpDrag(event: PointerEvent) {
+interface AiHelpTicketDraft {
+  categories: string[]
+  description: string
+  contact: string
+  images: string[]
+}
+
+const defaultAiHelpMessage = '我可以帮你快速定位网关地址页的功能入口、说明当前板块能做什么，并根据你的问题给出下一步操作建议。'
+let aiHelpMessageSeed = Date.now()
+
+function createAiHelpMessageId() {
+  aiHelpMessageSeed += 1
+  return aiHelpMessageSeed
+}
+
+const aiHelpMessages = ref<AiHelpMessage[]>([])
+const aiHelpHasConversation = computed(() => aiHelpMessages.value.length > 0)
+const aiHelpTicketMode = ref(false)
+const aiHelpQuickQuestions = [
+  '当前板块可以做什么？',
+  '帮我找到视频设备入口',
+  '如何新增摄像头设备？',
+]
+
+function resetAiHelpConversation() {
+  aiHelpInput.value = ''
+  aiHelpMessages.value = []
+  aiHelpTicketMode.value = false
+}
+
+function createAiHelpAnswer(question: string) {
+  return `已收到：${question}。你可以继续补充目标，我会帮你定位入口、说明操作路径，或引导你打开对应页面。`
+}
+
+function inferAiHelpTicketCategories(content: string) {
+  if (/告警|规则|事件|处理/.test(content)) return ['告警中心']
+  if (/设备|物联|产品|接入/.test(content)) return ['物联网']
+  if (/视频|摄像头|监控|视联/.test(content)) return ['视频中心']
+  if (/网关|配置|系统/.test(content)) return ['网关配置']
+  return ['其他']
+}
+
+function createAiHelpTicketDraft(content: string): AiHelpTicketDraft {
+  return {
+    categories: inferAiHelpTicketCategories(content),
+    description: content,
+    contact: '13637564734',
+    images: [aiTicketImage1, aiTicketImage2],
+  }
+}
+
+function sendAiHelpQuestion(question = aiHelpInput.value) {
+  const content = question.trim()
+  if (!content) return
+  aiHelpMessages.value.push({
+    id: createAiHelpMessageId(),
+    role: 'user',
+    content,
+  })
+  if (aiHelpTicketMode.value) {
+    aiHelpMessages.value.push({
+      id: createAiHelpMessageId(),
+      role: 'assistant',
+      content: '我已根据你的描述整理了一份工单，请确认后提交。',
+      ticketDraft: createAiHelpTicketDraft(content),
+    })
+    aiHelpInput.value = ''
+    return
+  }
+  aiHelpMessages.value.push({
+    id: createAiHelpMessageId(),
+    role: 'assistant',
+    content: createAiHelpAnswer(content),
+  })
+  aiHelpInput.value = ''
+}
+
+function toggleAiHelpTicketMode() {
+  aiHelpTicketMode.value = !aiHelpTicketMode.value
+}
+
+function confirmAiHelpTicket(messageItem: AiHelpMessage) {
+  if (!messageItem.ticketDraft || messageItem.submitted) return
+  const ticket = createTicket({
+    categories: messageItem.ticketDraft.categories,
+    description: messageItem.ticketDraft.description,
+    contact: messageItem.ticketDraft.contact,
+    attachments: ['image1.png', 'image.png'],
+  })
+  messageItem.submitted = true
+  message.success('工单已提交')
+  aiHelpMessages.value.push({
+    id: createAiHelpMessageId(),
+    role: 'assistant',
+    content: `工单 ${ticket.id} 已提交，你可以在工单管理中查看处理进度。`,
+    ticketId: ticket.id,
+  })
+}
+
+function openAiHelpTicketList() {
+  aiHelpOpen.value = false
+  router.push('/tickets')
+}
+
+function openAiHelpFeedbackTicket() {
+  aiHelpOpen.value = false
+  router.push({
+    path: '/tickets',
+    query: { action: 'create', from: 'assistant', _t: Date.now() },
+  })
+}
+
+function startAiHelpDrag(event: PointerEvent) {
   const target = event.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
-  helpDragging.value = true
-  helpMoved.value = false
-  helpPosition.value = { x: rect.left, y: rect.top }
-  helpDragOffset.value = {
+  aiHelpDragging.value = true
+  aiHelpMoved.value = false
+  aiHelpPosition.value = { x: rect.left, y: rect.top }
+  aiHelpDragOffset.value = {
     x: event.clientX - rect.left,
     y: event.clientY - rect.top,
   }
-  document.addEventListener('pointermove', moveHelp)
-  document.addEventListener('pointerup', stopHelpDrag)
+  document.addEventListener('pointermove', moveAiHelp)
+  document.addEventListener('pointerup', stopAiHelpDrag)
 }
 
-function moveHelp(event: PointerEvent) {
-  if (!helpDragging.value) return
-  helpMoved.value = true
+function moveAiHelp(event: PointerEvent) {
+  if (!aiHelpDragging.value) return
+  aiHelpMoved.value = true
   const minX = 0
-  const maxX = window.innerWidth - helpSize / 2
+  const maxX = window.innerWidth - aiHelpSize / 2
   const minY = 48
-  const maxY = window.innerHeight - helpSize
-  helpPosition.value = {
-    x: Math.max(minX, Math.min(event.clientX - helpDragOffset.value.x, maxX)),
-    y: Math.max(minY, Math.min(event.clientY - helpDragOffset.value.y, maxY)),
+  const maxY = window.innerHeight - aiHelpSize
+  aiHelpPosition.value = {
+    x: Math.max(minX, Math.min(event.clientX - aiHelpDragOffset.value.x, maxX)),
+    y: Math.max(minY, Math.min(event.clientY - aiHelpDragOffset.value.y, maxY)),
   }
 }
 
-function stopHelpDrag() {
-  helpDragging.value = false
-  document.removeEventListener('pointermove', moveHelp)
-  document.removeEventListener('pointerup', stopHelpDrag)
+function stopAiHelpDrag() {
+  aiHelpDragging.value = false
+  document.removeEventListener('pointermove', moveAiHelp)
+  document.removeEventListener('pointerup', stopAiHelpDrag)
 }
 
-function toggleHelp() {
-  if (helpDragging.value || helpMoved.value) {
+function toggleAiHelp() {
+  if (aiHelpDragging.value || aiHelpMoved.value) {
     setTimeout(() => {
-      helpMoved.value = false
+      aiHelpMoved.value = false
     }, 0)
     return
   }
-  helpOpen.value = !helpOpen.value
+  aiHelpOpen.value = !aiHelpOpen.value
+}
+
+function toggleAiHelpWide() {
+  aiHelpWide.value = !aiHelpWide.value
 }
 
 onBeforeUnmount(() => {
-  stopHelpDrag()
+  stopAiHelpDrag()
 })
 
 // 页面视图：list(设备列表) / add(新增设备)
@@ -810,35 +864,152 @@ function goBackToList() {
       </main>
       </template>
       <div
-        v-if="currentHelpConfig()"
-        class="ga-help"
-        :class="{ 'is-dragging': helpDragging, 'is-open': helpOpen }"
-        :style="helpPosition ? { left: `${helpPosition.x}px`, top: `${helpPosition.y}px`, right: 'auto', bottom: 'auto' } : undefined"
+        class="ga-ai-help"
+        :class="{ 'is-dragging': aiHelpDragging, 'is-open': aiHelpOpen, 'is-wide': aiHelpWide }"
+        :style="aiHelpPosition ? { left: `${aiHelpPosition.x}px`, top: `${aiHelpPosition.y}px`, right: 'auto', bottom: 'auto' } : undefined"
       >
         <button
-          class="ga-help__trigger"
+          class="ga-ai-help__trigger"
           type="button"
-          :aria-label="currentHelpConfig()?.title"
-          @pointerdown="startHelpDrag"
-          @click="toggleHelp"
+          aria-label="智能对话助手"
+          @pointerdown="startAiHelpDrag"
+          @click="toggleAiHelp"
         >
-          <i class="i-ant-design-question-circle-outlined" />
+          <img :src="aiChatIcon" alt="" draggable="false">
         </button>
-        <div class="ga-help__bubble">
-          <div class="ga-help__title">{{ currentHelpConfig()?.title }}</div>
-          <ul class="ga-help__list">
-            <li v-for="question in currentHelpConfig()?.questions" :key="question.text">
-              <a
-                v-if="question.link"
-                :href="question.link"
-                target="_blank"
-                rel="noopener noreferrer"
+        <div class="ga-ai-help__bubble">
+          <div class="ga-ai-help__toolbar">
+            <div class="ga-ai-help__brand">
+              <strong>AI 智能助手</strong>
+            </div>
+            <div class="ga-ai-help__actions">
+              <button type="button" title="新对话" aria-label="新对话" @click.stop="resetAiHelpConversation">
+                <i class="i-ant-design-plus-outlined" />
+              </button>
+              <button type="button" title="对话记录" aria-label="对话记录" @click.stop>
+                <i class="i-ant-design-history-outlined" />
+              </button>
+              <button type="button" title="反馈问题" aria-label="反馈问题" @click.stop="openAiHelpFeedbackTicket">
+                <i class="i-ant-design-message-outlined" />
+              </button>
+              <button
+                type="button"
+                :title="aiHelpWide ? '恢复宽度' : '放大宽度'"
+                :aria-label="aiHelpWide ? '恢复宽度' : '放大宽度'"
+                :class="{ active: aiHelpWide }"
+                @click.stop="toggleAiHelpWide"
               >
-                {{ question.text }}
-              </a>
-              <span v-else>{{ question.text }}</span>
-            </li>
-          </ul>
+                <i :class="aiHelpWide ? 'i-ant-design-compress-outlined' : 'i-ant-design-expand-alt-outlined'" />
+              </button>
+            </div>
+          </div>
+          <div class="ga-ai-help__body">
+            <div v-if="!aiHelpHasConversation" class="ga-ai-help__empty">
+              <h3>开始和智能体对话</h3>
+              <p>{{ defaultAiHelpMessage }}</p>
+              <div class="ga-ai-help__quick-list">
+                <button
+                  v-for="question in aiHelpQuickQuestions"
+                  :key="question"
+                  type="button"
+                  @click="sendAiHelpQuestion(question)"
+                >
+                  {{ question }}
+                </button>
+              </div>
+            </div>
+            <div v-else class="ga-ai-help__messages">
+              <div
+                v-for="message in aiHelpMessages"
+                :key="message.id"
+                class="ga-ai-help__message"
+                :class="`is-${message.role}`"
+              >
+                <div class="ga-ai-help__message-bubble">
+                  {{ message.content }}
+                  <button
+                    v-if="message.ticketId"
+                    class="ga-ai-help__ticket-link"
+                    type="button"
+                    @click="openAiHelpTicketList"
+                  >
+                    <i class="i-ant-design-profile-outlined" />
+                    去工单管理
+                  </button>
+                  <div v-if="message.ticketDraft" class="ga-ai-help__ticket-card">
+                    <div class="ga-ai-help__ticket-row">
+                      <span>板块分类</span>
+                      <div class="ga-ai-help__ticket-tags">
+                        <em v-for="category in message.ticketDraft.categories" :key="category">{{ category }}</em>
+                      </div>
+                    </div>
+                    <div class="ga-ai-help__ticket-row">
+                      <span>描述</span>
+                      <strong>{{ message.ticketDraft.description }}</strong>
+                      <div class="ga-ai-help__ticket-images">
+                        <img
+                          v-for="image in message.ticketDraft.images"
+                          :key="image"
+                          :src="image"
+                          alt="工单补充图片"
+                        >
+                      </div>
+                    </div>
+                    <div class="ga-ai-help__ticket-row">
+                      <span>联系方式</span>
+                      <strong>{{ message.ticketDraft.contact }}</strong>
+                    </div>
+                    <button
+                      class="ga-ai-help__ticket-submit"
+                      type="button"
+                      :disabled="message.submitted"
+                      @click="confirmAiHelpTicket(message)"
+                    >
+                      {{ message.submitted ? '已提交' : '确认提交' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ga-ai-help__mode-bar">
+            <button
+              type="button"
+              :class="{ active: aiHelpTicketMode }"
+              @click="toggleAiHelpTicketMode"
+            >
+              工单提交
+            </button>
+          </div>
+          <div class="ga-ai-help__composer">
+            <div class="ga-ai-help__composer-input">
+              <span v-if="aiHelpTicketMode" class="ga-ai-help__composer-tag">
+                工单提交
+                <button type="button" title="删除" aria-label="删除工单提交标签" @click="aiHelpTicketMode = false">
+                  <i class="i-ant-design-close-outlined" />
+                </button>
+              </span>
+              <input
+                v-model="aiHelpInput"
+                type="text"
+                placeholder="输入问题并回车发送"
+                @keydown.enter="sendAiHelpQuestion()"
+              >
+            </div>
+            <div class="ga-ai-help__composer-bottom">
+              <div class="ga-ai-help__composer-tools">
+                <button class="ga-ai-help__tool-btn" type="button" aria-label="选择图片">
+                  <i class="i-ant-design-plus-outlined" />
+                </button>
+                <button class="ga-ai-help__tool-btn" type="button" aria-label="选择文件夹">
+                  <i class="i-ant-design-folder-open-outlined" />
+                </button>
+              </div>
+              <button class="ga-ai-help__send" type="button" aria-label="发送" @click="sendAiHelpQuestion()">
+                <i class="i-ant-design-arrow-up-outlined" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1143,6 +1314,549 @@ function goBackToList() {
     height: 100%;
     display: block;
     object-fit: fill;
+  }
+}
+
+.ga-ai-help {
+  position: fixed;
+  right: 72px;
+  bottom: 58px;
+  z-index: 120;
+
+  &.is-open {
+    .ga-ai-help__bubble {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+  }
+
+  &.is-wide {
+    .ga-ai-help__bubble {
+      width: clamp(620px, 40vw, 720px);
+    }
+  }
+
+  &.is-dragging {
+    .ga-ai-help__trigger {
+      cursor: grabbing;
+      transform: none;
+    }
+  }
+
+  &__trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: #fff;
+    overflow: hidden;
+    box-shadow: 0 10px 28px rgba(17, 20, 24, 0.22);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+    img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    &:hover,
+    &:focus-visible {
+      box-shadow: 0 12px 32px rgba(17, 20, 24, 0.28);
+      transform: translateY(-1px);
+      outline: none;
+    }
+  }
+
+  &__bubble {
+    position: absolute;
+    right: 0;
+    bottom: 62px;
+    display: flex;
+    flex-direction: column;
+    width: clamp(500px, 32vw, 560px);
+    height: min(700px, calc(100vh - 88px));
+    padding: 0;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 16px 42px rgba(17, 20, 24, 0.18);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+
+    &::after {
+      content: '';
+      position: absolute;
+      right: 14px;
+      bottom: -7px;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-right: 1px solid rgba(15, 23, 42, 0.08);
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      transform: rotate(45deg);
+    }
+  }
+
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #eef1f6;
+  }
+
+  &__brand {
+    min-width: 0;
+    color: #111418;
+
+    strong {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 600;
+    }
+  }
+
+  &__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: #64748b;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+
+      &:hover,
+      &.active {
+        background: rgba(110, 75, 255, 0.1);
+        color: #6e4bff;
+      }
+    }
+  }
+
+  &__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+    padding: 18px 18px 12px;
+    background: linear-gradient(180deg, #fbfcff 0%, #fff 42%);
+    overflow: hidden;
+  }
+
+  &__empty {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-width: 360px;
+    margin: 0 auto;
+    text-align: center;
+
+    h3 {
+      margin: 0 0 12px;
+      color: #111418;
+      font-size: 22px;
+      line-height: 30px;
+      font-weight: 700;
+    }
+
+    p {
+      margin: 0;
+      color: #64748b;
+      font-size: 14px;
+      line-height: 22px;
+    }
+  }
+
+  &__quick-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 24px;
+
+    button {
+      max-width: 100%;
+      min-height: 32px;
+      padding: 6px 12px;
+      border: 1px solid #d8e2f0;
+      border-radius: 999px;
+      background: #fff;
+      color: #3a3f47;
+      font-size: 12px;
+      line-height: 18px;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+      transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+
+      &:hover {
+        border-color: rgba(110, 75, 255, 0.48);
+        background: rgba(110, 75, 255, 0.04);
+        color: #6e4bff;
+      }
+    }
+  }
+
+  &__messages {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    padding: 2px 4px 4px;
+    scrollbar-width: thin;
+  }
+
+  &__message {
+    display: flex;
+    align-items: flex-start;
+
+    &.is-user {
+      justify-content: flex-end;
+
+      .ga-ai-help__message-bubble {
+        border-color: #6e4bff;
+        background: #6e4bff;
+        color: #fff;
+        border-bottom-right-radius: 4px;
+      }
+    }
+
+    &.is-assistant {
+      justify-content: flex-start;
+
+      .ga-ai-help__message-bubble {
+        border-bottom-left-radius: 4px;
+      }
+    }
+  }
+
+  &__message-bubble {
+    max-width: 78%;
+    padding: 10px 12px;
+    border: 1px solid #e5eaf3;
+    border-radius: 10px;
+    background: #fff;
+    color: #273142;
+    font-size: 13px;
+    line-height: 21px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+    word-break: break-word;
+  }
+
+  &__ticket-card {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid #e7edf5;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+    box-shadow: 0 8px 22px rgba(20, 23, 31, 0.05);
+  }
+
+  &__ticket-row {
+    display: grid;
+    gap: 6px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f0f3f8;
+
+    &:last-of-type {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    span {
+      color: #8a96a8;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    strong {
+      color: #273142;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 20px;
+    }
+  }
+
+  &__ticket-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    em {
+      height: 24px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: rgba(110, 75, 255, 0.1);
+      color: #6e4bff;
+      font-size: 12px;
+      font-style: normal;
+      line-height: 24px;
+      font-weight: 500;
+    }
+  }
+
+  &__ticket-images {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 4px;
+
+    img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 8px;
+      border: 1px solid #dbe4f1;
+      object-fit: cover;
+      background: #f7f9fc;
+      box-shadow: 0 1px 3px rgba(20, 23, 31, 0.06);
+    }
+  }
+
+  &__ticket-submit {
+    justify-self: end;
+    height: 32px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 6px;
+    background: #6e4bff;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(110, 75, 255, 0.28);
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+      background: #7d5cff;
+      box-shadow: 0 4px 16px rgba(110, 75, 255, 0.38);
+    }
+
+    &:active {
+      background: #5d3bff;
+      transform: scale(0.96);
+    }
+
+    &:disabled {
+      background: #eef1f6;
+      color: #8895ab;
+      box-shadow: none;
+      cursor: default;
+      transform: none;
+    }
+  }
+
+  &__ticket-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 32px;
+    margin-top: 10px;
+    padding: 0 14px;
+    border: 1px solid #6e4bff;
+    border-radius: 6px;
+    color: #fff;
+    background: #6e4bff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(110, 75, 255, 0.28);
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+    &:hover {
+      background: #7d5cff;
+      box-shadow: 0 4px 16px rgba(110, 75, 255, 0.38);
+    }
+
+    &:active {
+      background: #5d3bff;
+      transform: scale(0.96);
+    }
+  }
+
+  &__composer {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin: 0 16px 16px;
+    min-height: 86px;
+    padding: 12px 12px 10px;
+    border: 1px solid #d8e2f0;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(20, 23, 31, 0.06);
+  }
+
+  &__mode-bar {
+    display: flex;
+    justify-content: flex-start;
+    padding: 0 16px 8px;
+
+    button {
+      height: 28px;
+      padding: 0 12px;
+      border: 1px solid #d8e2f0;
+      border-radius: 999px;
+      background: #fff;
+      color: #64748b;
+      font-size: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+
+      &.active,
+      &:hover {
+        border-color: rgba(110, 75, 255, 0.48);
+        background: rgba(110, 75, 255, 0.08);
+        color: #6e4bff;
+      }
+    }
+  }
+
+  &__composer-input {
+    min-width: 0;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .ga-ai-help__composer-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 24px;
+      padding: 0 4px 0 9px;
+      border-radius: 999px;
+      background: rgba(110, 75, 255, 0.1);
+      color: #6e4bff;
+      font-size: 12px;
+      line-height: 24px;
+      white-space: nowrap;
+
+      button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+
+        i {
+          font-size: 11px;
+        }
+      }
+    }
+
+    input {
+      width: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: #111418;
+      font-size: 14px;
+      line-height: 22px;
+
+      &::placeholder {
+        color: #9aa7b8;
+      }
+    }
+  }
+
+  &__composer-tools {
+    display: inline-flex;
+    gap: 6px;
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border: 1px solid #d8e2f0;
+      border-radius: 50%;
+      background: #fff;
+      color: #64748b;
+      cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease;
+
+      i {
+        font-size: 15px;
+      }
+
+      &:hover {
+        border-color: rgba(110, 75, 255, 0.48);
+        color: #6e4bff;
+      }
+    }
+  }
+
+  &__composer-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__send {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 32px;
+    flex: 0 0 auto;
+    border: none;
+    border-radius: 8px;
+    background: #6e4bff;
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(110, 75, 255, 0.22);
+
+    i {
+      font-size: 16px;
+    }
   }
 }
 

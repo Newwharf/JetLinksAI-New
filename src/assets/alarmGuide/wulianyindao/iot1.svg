@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="360" viewBox="0 0 760 360">
+  <rect width="760" height="360" rx="12" fill="#f7f9fc"/>
+  <rect x="34" y="32" width="692" height="296" rx="12" fill="#fff" stroke="#e5eaf3"/>
+  <text x="58" y="68" font-size="18" font-weight="700" fill="#111827">设备列表</text>
+  <text x="58" y="96" font-size="12" fill="#7b8798">通过新增入口了解物联设备接入流程</text>
+  <rect x="58" y="122" width="644" height="42" rx="8" fill="#fbfcff" stroke="#dbe4f0"/>
+  <text x="78" y="148" font-size="13" fill="#8a96a8">搜索设备名称 / 设备 ID / 设备类型 / 接入方式</text>
+  <rect x="568" y="54" width="120" height="38" rx="8" fill="#6e4bff"/>
+  <text x="606" y="78" font-size="14" font-weight="700" fill="#fff">新增设备</text>
+  <rect x="58" y="190" width="644" height="42" rx="8" fill="#fff" stroke="#eef1f6"/>
+  <rect x="58" y="246" width="644" height="42" rx="8" fill="#fff" stroke="#eef1f6"/>
+</svg>

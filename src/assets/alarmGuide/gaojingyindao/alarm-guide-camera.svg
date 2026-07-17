@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="360" viewBox="0 0 760 360">
+  <defs><linearGradient id="sk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f1f3f6"/><stop offset="0.5" stop-color="#e6e9f0"/><stop offset="1" stop-color="#f1f3f6"/></linearGradient></defs>
+  <rect width="760" height="360" rx="12" fill="#f7f9fc"/><rect x="46" y="28" width="668" height="304" rx="12" fill="#fff" stroke="#e5eaf3"/>
+  <text x="70" y="62" font-size="18" font-weight="700" fill="#111827">&#x65B0;&#x5EFA;&#x544A;&#x8B66;&#x89C4;&#x5219;</text><line x1="46" y1="84" x2="714" y2="84" stroke="#f4f5f7"/>
+  <circle cx="92" cy="112" r="11" fill="#2bb3a3"/><text x="88" y="116" font-size="11" fill="#fff">&#x2713;</text><text x="112" y="116" font-size="12" fill="#3a3f47">&#x57FA;&#x7840;&#x4FE1;&#x606F;</text>
+  <circle cx="220" cy="112" r="11" fill="#2bb3a3"/><text x="216" y="116" font-size="11" fill="#fff">&#x2713;</text><text x="240" y="116" font-size="12" fill="#3a3f47">&#x573A;&#x666F;&#x7B97;&#x6CD5;</text>
+  <circle cx="348" cy="112" r="11" fill="#6e4bff"/><text x="344" y="116" font-size="11" font-weight="700" fill="#fff">3</text><text x="368" y="116" font-size="12" font-weight="700" fill="#6e4bff">&#x751F;&#x6548;&#x6444;&#x50CF;&#x5934;</text>
+  <circle cx="504" cy="112" r="11" fill="#fafbfc"/><text x="500" y="116" font-size="11" fill="#8895ab">4</text><text x="524" y="116" font-size="12" fill="#8895ab">&#x751F;&#x6548;&#x65F6;&#x6BB5;</text>
+  <circle cx="632" cy="112" r="11" fill="#fafbfc"/><text x="628" y="116" font-size="11" fill="#8895ab">5</text><text x="652" y="116" font-size="12" fill="#8895ab">&#x901A;&#x77E5;&#x5BF9;&#x8C61;</text>
+  <line x1="46" y1="138" x2="714" y2="138" stroke="#f4f5f7"/>
+  <rect x="70" y="160" width="170" height="142" rx="10" fill="#fbfcff" stroke="#e5eaf3"/>
+  <text x="90" y="185" font-size="13" font-weight="700" fill="#111827">&#x533A;&#x57DF;&#x5217;&#x8868;</text><rect x="90" y="204" width="112" height="8" rx="4" fill="url(#sk)"/><rect x="90" y="228" width="92" height="8" rx="4" fill="url(#sk)"/><rect x="90" y="252" width="122" height="8" rx="4" fill="url(#sk)"/><rect x="90" y="276" width="76" height="8" rx="4" fill="url(#sk)"/>
+  <rect x="262" y="160" width="428" height="142" rx="10" fill="#fff" stroke="#e5eaf3"/>
+  <text x="282" y="185" font-size="13" font-weight="700" fill="#111827">&#x6444;&#x50CF;&#x5934;</text>
+  <rect x="282" y="204" width="116" height="62" rx="8" fill="#faf9ff" stroke="#6e4bff"/><rect x="294" y="216" width="92" height="24" rx="6" fill="#23262b"/><rect x="294" y="248" width="68" height="8" rx="4" fill="url(#sk)"/>
+  <rect x="418" y="204" width="116" height="62" rx="8" fill="#fff" stroke="#e5eaf3"/><rect x="430" y="216" width="92" height="24" rx="6" fill="#2c2f36"/><rect x="430" y="248" width="74" height="8" rx="4" fill="url(#sk)"/>
+  <rect x="554" y="204" width="116" height="62" rx="8" fill="#fff" stroke="#e5eaf3"/><rect x="566" y="216" width="92" height="24" rx="6" fill="#2c2f36"/><rect x="566" y="248" width="70" height="8" rx="4" fill="url(#sk)"/>
+</svg>

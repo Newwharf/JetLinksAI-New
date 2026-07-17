@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="360" viewBox="0 0 760 360">
+  <defs><linearGradient id="sk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f1f3f6"/><stop offset="0.5" stop-color="#e6e9f0"/><stop offset="1" stop-color="#f1f3f6"/></linearGradient></defs>
+  <rect width="760" height="360" rx="12" fill="#f7f9fc"/><rect x="46" y="28" width="668" height="304" rx="12" fill="#fff" stroke="#e5eaf3"/>
+  <text x="70" y="62" font-size="18" font-weight="700" fill="#111827">&#x65B0;&#x5EFA;&#x544A;&#x8B66;&#x89C4;&#x5219;</text><line x1="46" y1="84" x2="714" y2="84" stroke="#f4f5f7"/>
+  <circle cx="92" cy="112" r="11" fill="#2bb3a3"/><text x="88" y="116" font-size="11" fill="#fff">&#x2713;</text><text x="112" y="116" font-size="12" fill="#3a3f47">&#x57FA;&#x7840;&#x4FE1;&#x606F;</text>
+  <circle cx="220" cy="112" r="11" fill="#2bb3a3"/><text x="216" y="116" font-size="11" fill="#fff">&#x2713;</text><text x="240" y="116" font-size="12" fill="#3a3f47">&#x573A;&#x666F;&#x7B97;&#x6CD5;</text>
+  <circle cx="348" cy="112" r="11" fill="#2bb3a3"/><text x="344" y="116" font-size="11" fill="#fff">&#x2713;</text><text x="368" y="116" font-size="12" fill="#3a3f47">&#x751F;&#x6548;&#x6444;&#x50CF;&#x5934;</text>
+  <circle cx="504" cy="112" r="11" fill="#2bb3a3"/><text x="500" y="116" font-size="11" fill="#fff">&#x2713;</text><text x="524" y="116" font-size="12" fill="#3a3f47">&#x751F;&#x6548;&#x65F6;&#x6BB5;</text>
+  <circle cx="632" cy="112" r="11" fill="#6e4bff"/><text x="628" y="116" font-size="11" font-weight="700" fill="#fff">5</text><text x="652" y="116" font-size="12" font-weight="700" fill="#6e4bff">&#x901A;&#x77E5;&#x5BF9;&#x8C61;</text>
+  <line x1="46" y1="138" x2="714" y2="138" stroke="#f4f5f7"/>
+  <text x="70" y="170" font-size="13" font-weight="700" fill="#111827">&#x901A;&#x77E5;&#x65B9;&#x5F0F;</text>
+  <rect x="70" y="184" width="620" height="34" rx="8" fill="#fbfcff" stroke="#e5eaf3"/><rect x="90" y="197" width="88" height="8" rx="4" fill="url(#sk)"/><rect x="198" y="197" width="106" height="8" rx="4" fill="url(#sk)"/>
+  <text x="70" y="246" font-size="13" font-weight="700" fill="#111827">&#x901A;&#x77E5;&#x5206;&#x7C7B;</text>
+  <rect x="70" y="260" width="180" height="48" rx="8" fill="#faf9ff" stroke="#6e4bff"/><text x="98" y="287" font-size="13" font-weight="700" fill="#6e4bff">&#x5B89;&#x5168;&#x544A;&#x8B66;</text>
+  <rect x="270" y="260" width="180" height="48" rx="8" fill="#fff" stroke="#e5eaf3"/><rect x="294" y="278" width="104" height="8" rx="4" fill="url(#sk)"/>
+  <rect x="470" y="260" width="220" height="48" rx="8" fill="#fff" stroke="#e5eaf3"/><rect x="494" y="278" width="142" height="8" rx="4" fill="url(#sk)"/>
+</svg>

@@ -18,7 +18,19 @@ const router = useRouter()
 const appStore = useAppStore()
 
 const deviceId = computed(() => String(route.params.id || ''))
-const device = computed(() => devices.value.find(d => d.id === deviceId.value) || devices.value[0])
+const isGuideDemoDevice = computed(() =>
+  deviceId.value === 'guide-demo' || ['iot-access', 'iot-access-config', 'iot-done'].includes(appStore.guideStep)
+)
+const guideDemoDevice = computed(() => ({
+  ...devices.value[0],
+  id: 'guide-demo',
+  name: '新增设备实例',
+  status: 'offline' as const,
+  healthScore: 0,
+  lastReport: '--',
+  sn: 'guide-demo',
+}))
+const device = computed(() => isGuideDemoDevice.value ? guideDemoDevice.value : (devices.value.find(d => d.id === deviceId.value) || devices.value[0]))
 
 const activeTab = ref<'overview' | 'access' | 'command' | 'data' | 'log'>('overview')
 
@@ -29,12 +41,13 @@ onMounted(() => {
   }
 })
 
-// 点击「设备接入」tab 时推进引导
+watch(() => appStore.guideStep, (step) => {
+  if (step === 'iot-access') activeTab.value = 'overview'
+  if (step === 'iot-access-config' || step === 'iot-done') activeTab.value = 'access'
+}, { immediate: true })
+
 function switchTab(tab: 'overview' | 'access' | 'command' | 'data' | 'log') {
   activeTab.value = tab
-  if (tab === 'access' && appStore.guideStep === 'iot-access') {
-    setTimeout(() => appStore.setGuideStep('iot-access-config'), 500)
-  }
 }
 
 // ===== 启用/禁用设备 =====
@@ -60,26 +73,19 @@ const accessConfig = {
 
 // 接入步骤：init → waiting → done（自动检测复制完成）
 const copiedFlags = reactive({ address: false, params: false })
+const showGuideAccessSkeleton = computed(() => appStore.guideActive && appStore.guideStep === 'iot-access-config')
 const accessStep = computed<'init' | 'waiting' | 'done'>(() => {
   if (copiedFlags.address && copiedFlags.params) return 'done'
   if (copiedFlags.address || copiedFlags.params) return 'waiting'
   return 'init'
 })
 
-// 引导期间是否已通过复制触发完成（任意一个复制即可）
-const guideCopyDone = ref(false)
 const accessFinished = ref(false)
 
 // 监听步骤变化，done 时自动更新设备状态
 watch(accessStep, (step) => {
   if (step === 'done') {
     finishAccess()
-  }
-})
-
-watch(() => appStore.guideStep, (step) => {
-  if (step === 'iot-done') {
-    finishAccess(false)
   }
 })
 
@@ -92,7 +98,7 @@ function finishAccess(advanceGuide = true) {
   device.value.healthScore = 100
   message.success('设备接入成功！')
   if (advanceGuide && appStore.guideActive) {
-    setTimeout(() => appStore.setGuideStep('iot-done'), 600)
+    setTimeout(() => appStore.finishGuide(), 600)
   }
 }
 
@@ -113,25 +119,17 @@ async function copyToClipboard(text: string) {
 }
 
 function copyAddress() {
+  if (showGuideAccessSkeleton.value) return
   copyToClipboard(`${accessConfig.ip}:${accessConfig.port}`)
   copiedFlags.address = true
   message.success('接入地址已复制，请配置到设备中')
-  // 引导联动：在 iot-access-config 步骤，任意复制即完成
-  if (appStore.guideStep === 'iot-access-config' && !guideCopyDone.value) {
-    guideCopyDone.value = true
-    setTimeout(finishAccess, 300)
-  }
 }
 
 function copyParams() {
+  if (showGuideAccessSkeleton.value) return
   copyToClipboard(`身份标识: ${accessConfig.clientId}\nToken: ${accessConfig.token}`)
   copiedFlags.params = true
   message.success('连接参数已复制，请配置到设备中')
-  // 引导联动：在 iot-access-config 步骤，任意复制即完成
-  if (appStore.guideStep === 'iot-access-config' && !guideCopyDone.value) {
-    guideCopyDone.value = true
-    setTimeout(finishAccess, 300)
-  }
 }
 
 function goBack() { router.push('/iot/device') }
@@ -348,11 +346,13 @@ const eventLevelColor: Record<string, string> = {
               <div class="ac-card__body">
                 <div class="ac-info-row">
                   <span class="ac-info-row__label">IP 地址</span>
-                  <span class="ac-info-row__value ac-info-row__value--mono">{{ accessConfig.ip }}</span>
+                  <span v-if="showGuideAccessSkeleton" class="ac-skeleton ac-skeleton--value" />
+                  <span v-else class="ac-info-row__value ac-info-row__value--mono">{{ accessConfig.ip }}</span>
                 </div>
                 <div class="ac-info-row">
                   <span class="ac-info-row__label">端口</span>
-                  <span class="ac-info-row__value ac-info-row__value--mono">{{ accessConfig.port }}</span>
+                  <span v-if="showGuideAccessSkeleton" class="ac-skeleton ac-skeleton--port" />
+                  <span v-else class="ac-info-row__value ac-info-row__value--mono">{{ accessConfig.port }}</span>
                 </div>
               </div>
             </div>
@@ -373,13 +373,15 @@ const eventLevelColor: Record<string, string> = {
                 <div class="ac-credential">
                   <div class="ac-credential__label">身份标识</div>
                   <div class="ac-credential__row">
-                    <code class="ac-credential__value ac-credential__value--highlight">{{ accessConfig.clientId }}</code>
+                    <span v-if="showGuideAccessSkeleton" class="ac-skeleton ac-skeleton--credential" />
+                    <code v-else class="ac-credential__value ac-credential__value--highlight">{{ accessConfig.clientId }}</code>
                   </div>
                 </div>
                 <div class="ac-credential">
                   <div class="ac-credential__label">Token</div>
                   <div class="ac-credential__row">
-                    <code class="ac-credential__value">{{ accessConfig.token }}</code>
+                    <span v-if="showGuideAccessSkeleton" class="ac-skeleton ac-skeleton--credential" />
+                    <code v-else class="ac-credential__value">{{ accessConfig.token }}</code>
                   </div>
                 </div>
               </div>
@@ -612,6 +614,23 @@ const eventLevelColor: Record<string, string> = {
 }
 
 /* 整块复制按钮 */
+.ac-skeleton {
+  display: inline-block;
+  height: 13px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f1f3f6 25%, #e6e9f0 37%, #f1f3f6 63%);
+  background-size: 400% 100%;
+  animation: ac-skeleton-shimmer 1.2s ease-in-out infinite;
+
+  &--value { width: 150px; }
+  &--port { width: 56px; }
+  &--credential { width: 100%; height: 34px; border-radius: 6px; }
+}
+@keyframes ac-skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+
 .ac-copy-all-btn {
   display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px;
   border: 1px solid $border-color-light; border-radius: 6px; background: #fff; color: $text-secondary;

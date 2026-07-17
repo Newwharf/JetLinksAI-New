@@ -5,7 +5,12 @@
  */
 import { message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
-import { useAppStore } from '@/stores/app'
+import { useAppStore, type GuideStep } from '@/stores/app'
+import serviceQrImg from '@/assets/iot/erweima.png'
+import iotGuideStep1 from '@/assets/alarmGuide/wulianyindao/iot1.svg'
+import iotGuideStep2 from '@/assets/alarmGuide/wulianyindao/iot2.svg'
+import iotGuideStep5 from '@/assets/alarmGuide/wulianyindao/iot3.svg'
+import iotGuideStep6 from '@/assets/alarmGuide/wulianyindao/iot4.svg'
 import {
   devices, statusConfig, deviceIconColors, healthScoreColor,
   deviceTemplateCategories,
@@ -131,28 +136,92 @@ function confirmUpdate() { if (!updateDevice.value) return; updateModalVisible.v
 
 // ===== 新增设备 =====
 const addModalVisible = ref(false)
+const deviceLimitModalVisible = ref(false)
+const deviceCreateLimit = 1
+const createdDeviceCount = computed(() => devices.value.filter(d => d.productId === 'prod-new').length)
 const addStep = ref<'select' | 'config'>('select')
 const selectedTemplate = ref<DeviceTemplate | null>(null)
 const addForm = ref({ name: '', icon: '', iconType: 'preset' as 'preset' | 'upload', uploadedIcon: '', area: '', business: '', desc: '' })
+const iotImageGuideSteps: GuideStep[] = ['iot-add', 'iot-select', 'iot-access', 'iot-access-config']
+const iotImageGuideItems = [
+  {
+    step: 'iot-add',
+    title: '新增设备',
+    image: iotGuideStep1,
+    desc: '点击「新增设备」按钮，从设备库中选择设备模板。'
+  },
+  {
+    step: 'iot-select',
+    title: '选择设备库',
+    image: iotGuideStep2,
+    desc: '左侧选择设备大类，右侧选择具体的设备模板，配置好设备的相关信息。'
+  },
+  {
+    step: 'iot-access',
+    title: '设备接入',
+    image: iotGuideStep5,
+    desc: '点击「设备接入」标签，开始配置设备接入。'
+  },
+  {
+    step: 'iot-access-config',
+    title: '配置设备接入参数',
+    image: iotGuideStep6,
+    desc: '复制对应参数到真实物理设备中进行配置，不同设备接入方式有所不同。详情请参考：https://hanta.yuque.com/px7kg1/yfac2l/wyerndtnhzze17bv'
+  }
+]
+const isIotImageGuide = computed(() => appStore.guideActive && iotImageGuideSteps.includes(appStore.guideStep))
+const iotImageGuideIndex = computed(() => Math.max(0, iotImageGuideSteps.indexOf(appStore.guideStep)))
+const currentIotImageGuideItem = computed(() => iotImageGuideItems[iotImageGuideIndex.value] || iotImageGuideItems[0])
+const iotImageGuideTrackStyle = computed(() => ({
+  transform: `translateX(-${iotImageGuideIndex.value * 576}px)`
+}))
 
 const activeCategory = ref(deviceTemplateCategories[0].id)
 const activeCatObj = computed(() => deviceTemplateCategories.find(c => c.id === activeCategory.value) || deviceTemplateCategories[0])
+const guideDemoRowVisible = computed(() => appStore.guideActive && appStore.guideStep === 'iot-detail')
 
-function openAddModal() {
-  addStep.value = 'select'; selectedTemplate.value = null; activeCategory.value = deviceTemplateCategories[0].id
-  addModalVisible.value = true
-  // 引导联动：打开弹窗后推进到 iot-select
-  if (appStore.guideStep === 'iot-add') {
-    nextTick(() => appStore.setGuideStep('iot-select'))
+watch(() => appStore.guideStep, (step) => {
+  if (!appStore.guideActive) return
+  if (iotImageGuideSteps.includes(step)) {
+    addModalVisible.value = false
+  }
+}, { immediate: true })
+
+function goPrevIotImageGuide() {
+  if (!isIotImageGuide.value) return
+  const prevStep = iotImageGuideSteps[iotImageGuideIndex.value - 1]
+  if (prevStep) {
+    appStore.setGuideStep(prevStep)
   }
 }
+
+function goNextIotImageGuide() {
+  if (!isIotImageGuide.value) return
+  const nextStep = iotImageGuideSteps[iotImageGuideIndex.value + 1]
+  if (nextStep) {
+    appStore.setGuideStep(nextStep)
+  }
+  else appStore.finishGuide()
+}
+
+function jumpIotImageGuide(step: GuideStep, index: number) {
+  if (index === iotImageGuideIndex.value) return
+  appStore.setGuideStep(step)
+}
+
+function openAddModal() {
+  if (appStore.guideActive && appStore.guideStep === 'iot-add') return
+  if (devices.value.some(d => d.productId === 'prod-new')) {
+    deviceLimitModalVisible.value = true
+    return
+  }
+  addStep.value = 'select'; selectedTemplate.value = null; activeCategory.value = deviceTemplateCategories[0].id
+  addModalVisible.value = true
+}
 function selectTemplate(tpl: DeviceTemplate) {
+  if (appStore.guideActive && appStore.guideStep === 'iot-select') return
   selectedTemplate.value = tpl; addStep.value = 'config'
   addForm.value = { name: '', icon: tpl.icon, iconType: 'preset', uploadedIcon: '', area: '', business: '', desc: tpl.desc }
-  // 引导联动：选择模板后推进到 iot-config
-  if (appStore.guideStep === 'iot-select') {
-    nextTick(() => appStore.setGuideStep('iot-config'))
-  }
 }
 function backToSelect() { addStep.value = 'select'; selectedTemplate.value = null }
 
@@ -170,8 +239,13 @@ function handleUpload(e: Event, target: 'edit' | 'add') {
 }
 
 function saveNewDevice() {
+  if (appStore.guideActive && ['iot-select', 'iot-config'].includes(appStore.guideStep)) return
   if (!selectedTemplate.value) return
   if (!addForm.value.name.trim()) { message.warning('请输入设备名称'); return }
+  if (devices.value.some(d => d.productId === 'prod-new')) {
+    deviceLimitModalVisible.value = true
+    return
+  }
   const tpl = selectedTemplate.value
   devices.value.unshift({
     id: 'dev-' + Date.now(), name: addForm.value.name, product: tpl.name, productId: 'prod-new',
@@ -184,18 +258,6 @@ function saveNewDevice() {
   addModalVisible.value = false
   currentPage.value = 1
   message.success(`设备「${addForm.value.name}」添加成功`)
-  // 引导联动：添加设备后推进到 iot-detail
-  if (appStore.guideStep === 'iot-config') {
-    nextTick(() => appStore.setGuideStep('iot-detail'))
-  }
-}
-
-// 引导联动：点击设备名称进入详情页（设备默认已启用，直接推进到设备接入）
-function gotoDetailGuide(dev: IotDevice) {
-  if (appStore.guideStep === 'iot-detail') {
-    appStore.setGuideStep('iot-access')
-  }
-  router.push(`/iot/device/${dev.id}`)
 }
 
 const areaOptions = ['研发部办公区', '项目部办公区', '大厅', '走廊', '仓库', '厨房', '配电室', '水泵房', '地下室', '厂界', '前门']
@@ -227,11 +289,37 @@ const businessOptions = ['消防安全', '环境监测', '能耗分析', '安全
         </thead>
         <tbody>
           <tr
+            v-if="guideDemoRowVisible"
+            class="dl-row dl-row--guide"
+            data-guide="iot-device-row"
+          >
+            <td class="col-check" @click.stop><input type="checkbox" disabled /></td>
+            <td>
+              <div class="dl-device">
+                <span class="dl-device__icon" style="background: #6e4bff;">
+                  <i class="i-ant-design-api-outlined" />
+                </span>
+                <span class="dl-device__text">
+                  <span class="dl-device__name">新增设备实例</span>
+                  <small class="dl-device__sn"><span class="dl-skeleton dl-skeleton--sn" /></small>
+                </span>
+              </div>
+            </td>
+            <td><span class="dl-skeleton" /></td>
+            <td><span class="dl-skeleton dl-skeleton--sm" /></td>
+            <td><span class="dl-skeleton dl-skeleton--sm" /></td>
+            <td><span class="dl-skeleton dl-skeleton--status" /></td>
+            <td><span class="dl-skeleton" /></td>
+            <td><span class="dl-skeleton dl-skeleton--lg" /></td>
+            <td><span class="dl-skeleton" /></td>
+            <td><span class="dl-skeleton dl-skeleton--score" /></td>
+            <td class="col-ops" @click.stop><span class="dl-skeleton dl-skeleton--icon" /></td>
+          </tr>
+          <tr
             v-for="dev in pagedDevices"
             :key="dev.id"
             class="dl-row"
-            :data-guide="appStore.guideStep === 'iot-detail' && dev.id === devices[0]?.id ? 'iot-device-row' : undefined"
-            @click="appStore.guideStep === 'iot-detail' ? gotoDetailGuide(dev) : gotoDetail(dev)"
+            @click="appStore.guideActive ? undefined : gotoDetail(dev)"
           >
             <td class="col-check" @click.stop><input type="checkbox" :checked="selectedIds.has(dev.id)" @change="toggleSelect(dev.id)" /></td>
             <td>
@@ -322,6 +410,66 @@ const businessOptions = ['消防安全', '环境监测', '能耗分析', '安全
       </div>
     </a-modal>
 
+    <!-- ===== 物联新增设备图片引导弹窗 ===== -->
+    <a-modal
+      :open="isIotImageGuide"
+      :width="760"
+      :footer="null"
+      :closable="false"
+      :title="null"
+      :body-style="{ padding: '0' }"
+      :mask-closable="false"
+      :z-index="2000"
+      wrap-class-name="iot-image-guide-modal"
+      @cancel="appStore.finishGuide"
+    >
+      <div class="iot-image-guide">
+        <div class="iot-image-guide__panel">
+          <div class="iot-image-guide__stage">
+            <div class="iot-image-guide__track" :style="iotImageGuideTrackStyle">
+              <div
+                v-for="(item, index) in iotImageGuideItems"
+                :key="item.step"
+                class="iot-image-guide__slide"
+                :class="{ active: index === iotImageGuideIndex }"
+              >
+                <img :src="item.image" :alt="item.title">
+              </div>
+            </div>
+          </div>
+
+          <div class="iot-image-guide__footer">
+            <div class="iot-image-guide__meta">
+              <div class="iot-image-guide__steps" aria-label="物联新增设备引导步骤">
+                <button
+                  v-for="(item, index) in iotImageGuideItems"
+                  :key="item.step"
+                  type="button"
+                  :aria-label="`跳转到${item.title}`"
+                  :class="{ active: index === iotImageGuideIndex, done: index < iotImageGuideIndex }"
+                  @click="jumpIotImageGuide(item.step as GuideStep, index)"
+                />
+              </div>
+              <p>{{ currentIotImageGuideItem.desc }}</p>
+            </div>
+            <div class="iot-image-guide__actions">
+              <button
+                class="iot-image-guide__btn"
+                type="button"
+                :disabled="iotImageGuideIndex === 0"
+                @click="goPrevIotImageGuide"
+              >
+                上一步
+              </button>
+              <button class="iot-image-guide__btn iot-image-guide__btn--primary" type="button" @click="goNextIotImageGuide">
+                {{ iotImageGuideIndex === iotImageGuideItems.length - 1 ? '完成' : '下一步' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a-modal>
+
     <!-- ===== 新增设备弹窗 ===== -->
     <a-modal
       v-model:open="addModalVisible"
@@ -390,6 +538,29 @@ const businessOptions = ['消防安全', '环境监测', '能耗分析', '安全
         <div class="modal-actions"><button class="dl-modal-btn dl-modal-btn--default" @click="backToSelect">上一步</button><button class="dl-modal-btn dl-modal-btn--primary" @click="saveNewDevice"><i class="i-ant-design-check-outlined" />添加设备</button></div>
       </div>
     </a-modal>
+
+    <a-modal
+      v-model:open="deviceLimitModalVisible"
+      :width="420"
+      :footer="null"
+      centered
+      :title="null"
+    >
+      <div class="device-limit">
+        <div class="device-limit__icon">
+          <i class="i-ant-design-exclamation-circle-outlined" />
+        </div>
+        <h3>已经到达数量上限</h3>
+        <p>如需接入更多物联设备，请咨询技术支持。</p>
+        <div class="device-limit__usage">
+          <span>当前用量</span>
+          <strong>{{ createdDeviceCount }} / {{ deviceCreateLimit }}</strong>
+          <em>物联设备新增数量</em>
+        </div>
+        <img :src="serviceQrImg" alt="售后服务二维码" class="device-limit__qr" />
+        <button class="dl-modal-btn dl-modal-btn--primary device-limit__btn" type="button" @click="deviceLimitModalVisible = false">我知道了</button>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -419,6 +590,30 @@ const businessOptions = ['消防安全', '环境监测', '能耗分析', '安全
 .dl-device__name { color: $text-base; font-weight: 600; font-size: 14px; }
 .dl-row:hover .dl-device__name { color: $color-primary; }
 .dl-device__sn { font-size: 11px; color: $text-muted; font-family: 'Courier New', monospace; }
+.dl-row--guide {
+  background: #fff;
+}
+.dl-skeleton {
+  display: inline-block;
+  width: 82px;
+  height: 12px;
+  border-radius: 999px;
+  vertical-align: middle;
+  background: linear-gradient(90deg, #f1f3f6 25%, #e6e9f0 37%, #f1f3f6 63%);
+  background-size: 400% 100%;
+  animation: dl-skeleton-shimmer 1.2s ease-in-out infinite;
+
+  &--sn { width: 104px; height: 10px; }
+  &--sm { width: 58px; }
+  &--lg { width: 128px; }
+  &--status { width: 54px; height: 18px; border-radius: 4px; }
+  &--score { width: 28px; }
+  &--icon { width: 26px; height: 26px; }
+}
+@keyframes dl-skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
 .dl-muted { font-size: 12px; color: $text-muted; }
 .dl-area { font-size: 12px; color: $text-muted; }
 .dl-status { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 3px; &__dot { width: 6px; height: 6px; border-radius: 50%; } }
@@ -463,6 +658,196 @@ const businessOptions = ['消防安全', '环境监测', '能耗分析', '安全
 .confirm-icon { width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 50%; background: $color-primary-bg; color: $color-primary; display: flex; align-items: center; justify-content: center; font-size: 24px; }
 .confirm-text { margin: 0 0 20px; font-size: 14px; line-height: 1.7; color: $text-secondary; strong { color: $text-base; } }
 
+.iot-image-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+
+  &__panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #f0f2f5;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 12px 32px rgba(20, 23, 31, 0.08);
+  }
+
+  &__stage {
+    position: relative;
+    overflow: hidden;
+    height: 384px;
+    background: #fff;
+  }
+
+  &__track {
+    display: flex;
+    gap: 16px;
+    height: 100%;
+    padding: 12px 88px;
+    transition: transform 0.42s cubic-bezier(0.22, 0.72, 0.18, 1);
+    will-change: transform;
+    box-sizing: border-box;
+  }
+
+  &__slide {
+    flex: 0 0 560px;
+    height: 100%;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    opacity: 0.62;
+    transform: scale(0.95);
+    transition: opacity 0.28s ease, transform 0.28s ease, box-shadow 0.28s ease;
+
+    &.active {
+      opacity: 1;
+      transform: scale(1);
+      box-shadow: 0 10px 24px rgba(20, 23, 31, 0.08);
+    }
+
+    img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      border-radius: 0;
+      object-fit: fill;
+      background: transparent;
+      box-shadow: none;
+    }
+  }
+
+  &__footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: end;
+    padding: 10px 14px 12px;
+    border-top: 1px solid #f0f2f5;
+    background: #fff;
+  }
+
+  &__meta {
+    min-width: 0;
+
+    p {
+      margin: 8px 0 0;
+      min-height: 34px;
+      padding: 7px 10px;
+      border: 1px solid rgba(110, 75, 255, 0.12);
+      border-radius: 6px;
+      background: #faf9ff;
+      color: $text-secondary;
+      font-size: 12px;
+      line-height: 18px;
+    }
+  }
+
+  &__steps {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    button {
+      width: 22px;
+      height: 4px;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      background: #dbe4f1;
+      cursor: pointer;
+      transition: background 0.15s ease, width 0.15s ease, box-shadow 0.15s ease;
+
+      &.done,
+      &.active {
+        background: $color-primary;
+      }
+
+      &.active {
+        width: 34px;
+        box-shadow: 0 0 0 3px rgba(110, 75, 255, 0.10);
+      }
+
+      &:hover {
+        background: $color-primary-hover;
+      }
+    }
+  }
+
+  &__actions {
+    display: inline-flex;
+    align-self: end;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 1px;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 68px;
+    height: 28px;
+    padding: 0 12px;
+    border: 1px solid $border-color-light;
+    border-radius: 6px;
+    color: $text-secondary;
+    background: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+
+    &:hover:not(:disabled) {
+      border-color: $color-primary;
+      color: $color-primary;
+      background: #faf9ff;
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.96);
+    }
+
+    &:disabled {
+      color: $text-muted;
+      background: #f6f7f9;
+      cursor: not-allowed;
+    }
+
+    &--primary {
+      border-color: $color-primary;
+      color: #fff;
+      background: linear-gradient(135deg, #7d5cff 0%, #6e4bff 55%, #5d3bff 100%);
+      box-shadow: 0 2px 10px rgba(110, 75, 255, 0.22);
+
+      &:hover:not(:disabled) {
+        color: #fff;
+        background: $color-primary-hover;
+      }
+    }
+  }
+}
+
+:global(.iot-image-guide-modal) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+:global(.iot-image-guide-modal .ant-modal) {
+  top: auto;
+  margin: 0;
+  padding-bottom: 0;
+}
+
+:global(.iot-image-guide-modal .ant-modal-content) {
+  background: transparent;
+  box-shadow: none;
+}
+
 /* 图标选择区 */
 .icon-area { border: 1px solid $border-color-card; border-radius: 10px; overflow: hidden; }
 .icon-tabs { display: flex; border-bottom: 1px solid $border-color-card;
@@ -499,4 +884,88 @@ const businessOptions = ['消防安全', '环境监测', '能耗分析', '安全
 .add-selected-info strong { display: block; font-size: 14px; font-weight: 600; color: $text-base; } .add-selected-info span { font-size: 12px; color: $text-muted; }
 .add-change-btn { display: flex; align-items: center; gap: 4px; border: 1px solid $border-color-light; border-radius: 6px; background: #fff; color: $text-secondary; font-size: 12px; cursor: pointer; font-family: inherit; height: 28px; padding: 0 10px; &:hover { border-color: $color-primary; color: $color-primary; } }
 .add-config .modal-form { padding: 16px 20px; } .add-config .modal-actions { padding: 0 20px 16px; }
+
+.device-limit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0 4px;
+  text-align: center;
+
+  &__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    background: rgba(250, 173, 20, 0.12);
+    color: #d48806;
+
+    i { font-size: 26px; }
+  }
+
+  h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: $text-base;
+  }
+
+  p {
+    margin: 0 0 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: $text-secondary;
+  }
+
+  &__usage {
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    border: 1px solid $border-color-card;
+    border-radius: 8px;
+    background: #fafbfc;
+
+    span {
+      color: $text-tertiary;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    strong {
+      color: $text-base;
+      font-size: 22px;
+      line-height: 28px;
+      font-weight: 700;
+    }
+
+    em {
+      color: $text-secondary;
+      font-size: 12px;
+      font-style: normal;
+      line-height: 18px;
+    }
+  }
+
+  &__qr {
+    width: 148px;
+    height: 148px;
+    object-fit: contain;
+    padding: 8px;
+    margin-bottom: 18px;
+    border: 1px solid $border-color-card;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  &__btn {
+    min-width: 120px;
+    justify-content: center;
+  }
+}
 </style>

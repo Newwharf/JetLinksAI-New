@@ -3,6 +3,7 @@ import ProjectLayout from '@/layouts/ProjectLayout.vue'
 import SpaceLayout from '@/layouts/SpaceLayout.vue'
 import SubTabLayout from '@/layouts/SubTabLayout.vue'
 import SaaSLayout from '@/layouts/SaaSLayout.vue'
+import OpsLayout from '@/layouts/OpsLayout.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 
 // 通用占位子路由生成器
@@ -45,7 +46,31 @@ const routes: RouteRecordRaw[] = [
       { path: 'apps', name: 'apps', ...ph('应用中心') },
       { path: 'docs', name: 'docs', ...ph('文档中心') },
       { path: 'dev', name: 'dev', ...ph('开发中心') },
-      { path: 'ops', name: 'ops', ...ph('运营中心') },
+      {
+        path: 'ops',
+        component: OpsLayout,
+        children: [
+          { path: '', redirect: '/ops/operation/work-order' },
+          { path: 'basic-config', name: 'ops-basic-config', ...ph('基础配置') },
+          { path: 'agent-dev', name: 'ops-agent-dev', ...ph('智能体开发') },
+          { path: 'app-center', name: 'ops-app-center', ...ph('应用中心') },
+          { path: 'operation/customer', name: 'ops-customer', ...ph('客户管理') },
+          {
+            path: 'operation/work-order',
+            name: 'ops-work-order',
+            component: () => import('@/views/tickets/TicketListView.vue'),
+            meta: { title: '工单管理' }
+          },
+          {
+            path: 'operation/work-order/:id',
+            name: 'ops-work-order-detail',
+            component: () => import('@/views/tickets/TicketDetailView.vue'),
+            meta: { title: '工单详情' }
+          },
+          { path: 'capability-market', name: 'ops-capability-market', ...ph('能力市场') },
+          { path: 'asset', name: 'ops-asset', ...ph('资产管理') }
+        ]
+      },
       { path: 'billing', name: 'billing', ...ph('支付中心') },
       { path: 'saas-system', name: 'saas-system', ...ph('系统管理') }
     ]
@@ -60,6 +85,18 @@ const routes: RouteRecordRaw[] = [
         name: 'ai-search-hub',
         component: () => import('@/views/ai/AiHubView.vue'),
         meta: { title: 'AI 对话' }
+      },
+      {
+        path: 'tickets',
+        name: 'tickets',
+        component: () => import('@/views/tickets/TicketListView.vue'),
+        meta: { title: '工单管理' }
+      },
+      {
+        path: 'tickets/:id',
+        name: 'ticket-detail',
+        component: () => import('@/views/tickets/TicketDetailView.vue'),
+        meta: { title: '工单详情' }
       },
 
       // ===== 空间态势 =====
@@ -335,7 +372,7 @@ const routes: RouteRecordRaw[] = [
         },
         children: [
           { path: '', redirect: '/system/project' },
-          { path: 'project', name: 'system-project', ...ph('项目配置') },
+          { path: 'project', name: 'system-project', component: () => import('@/views/system/ProjectConfigView.vue'), meta: { title: '项目配置' } },
           { path: 'user', name: 'system-user', ...ph('用户') },
           { path: 'role', name: 'system-role', ...ph('角色') },
           { path: 'org', name: 'system-org', ...ph('组织') },

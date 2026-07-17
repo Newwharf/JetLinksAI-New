@@ -22,9 +22,13 @@ import { message } from 'ant-design-vue'
 const appStore = useAppStore()
 const router = useRouter()
 
-// 进入项目：切到安防场景 + 跳仪表盘
-function enterProject() {
-  appStore.setScenario('security')
+// 进入项目：按项目模板切换项目内导航 + 跳仪表盘
+function enterProject(project?: Project) {
+  const target = project || projects.value[0]
+  if (target) {
+    appStore.setActiveProject(target.id)
+  }
+  appStore.setScenario(target?.template && target.template !== 'blank' ? target.template : 'general')
   appStore.requestProjectWelcome()
   router.push('/dashboard')
 }
@@ -404,7 +408,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
 
       <!-- 下方两个快捷入口卡片 -->
       <div class="wb-actions">
-        <div class="wb-entry">
+        <div class="wb-entry" role="button" tabindex="0" @click="wizardOpen = true" @keydown.enter="wizardOpen = true">
           <div class="wb-entry__main">
             <img :src="newProjectImg" alt="新建项目" class="wb-entry__icon" />
             <div class="wb-entry__text">
@@ -412,10 +416,10 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
               <span class="wb-entry__desc">创建一个项目，开始管理设备与数据</span>
             </div>
           </div>
-          <button class="wb-entry__btn" @click="wizardOpen = true">立即创建</button>
+          <button class="wb-entry__btn" @click.stop="wizardOpen = true">立即创建</button>
         </div>
 
-        <div class="wb-entry">
+        <div class="wb-entry" role="button" tabindex="0" @click="openGatewayAccessModal" @keydown.enter="openGatewayAccessModal">
           <div class="wb-entry__main">
             <img :src="newGatewayImg" alt="接入网关" class="wb-entry__icon" />
             <div class="wb-entry__text">
@@ -423,7 +427,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
               <span class="wb-entry__desc">接入 JetLinks-Edge 网关采集设备数据</span>
             </div>
           </div>
-          <button class="wb-entry__btn" @click="openGatewayAccessModal">接入网关</button>
+          <button class="wb-entry__btn" @click.stop="openGatewayAccessModal">接入网关</button>
         </div>
       </div>
 
@@ -452,7 +456,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
 
         <!-- 项目列表 -->
         <div v-if="listTab === 'project'" class="wb-grid">
-          <div v-for="p in projects" :key="p.id" class="proj-card" @click="enterProject">
+          <div v-for="p in projects" :key="p.id" class="proj-card" @click="enterProject(p)">
             <div class="proj-card__head">
               <div class="proj-card__icon" :style="{ background: p.iconColor }">{{ p.iconChar }}</div>
               <div class="proj-card__title-wrap">
@@ -477,7 +481,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
                   告警 <strong>{{ p.alarmCount }}</strong>
                 </span>
               </div>
-              <button class="proj-card__enter" @click.stop="enterProject">进入项目</button>
+              <button class="proj-card__enter" @click.stop="enterProject(p)">进入项目</button>
             </div>
           </div>
 
@@ -1068,6 +1072,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(4px);
+  cursor: pointer;
   transition: box-shadow 0.2s, border-color 0.2s;
 
   &:hover {

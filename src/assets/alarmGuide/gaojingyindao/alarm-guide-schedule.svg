@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="360" viewBox="0 0 760 360">
+  <defs><linearGradient id="sk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f1f3f6"/><stop offset="0.5" stop-color="#e6e9f0"/><stop offset="1" stop-color="#f1f3f6"/></linearGradient></defs>
+  <rect width="760" height="360" rx="12" fill="#f7f9fc"/><rect x="46" y="28" width="668" height="304" rx="12" fill="#fff" stroke="#e5eaf3"/>
+  <text x="70" y="62" font-size="18" font-weight="700" fill="#111827">&#x65B0;&#x5EFA;&#x544A;&#x8B66;&#x89C4;&#x5219;</text><line x1="46" y1="84" x2="714" y2="84" stroke="#f4f5f7"/>
+  <circle cx="92" cy="112" r="11" fill="#2bb3a3"/><text x="88" y="116" font-size="11" fill="#fff">&#x2713;</text><text x="112" y="116" font-size="12" fill="#3a3f47">&#x57FA;&#x7840;&#x4FE1;&#x606F;</text>
+  <circle cx="220" cy="112" r="11" fill="#2bb3a3"/><text x="216" y="116" font-size="11" fill="#fff">&#x2713;</text><text x="240" y="116" font-size="12" fill="#3a3f47">&#x573A;&#x666F;&#x7B97;&#x6CD5;</text>
+  <circle cx="348" cy="112" r="11" fill="#2bb3a3"/><text x="344" y="116" font-size="11" fill="#fff">&#x2713;</text><text x="368" y="116" font-size="12" fill="#3a3f47">&#x751F;&#x6548;&#x6444;&#x50CF;&#x5934;</text>
+  <circle cx="504" cy="112" r="11" fill="#6e4bff"/><text x="500" y="116" font-size="11" font-weight="700" fill="#fff">4</text><text x="524" y="116" font-size="12" font-weight="700" fill="#6e4bff">&#x751F;&#x6548;&#x65F6;&#x6BB5;</text>
+  <circle cx="632" cy="112" r="11" fill="#fafbfc"/><text x="628" y="116" font-size="11" fill="#8895ab">5</text><text x="652" y="116" font-size="12" fill="#8895ab">&#x901A;&#x77E5;&#x5BF9;&#x8C61;</text>
+  <line x1="46" y1="138" x2="714" y2="138" stroke="#f4f5f7"/>
+  <text x="70" y="174" font-size="13" font-weight="700" fill="#111827">&#x751F;&#x6548;&#x65F6;&#x6BB5;</text>
+  <rect x="70" y="190" width="138" height="74" rx="10" fill="#faf9ff" stroke="#6e4bff"/><text x="106" y="218" font-size="14" font-weight="700" fill="#6e4bff">&#x5168;&#x5929;</text><rect x="94" y="236" width="82" height="8" rx="4" fill="url(#sk)"/>
+  <rect x="228" y="190" width="138" height="74" rx="10" fill="#fff" stroke="#e5eaf3"/><text x="258" y="218" font-size="14" fill="#111827">&#x5DE5;&#x4F5C;&#x65E5;</text><rect x="252" y="236" width="82" height="8" rx="4" fill="url(#sk)"/>
+  <rect x="386" y="190" width="138" height="74" rx="10" fill="#fff" stroke="#e5eaf3"/><text x="430" y="218" font-size="14" fill="#111827">&#x591C;&#x95F4;</text><rect x="410" y="236" width="82" height="8" rx="4" fill="url(#sk)"/>
+  <rect x="544" y="190" width="138" height="74" rx="10" fill="#fff" stroke="#e5eaf3"/><text x="580" y="218" font-size="14" fill="#111827">&#x81EA;&#x5B9A;&#x4E49;</text><rect x="568" y="236" width="82" height="8" rx="4" fill="url(#sk)"/>
+</svg>

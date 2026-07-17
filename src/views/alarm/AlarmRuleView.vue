@@ -5,6 +5,11 @@
  */
 import { message } from 'ant-design-vue'
 import { useAppStore, type GuideStep } from '@/stores/app'
+import alarmGuideBasic from '@/assets/alarmGuide/gaojingyindao/alarm-guide-basic.svg'
+import alarmGuideAlgorithm from '@/assets/alarmGuide/gaojingyindao/alarm-guide-algorithm.svg'
+import alarmGuideCamera from '@/assets/alarmGuide/gaojingyindao/alarm-guide-camera.svg'
+import alarmGuideSchedule from '@/assets/alarmGuide/gaojingyindao/alarm-guide-schedule.svg'
+import alarmGuideNotify from '@/assets/alarmGuide/gaojingyindao/alarm-guide-notify.svg'
 import {
   alarmRules, scenes, cameraTree, userOptions,
   scheduleOptions, weekDays, collectCameras, getCamerasInNode,
@@ -84,6 +89,85 @@ const formData = ref({
   dedupMinutes: 10
 })
 
+const alarmGuideStepMap: Partial<Record<GuideStep, number>> = {
+  'alarm-step0': 0,
+  'alarm-step1': 1,
+  'alarm-step2': 2,
+  'alarm-step3': 3,
+  'alarm-step4': 4
+}
+const alarmGuideSteps: GuideStep[] = ['alarm-step0', 'alarm-step1', 'alarm-step2', 'alarm-step3', 'alarm-step4']
+const alarmGuideItems = [
+  {
+    step: 'alarm-step0',
+    title: '告警规则基础信息',
+    image: alarmGuideBasic,
+    desc: '填写规则名称、选择告警等级（超紧急/紧急/严重/一般/提醒）和规则描述。'
+  },
+  {
+    step: 'alarm-step1',
+    title: '场景算法',
+    image: alarmGuideAlgorithm,
+    desc: '选择检测场景和算法，决定摄像头可以智能检测的行为类型，可跨场景多选。'
+  },
+  {
+    step: 'alarm-step2',
+    title: '生效摄像头',
+    image: alarmGuideCamera,
+    desc: '选择生效的摄像头，决定哪些摄像头执行此规则。可点击摄像头预览实时画面。'
+  },
+  {
+    step: 'alarm-step3',
+    title: '生效时段',
+    image: alarmGuideSchedule,
+    desc: '选择规则生效的时间段，可以全天、工作日、夜间或自定义。'
+  },
+  {
+    step: 'alarm-step4',
+    title: '通知对象',
+    image: alarmGuideNotify,
+    desc: '选择告警发生时的通知方式和通知人员，还可以开启去重推送避免频繁打扰。'
+  }
+]
+const isAlarmImageGuide = computed(() => appStore.guideActive && alarmGuideSteps.includes(appStore.guideStep))
+const alarmGuideImageIndex = computed(() => Math.max(0, alarmGuideSteps.indexOf(appStore.guideStep)))
+const currentAlarmGuideItem = computed(() => alarmGuideItems[alarmGuideImageIndex.value] || alarmGuideItems[0])
+const alarmGuideTrackStyle = computed(() => ({
+  transform: `translateX(-${alarmGuideImageIndex.value * 576}px)`
+}))
+
+watch(() => appStore.guideStep, (step) => {
+  if (!appStore.guideActive) return
+  const stepIndex = alarmGuideStepMap[step]
+  if (typeof stepIndex === 'number') {
+    modalVisible.value = false
+    currentStep.value = stepIndex
+  }
+}, { immediate: true })
+
+function goPrevAlarmGuideImage() {
+  if (!isAlarmImageGuide.value) return
+  const prevStep = alarmGuideSteps[alarmGuideImageIndex.value - 1]
+  if (prevStep) {
+    appStore.setGuideStep(prevStep)
+  }
+}
+
+function goNextAlarmGuideImage() {
+  if (!isAlarmImageGuide.value) return
+  const nextStep = alarmGuideSteps[alarmGuideImageIndex.value + 1]
+  if (nextStep) {
+    appStore.setGuideStep(nextStep)
+  } else {
+    appStore.finishGuide()
+  }
+}
+
+function jumpAlarmGuideImage(step: GuideStep, index: number) {
+  if (index === alarmGuideImageIndex.value) return
+  appStore.setGuideStep(step)
+}
+
 function openCreateModal() {
   editingRule.value = null
   currentStep.value = 0
@@ -95,10 +179,6 @@ function openCreateModal() {
     notifyMethods: [], notifyCategory: '安全告警', notifyUsers: [], dedup: false, dedupMinutes: 10
   }
   modalVisible.value = true
-  // 引导联动：打开弹窗后推进到 step0
-  if (appStore.guideStep === 'alarm-create') {
-    nextTick(() => appStore.setGuideStep('alarm-step0'))
-  }
 }
 
 function openEditModal(rule: AlarmRule) {
@@ -390,6 +470,66 @@ const notifyPreview = computed(() => {
         <p>{{ searchKey ? '没有找到匹配的规则' : '暂无告警规则' }}</p>
       </div>
     </div>
+
+    <!-- ===== 告警规则图片引导弹窗 ===== -->
+    <a-modal
+      :open="isAlarmImageGuide"
+      :width="760"
+      :footer="null"
+      :closable="false"
+      :title="null"
+      :body-style="{ padding: '0' }"
+      :mask-closable="false"
+      :z-index="2000"
+      wrap-class-name="alarm-image-guide-modal"
+      @cancel="appStore.finishGuide"
+    >
+      <div class="alarm-image-guide">
+        <div class="alarm-image-guide__panel">
+          <div class="alarm-image-guide__stage">
+            <div class="alarm-image-guide__track" :style="alarmGuideTrackStyle">
+              <div
+                v-for="(item, index) in alarmGuideItems"
+                :key="item.step"
+                class="alarm-image-guide__slide"
+                :class="{ active: index === alarmGuideImageIndex }"
+              >
+                <img :src="item.image" :alt="item.title">
+              </div>
+            </div>
+          </div>
+
+          <div class="alarm-image-guide__footer">
+            <div class="alarm-image-guide__meta">
+              <div class="alarm-image-guide__steps" aria-label="告警引导步骤">
+                <button
+                  v-for="(item, index) in alarmGuideItems"
+                  :key="item.step"
+                  type="button"
+                  :aria-label="`跳转到${item.title}`"
+                  :class="{ active: index === alarmGuideImageIndex, done: index < alarmGuideImageIndex }"
+                  @click="jumpAlarmGuideImage(item.step as GuideStep, index)"
+                />
+              </div>
+              <p>{{ currentAlarmGuideItem.desc }}</p>
+            </div>
+            <div class="alarm-image-guide__actions">
+              <button
+                class="alarm-image-guide__btn"
+                type="button"
+                :disabled="alarmGuideImageIndex === 0"
+                @click="goPrevAlarmGuideImage"
+              >
+                上一步
+              </button>
+              <button class="alarm-image-guide__btn alarm-image-guide__btn--primary" type="button" @click="goNextAlarmGuideImage">
+                {{ alarmGuideImageIndex === alarmGuideItems.length - 1 ? '完成' : '下一步' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a-modal>
 
     <!-- ===== 新建/编辑弹窗 ===== -->
     <a-modal
@@ -1171,6 +1311,196 @@ const notifyPreview = computed(() => {
 
 .dedup-detail-enter-active, .dedup-detail-leave-active { transition: all 0.2s; overflow: hidden; }
 .dedup-detail-enter-from, .dedup-detail-leave-to { opacity: 0; max-height: 0; margin-top: 0; }
+
+.alarm-image-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+
+  &__panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #f0f2f5;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 12px 32px rgba(20, 23, 31, 0.08);
+  }
+
+  &__stage {
+    position: relative;
+    overflow: hidden;
+    height: 384px;
+    background: #fff;
+  }
+
+  &__track {
+    display: flex;
+    gap: 16px;
+    height: 100%;
+    padding: 12px 88px;
+    transition: transform 0.42s cubic-bezier(0.22, 0.72, 0.18, 1);
+    will-change: transform;
+    box-sizing: border-box;
+  }
+
+  &__slide {
+    flex: 0 0 560px;
+    height: 100%;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    opacity: 0.62;
+    transform: scale(0.95);
+    transition: opacity 0.28s ease, transform 0.28s ease, box-shadow 0.28s ease;
+
+    &.active {
+      opacity: 1;
+      transform: scale(1);
+      box-shadow: 0 10px 24px rgba(20, 23, 31, 0.08);
+    }
+
+    img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      border-radius: 0;
+      object-fit: fill;
+      background: transparent;
+      box-shadow: none;
+    }
+  }
+
+  &__footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: end;
+    padding: 10px 14px 12px;
+    border-top: 1px solid #f0f2f5;
+    background: #fff;
+  }
+
+  &__meta {
+    min-width: 0;
+
+    p {
+      margin: 8px 0 0;
+      min-height: 34px;
+      padding: 7px 10px;
+      border: 1px solid rgba(110, 75, 255, 0.12);
+      border-radius: 6px;
+      background: #faf9ff;
+      color: $text-secondary;
+      font-size: 12px;
+      line-height: 18px;
+    }
+  }
+
+  &__steps {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    button {
+      width: 22px;
+      height: 4px;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      background: #dbe4f1;
+      cursor: pointer;
+      transition: background 0.15s ease, width 0.15s ease, box-shadow 0.15s ease;
+
+      &.done,
+      &.active {
+        background: $color-primary;
+      }
+
+      &.active {
+        width: 34px;
+        box-shadow: 0 0 0 3px rgba(110, 75, 255, 0.10);
+      }
+
+      &:hover {
+        background: $color-primary-hover;
+      }
+    }
+  }
+
+  &__actions {
+    display: inline-flex;
+    align-self: end;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 1px;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 68px;
+    height: 28px;
+    padding: 0 12px;
+    border: 1px solid $border-color-light;
+    border-radius: 6px;
+    color: $text-secondary;
+    background: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+
+    &:hover:not(:disabled) {
+      border-color: $color-primary;
+      color: $color-primary;
+      background: #faf9ff;
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.96);
+    }
+
+    &:disabled {
+      color: $text-muted;
+      background: #f6f7f9;
+      cursor: not-allowed;
+    }
+
+    &--primary {
+      border-color: $color-primary;
+      color: #fff;
+      background: linear-gradient(135deg, #7d5cff 0%, #6e4bff 55%, #5d3bff 100%);
+      box-shadow: 0 2px 10px rgba(110, 75, 255, 0.22);
+
+      &:hover:not(:disabled) {
+        color: #fff;
+        background: $color-primary-hover;
+      }
+    }
+  }
+}
+
+:global(.alarm-image-guide-modal) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+:global(.alarm-image-guide-modal .ant-modal) {
+  top: auto;
+  margin: 0;
+  padding-bottom: 0;
+}
+
+:global(.alarm-image-guide-modal .ant-modal-content) {
+  background: transparent;
+  box-shadow: none;
+}
 
 /* 底部 */
 .wizard-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-top: 1px solid $border-color-card; flex-shrink: 0;
