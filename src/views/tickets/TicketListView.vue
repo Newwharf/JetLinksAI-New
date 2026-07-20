@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createTicket, currentOperatorName, moduleOptions, tickets, ticketStatusConfig, type TicketItem } from './ticketData'
 
@@ -150,12 +150,22 @@ function handleTicketAction(item: TicketItem) {
     return
   }
   if (item.status === '待建单') {
-    item.assignee = currentOperatorName
-    item.status = '处理中'
-    message.success('已接单')
-    router.push(`${ticketBasePath.value}/${item.id}`)
+    Modal.confirm({
+      title: '确认接单',
+      content: `确认接收工单「${item.id}」吗？接单后该工单将进入处理中，并分配给你负责。`,
+      okText: '确认接单',
+      cancelText: '取消',
+      onOk: () => {
+        item.assignee = currentOperatorName
+        item.status = '处理中'
+        item.hasNewUserMessage = false
+        message.success('已接单')
+        router.push(`${ticketBasePath.value}/${item.id}`)
+      }
+    })
     return
   }
+  item.hasNewUserMessage = false
   router.push(`${ticketBasePath.value}/${item.id}`)
 }
 </script>
@@ -232,8 +242,11 @@ function handleTicketAction(item: TicketItem) {
               <span class="module-tag">{{ item.categories[0] }}</span>
             </td>
             <td>
-              <span class="status-tag" :style="{ color: getDisplayStatusConfig(item).color, background: getDisplayStatusConfig(item).bg }">
-                {{ getUserStatusLabel(item.status) }}
+              <span class="status-wrap">
+                <span class="status-tag" :style="{ color: getDisplayStatusConfig(item).color, background: getDisplayStatusConfig(item).bg }">
+                  {{ getUserStatusLabel(item.status) }}
+                </span>
+                <span v-if="isOpsMode && item.hasNewUserMessage" class="new-message-dot" title="用户发了新的消息" />
               </span>
             </td>
             <td>{{ item.account }}</td>
@@ -473,6 +486,21 @@ function handleTicketAction(item: TicketItem) {
 .module-tag {
   color: $color-primary;
   background: $color-primary-bg;
+}
+
+.status-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.new-message-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff4d4f;
+  box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.12);
+  flex-shrink: 0;
 }
 
 .empty-cell {

@@ -34,6 +34,16 @@ const maskedContact = computed(() => {
   return value.replace(/^(\d{3}).*(\d{4})$/, '$1****$2')
 })
 
+watch(
+  () => [ticket.value?.id, isOpsMode.value],
+  () => {
+    if (isOpsMode.value && ticket.value) {
+      ticket.value.hasNewUserMessage = false
+    }
+  },
+  { immediate: true }
+)
+
 function toggleContactVisible() {
   if (!ticket.value) return
   ticket.value.contactVisible = !ticket.value.contactVisible
@@ -117,6 +127,7 @@ function sendReply() {
     time,
     attachments: [...replyAttachments.value]
   })
+  ticket.value.hasNewUserMessage = !isOpsMode.value
   if (isOpsMode.value && ticket.value.status === '待建单') {
     ticket.value.assignee = currentOperatorName
     ticket.value.status = '处理中'

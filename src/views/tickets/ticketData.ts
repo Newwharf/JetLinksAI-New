@@ -23,6 +23,7 @@ export interface TicketItem {
   attachments: string[]
   messages: TicketMessage[]
   contactVisible?: boolean
+  hasNewUserMessage?: boolean
 }
 
 export const moduleOptions = [
@@ -70,6 +71,7 @@ export const tickets = ref<TicketItem[]>([
     submitTime: '2026-07-16 09:42',
     contact: '13812342196',
     attachments: ['monitor-wall.mp4'],
+    hasNewUserMessage: false,
     messages: [
       {
         id: 'm-1',
@@ -104,6 +106,7 @@ export const tickets = ref<TicketItem[]>([
     submitTime: '2026-07-15 16:18',
     contact: 'ops@example.com',
     attachments: [],
+    hasNewUserMessage: true,
     messages: [
       {
         id: 'm-1',
@@ -124,6 +127,7 @@ export const tickets = ref<TicketItem[]>([
     submitTime: '2026-07-15 10:36',
     contact: '13955686812',
     attachments: ['alarm-rule.png'],
+    hasNewUserMessage: true,
     messages: [
       {
         id: 'm-1',
@@ -152,6 +156,7 @@ export const tickets = ref<TicketItem[]>([
     submitTime: '2026-07-14 11:05',
     contact: '18690887021',
     attachments: ['dashboard-count.png'],
+    hasNewUserMessage: false,
     messages: [
       {
         id: 'm-1',
@@ -190,6 +195,7 @@ export function createTicket(payload: {
     submitTime,
     contact: payload.contact,
     attachments: payload.attachments,
+    hasNewUserMessage: true,
     messages: [
       {
         id: `m-${Date.now()}`,
