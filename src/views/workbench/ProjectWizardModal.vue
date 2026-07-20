@@ -21,8 +21,7 @@ const form = reactive({
   description: '',
   region: '西南1',
   urlSuffix: '',
-  logoImg: '' as string,
-  logoPrompt: '' as string  // AI 生成 Logo 的描述
+  logoImg: '' as string
 })
 
 // 脏字段追踪：记录用户手动修改过的字段，模板填充时跳过这些字段
@@ -50,7 +49,6 @@ watch(() => props.open, (v) => {
     form.region = '西南1'
     form.urlSuffix = 'project-' + Math.random().toString(36).slice(2, 6)
     form.logoImg = ''
-    form.logoPrompt = ''
     Object.keys(dirty).forEach(k => (dirty[k] = false))
     createStage.value = 'form'
     currentStep.value = 0
@@ -96,13 +94,6 @@ function onFileChange(e: Event) {
 }
 function clearLogo() {
   form.logoImg = ''
-}
-
-// AI 生成 Logo（mock：根据描述生成随机占位图）
-function aiGenerateLogo() {
-  const prompt = form.logoPrompt.trim()
-  const seed = prompt ? prompt : Math.random().toString(36).slice(2, 8)
-  form.logoImg = `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(seed)}`
 }
 
 // ===== 区域选项 =====
@@ -287,12 +278,11 @@ function confirmCreate() {
             </div>
           </div>
 
-          <!-- 第五行：Logo（上传 + AI 生成）-->
+          <!-- 第五行：Logo（上传）-->
           <div class="pw-row pw-row--logo">
             <div class="pw-field">
               <label class="pw-label">项目 Logo</label>
               <div class="logo-area">
-                <!-- 上传 -->
                 <div v-if="form.logoImg" class="logo-preview">
                   <img :src="form.logoImg" alt="Logo" />
                   <button class="logo-clear" @click="clearLogo">
@@ -304,26 +294,6 @@ function confirmCreate() {
                   <span>上传 Logo</span>
                 </button>
                 <input ref="fileInput" type="file" accept="image/*" hidden @change="onFileChange" />
-
-                <!-- AI 生成输入框（生成按钮内嵌右侧）-->
-                <div class="logo-ai">
-                  <a-input
-                    v-model:value="form.logoPrompt"
-                    placeholder="描述 Logo 风格，AI 帮你生成"
-                    @keyup.enter="aiGenerateLogo"
-                  >
-                    <template #suffix>
-                      <button
-                        class="logo-ai-btn"
-                        :disabled="!form.logoPrompt.trim()"
-                        @click="aiGenerateLogo"
-                      >
-                        <i class="i-lucide-wand-sparkles" />
-                        生成
-                      </button>
-                    </template>
-                  </a-input>
-                </div>
               </div>
             </div>
           </div>
@@ -682,60 +652,12 @@ function confirmCreate() {
   }
 }
 
-/* Logo 区：上传 + AI 输入 */
+/* Logo 区：上传 */
 .logo-area {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 12px;
   flex: 1;
-}
-
-/* AI 生成输入框（与上传按钮等高 64px）*/
-.logo-ai {
-  flex: 1;
-  display: flex;
-
-  :deep(.ant-input-affix-wrapper) {
-    flex: 1;
-    min-height: 78px;
-    align-items: flex-end;
-    padding: 0 8px 8px 12px;
-  }
-
-  :deep(.ant-input) {
-    height: 28px;
-  }
-}
-
-/* 内嵌生成按钮（输入框右下角）*/
-.logo-ai-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 12px;
-  border: none;
-  border-radius: 6px;
-  background: $saas-primary;
-  color: #fff;
-  font-size: 12px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-left: 4px;
-
-  i {
-    font-size: 13px;
-  }
-
-  &:hover:not(:disabled) {
-    background: $saas-primary-hover;
-  }
-
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
 }
 
 .logo-preview {

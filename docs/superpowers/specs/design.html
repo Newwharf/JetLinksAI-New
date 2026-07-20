@@ -116,6 +116,39 @@
     h3 { margin: 18px 0 8px; font-size: 16px; color: var(--text); }
     p { margin: 0 0 10px; color: var(--text-secondary); }
     .meta { color: var(--text-muted); font-size: 13px; }
+    .pm-principles {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .pm-principle {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--hover-purple);
+      color: var(--text-secondary);
+    }
+    .pm-principle strong {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .pm-principle span {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+    }
     .grid { display: grid; gap: 12px; }
     .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -226,6 +259,22 @@
         <h1>JetLinks AI SaaS 项目内页面设计规范</h1>
         <p>基于当前项目 `/dashboard`、空间态势、空间管理、视联中心、文搜图、人员档案、临时轨迹跟踪及详情穿透页整理。目标是让后续 SaaS 页面在视觉、交互、组件尺寸和布局密度上与现有项目保持一致。</p>
         <p class="meta">适用范围：项目内业务页面、SaaS 工作台承接页面、AI 复刻实现。所有数值必须按本文固定值执行。</p>
+        <div class="pm-principles">
+          <div class="pm-principle">
+            <span>1</span>
+            <div>
+              <strong>协作对象与交付目标</strong>
+              使用者是产品经理，目标是快速生成可面向客户演示的高保真前端静态原型；实现时优先保证业务表达、视觉完整度、演示动线和页面真实感。
+            </div>
+          </div>
+          <div class="pm-principle">
+            <span>2</span>
+            <div>
+              <strong>开发与验证方式</strong>
+              用户已通过 npm run dev 启动项目，修改代码后由热更新呈现效果；除非明确要求，不要反复重启项目进行验证。
+            </div>
+          </div>
+        </div>
       </section>
 
       <section id="brand">

@@ -1,0 +1,132 @@
+- generic [ref=f3e4]:
+  - generic [ref=f3e8]:
+    - generic [ref=f3e11] [cursor=pointer]:
+      - img "logo" [ref=f3e12]
+      - heading "高通Edge-36.21" [level=1] [ref=f3e13]
+    - menu [ref=f3e15]:
+      - menuitem [ref=f3e16] [cursor=pointer]:
+        - link "工作台" [ref=f3e18]:
+          - /url: "#/workbench"
+      - menuitem [ref=f3e22] [cursor=pointer]:
+        - link "物联网" [ref=f3e24]:
+          - /url: "#/iot"
+      - menuitem [ref=f3e28] [cursor=pointer]:
+        - link "网关配置" [ref=f3e30]:
+          - /url: "#/gateway"
+      - menuitem [ref=f3e34] [cursor=pointer]:
+        - link "视频中心" [ref=f3e36]:
+          - /url: "#/media"
+      - menuitem [ref=f3e40] [cursor=pointer]:
+        - link "系统管理" [ref=f3e42]:
+          - /url: "#/system"
+      - menuitem [ref=f3e46] [cursor=pointer]:
+        - link "人工智能" [ref=f3e48]:
+          - /url: "#/agent"
+      - generic:
+        - link:
+          - /url: "#/resource"
+          - text: 资源库
+      - img "ellipsis" [ref=f3e54] [cursor=pointer]
+    - generic [ref=f3e61] [cursor=pointer]:
+      - img "user" [ref=f3e63]
+      - text: 吴松霖
+  - generic [ref=f3e66]:
+    - complementary [ref=f3e584]:
+      - generic [ref=f3e585]:
+        - menu [ref=f3e587]:
+          - menuitem [ref=f3e1180] [cursor=pointer]:
+            - link "基本信息" [ref=f3e1182]:
+              - /url: "#/gateway/basic"
+          - menuitem [ref=f3e1186] [cursor=pointer]:
+            - link "用户管理" [ref=f3e1188]:
+              - /url: "#/system/user"
+          - menuitem [ref=f3e1192] [cursor=pointer]:
+            - link "角色管理" [ref=f3e1194]:
+              - /url: "#/system/Role"
+          - menuitem [ref=f3e1198] [cursor=pointer]:
+            - link "日历维护" [ref=f3e1200]:
+              - /url: "#/system/Calendar"
+        - menu [ref=f3e625]:
+          - menuitem [ref=f3e626] [cursor=pointer]:
+            - img "menu-fold" [ref=f3e628]
+    - main [ref=f3e118]:
+      - generic [ref=f3e1204]:
+        - navigation [ref=f3e1207]:
+          - list [ref=f3e1208]:
+            - listitem [ref=f3e1209]:
+              - generic [ref=f3e1210]: 系统管理
+              - text: /
+            - listitem [ref=f3e1212]:
+              - generic [ref=f3e1213]: 基本信息
+        - generic [ref=f3e1219]:
+          - generic [ref=f3e1220]:
+            - generic [ref=f3e1221]:
+              - generic [ref=f3e1222]: 系统信息
+              - button "edit 编辑" [ref=f3e1224] [cursor=pointer]:
+                - img "edit" [ref=f3e1225]
+                - generic [ref=f3e1228]: 编辑
+            - generic [ref=f3e1229]:
+              - generic [ref=f3e1230]:
+                - generic [ref=f3e1231]: 设备名称
+                - generic [ref=f3e1232]: Jetlinks边缘网关
+              - generic [ref=f3e1234]:
+                - generic [ref=f3e1235]: 固件版本
+                - generic [ref=f3e1236]: 2.11.0-SNAPSHOT
+              - generic [ref=f3e1238]:
+                - generic [ref=f3e1239]: 本地时间
+                - generic [ref=f3e1240]: 2026-07-15 13:37:40
+              - generic [ref=f3e1242]:
+                - generic [ref=f3e1243]: 运行时间
+                - generic [ref=f3e1244]: 51 小时06 分钟00 秒
+              - generic [ref=f3e1246]:
+                - generic [ref=f3e1247]: SN
+                - generic [ref=f3e1248]: "--"
+              - generic [ref=f3e1250]:
+                - generic [ref=f3e1251]: 设备型号
+                - generic [ref=f3e1252]: "--"
+              - generic [ref=f3e1254]:
+                - generic [ref=f3e1255]: 运行内存
+                - generic [ref=f3e1256]: 14.82G
+              - generic [ref=f3e1258]:
+                - generic [ref=f3e1259]: 磁盘大小
+                - generic [ref=f3e1260]: 105.08G
+              - generic [ref=f3e1262]:
+                - generic [ref=f3e1263]: 地理位置
+                - generic [ref=f3e1264]: "--"
+              - generic [ref=f3e1266]:
+                - generic [ref=f3e1267]: 安装位置
+                - generic [ref=f3e1268]: "--"
+          - separator [ref=f3e1270]
+          - generic [ref=f3e1271]:
+            - generic [ref=f3e1272]: 基础配置
+            - generic [ref=f3e1275]:
+              - generic [ref=f3e1276]:
+                - generic [ref=f3e1277]: base-path
+                - generic [ref=f3e1278]: "系统后台访问的url格式：{http/https}://{前端所在服务器地址}：{前端暴露的服务器端口}"
+              - generic [ref=f3e1281]:
+                - generic [ref=f3e1282]: http://192.168.36.21:8600
+                - button [ref=f3e1284] [cursor=pointer]:
+                  - img "edit" [ref=f3e1285]
+          - separator [ref=f3e1288]
+          - generic [ref=f3e1289]:
+            - generic [ref=f3e1290]: 个性化
+            - generic [ref=f3e1293]:
+              - generic [ref=f3e1294]: 系统名称
+              - generic [ref=f3e1297]:
+                - generic [ref=f3e1298]: 高通Edge-36.21
+                - button [ref=f3e1300] [cursor=pointer]:
+                  - img "edit" [ref=f3e1301]
+          - generic [ref=f3e1305]:
+            - generic [ref=f3e1306]:
+              - button [ref=f3e1313] [cursor=pointer]
+              - generic [ref=f3e1316]: 系统logo
+              - generic [ref=f3e1317]: 推荐尺寸200*200, 支持jpg,png,jfif,pjp,pjpeg,jpeg
+            - generic [ref=f3e1318]:
+              - button [ref=f3e1325] [cursor=pointer]
+              - generic [ref=f3e1328]: 浏览器页签
+              - generic [ref=f3e1329]: 浏览器tab页中显示的图片元素，推荐尺寸64*64, 支持ico格式
+            - generic [ref=f3e1330]:
+              - button [ref=f3e1337] [cursor=pointer]
+              - generic [ref=f3e1340]: 登录背景图
+              - generic [ref=f3e1341]: 支持4M以内的图片，支持jpg,png,jfif,pjp,pjpeg,jpeg, 建议尺寸1400x1080
+          - button "重启设备" [ref=f3e1342] [cursor=pointer]

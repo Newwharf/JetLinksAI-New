@@ -1,0 +1,159 @@
+- generic [ref=f3e4]:
+  - generic [ref=f3e8]:
+    - generic [ref=f3e11] [cursor=pointer]:
+      - img "logo" [ref=f3e12]
+      - heading "高通Edge-36.21" [level=1] [ref=f3e13]
+    - menu [ref=f3e15]:
+      - menuitem [ref=f3e16] [cursor=pointer]:
+        - link "工作台" [ref=f3e18]:
+          - /url: "#/workbench"
+      - menuitem [ref=f3e22] [cursor=pointer]:
+        - link "物联网" [ref=f3e24]:
+          - /url: "#/iot"
+      - menuitem [ref=f3e28] [cursor=pointer]:
+        - link "网关配置" [ref=f3e30]:
+          - /url: "#/gateway"
+      - menuitem [ref=f3e34] [cursor=pointer]:
+        - link "视频中心" [ref=f3e36]:
+          - /url: "#/media"
+      - menuitem [ref=f3e40] [cursor=pointer]:
+        - link "系统管理" [ref=f3e42]:
+          - /url: "#/system"
+      - menuitem [ref=f3e46] [cursor=pointer]:
+        - link "人工智能" [ref=f3e48]:
+          - /url: "#/agent"
+      - generic:
+        - link:
+          - /url: "#/resource"
+          - text: 资源库
+      - img "ellipsis" [ref=f3e54] [cursor=pointer]
+    - generic [ref=f3e61] [cursor=pointer]:
+      - img "user" [ref=f3e63]
+      - text: 吴松霖
+  - generic [ref=f3e66]:
+    - complementary [ref=f3e68]:
+      - generic [ref=f3e69]:
+        - menu [ref=f3e71]:
+          - generic [ref=f3e72] [cursor=pointer]: 设备管理
+          - list [ref=f3e77]:
+            - menuitem [ref=f3e78] [cursor=pointer]:
+              - link "产品" [ref=f3e80]:
+                - /url: "#/iot/device/Product"
+            - menuitem [ref=f3e84] [cursor=pointer]:
+              - link "设备" [ref=f3e86]:
+                - /url: "#/iot/device/Instance"
+          - generic [ref=f3e90] [cursor=pointer]: 运维管理
+          - generic [ref=f3e95] [cursor=pointer]: 告警中心
+          - generic [ref=f3e100] [cursor=pointer]: 规则引擎
+          - generic [ref=f3e105] [cursor=pointer]: 数据采集
+        - menu [ref=f3e111]:
+          - menuitem [ref=f3e112] [cursor=pointer]:
+            - img "menu-fold" [ref=f3e114]
+    - main [ref=f3e118]:
+      - generic [ref=f3e119]:
+        - navigation [ref=f3e122]:
+          - list [ref=f3e123]:
+            - listitem [ref=f3e124]:
+              - generic [ref=f3e125]: 物联网
+              - text: /
+            - listitem [ref=f3e127]:
+              - generic [ref=f3e128]: 设备管理
+              - text: /
+            - listitem [ref=f3e130]:
+              - generic [ref=f3e131]: 产品
+        - generic [ref=f3e135]:
+          - generic [ref=f3e139]:
+            - generic [ref=f3e143]:
+              - generic [ref=f3e145] [cursor=pointer]:
+                - combobox [ref=f3e147]
+                - generic "名称" [ref=f3e148]
+              - generic [ref=f3e150] [cursor=pointer]:
+                - combobox [ref=f3e152]
+                - generic "包含" [ref=f3e153]
+              - textbox [ref=f3e156]
+            - generic [ref=f3e158]:
+              - generic [ref=f3e159]:
+                - button "重 置" [ref=f3e160] [cursor=pointer]
+                - button "保 存" [ref=f3e162] [cursor=pointer]
+                - generic [ref=f3e164]:
+                  - button "搜 索" [ref=f3e165] [cursor=pointer]
+                  - img "down" [ref=f3e168] [cursor=pointer]
+              - button "更多筛选 double-right" [ref=f3e171] [cursor=pointer]:
+                - generic [ref=f3e172]: 更多筛选
+                - img "double-right" [ref=f3e173]
+          - generic [ref=f3e180]:
+            - generic [ref=f3e181]:
+              - generic [ref=f3e183]:
+                - button "plus 新增" [ref=f3e185] [cursor=pointer]:
+                  - img "plus" [ref=f3e186]
+                  - generic [ref=f3e190]: 新增
+                - button "批量操作 down" [ref=f3e194] [cursor=pointer]:
+                  - generic [ref=f3e195]: 批量操作
+                  - img "down" [ref=f3e196]
+              - generic [ref=f3e201]:
+                - generic [ref=f3e202] [cursor=pointer]:
+                  - generic [ref=f3e203]:
+                    - radio "unordered-list"
+                  - img "unordered-list" [ref=f3e205]
+                - generic [ref=f3e208] [cursor=pointer]:
+                  - generic [ref=f3e209]:
+                    - radio "appstore" [checked]
+                  - img "appstore" [ref=f3e211]
+            - generic [ref=f3e216]:
+              - generic [ref=f3e218]:
+                - generic [ref=f3e220] [cursor=pointer]:
+                  - generic [ref=f3e228]:
+                    - generic [ref=f3e229]: sy_0713国标产品A1
+                    - generic [ref=f3e230]:
+                      - generic [ref=f3e231]: 设备类型
+                      - generic [ref=f3e233]:
+                        - generic [ref=f3e234]: 接入方式
+                        - generic [ref=f3e235]: sy_GB28181接入
+                  - generic [ref=f3e237]: 正常
+                - generic [ref=f3e241]:
+                  - button "edit 编辑" [ref=f3e243] [cursor=pointer]:
+                    - img "edit" [ref=f3e244]
+                    - generic [ref=f3e247]: 编辑
+                  - button "导出" [ref=f3e249] [cursor=pointer]
+                  - button "stop 禁用" [ref=f3e255] [cursor=pointer]:
+                    - img "stop" [ref=f3e256]
+                    - generic [ref=f3e259]: 禁用
+                  - generic [ref=f3e261]:
+                    - button "delete" [disabled]:
+                      - img "delete"
+              - generic [ref=f3e263]:
+                - generic [ref=f3e265] [cursor=pointer]:
+                  - generic [ref=f3e273]:
+                    - generic [ref=f3e274]: 固定地址
+                    - generic [ref=f3e275]:
+                      - generic [ref=f3e276]:
+                        - generic [ref=f3e277]: 设备类型
+                        - generic [ref=f3e278]: 直连设备
+                      - generic [ref=f3e279]:
+                        - generic [ref=f3e280]: 接入方式
+                        - generic [ref=f3e281]: 固定地址接入
+                  - generic [ref=f3e283]: 正常
+                - generic [ref=f3e287]:
+                  - button "edit 编辑" [ref=f3e289] [cursor=pointer]:
+                    - img "edit" [ref=f3e290]
+                    - generic [ref=f3e293]: 编辑
+                  - button "导出" [ref=f3e295] [cursor=pointer]
+                  - button "stop 禁用" [ref=f3e301] [cursor=pointer]:
+                    - img "stop" [ref=f3e302]
+                    - generic [ref=f3e305]: 禁用
+                  - generic [ref=f3e307]:
+                    - button "delete" [disabled]:
+                      - img "delete"
+            - list [ref=f3e309]:
+              - listitem [ref=f3e310]:
+                - generic [ref=f3e311]: 第 1 - 2 条/总共2条
+              - listitem "上一页" [ref=f3e312]:
+                - button [disabled] [ref=f3e313]:
+                  - img "left" [ref=f3e314]
+              - listitem "下一页" [ref=f3e317]:
+                - button [disabled] [ref=f3e318]:
+                  - img "right" [ref=f3e319]
+              - listitem [ref=f3e322]:
+                - generic [ref=f3e324] [cursor=pointer]:
+                  - combobox [ref=f3e326]
+                  - generic [ref=f3e327]: 12 条/页

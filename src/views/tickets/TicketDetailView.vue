@@ -24,14 +24,9 @@ const canReply = computed(() => {
   return true
 })
 
-const maskedAccount = computed(() => {
-  const value = ticket.value?.account || ''
-  if (ticket.value?.accountVisible || value.length <= 4) return value
-  return `${value.slice(0, 2)}***${value.slice(-2)}`
-})
-
 const maskedContact = computed(() => {
   const value = ticket.value?.contact || ''
+  if (ticket.value?.contactVisible) return value
   if (value.includes('@')) {
     const [name, domain] = value.split('@')
     return `${name.slice(0, 2)}***@${domain}`
@@ -39,9 +34,9 @@ const maskedContact = computed(() => {
   return value.replace(/^(\d{3}).*(\d{4})$/, '$1****$2')
 })
 
-function toggleAccountVisible() {
+function toggleContactVisible() {
   if (!ticket.value) return
-  ticket.value.accountVisible = !ticket.value.accountVisible
+  ticket.value.contactVisible = !ticket.value.contactVisible
 }
 
 function getUserStatusLabel(status: string) {
@@ -219,10 +214,7 @@ function sendReply() {
           </div>
           <div>
             <dt>提交账号</dt>
-            <dd class="inline-dd">
-              {{ maskedAccount }}
-              <button @click="toggleAccountVisible">{{ ticket.accountVisible ? '隐藏' : '查看' }}</button>
-            </dd>
+            <dd>{{ ticket.account }}</dd>
           </div>
           <div v-if="isOpsMode">
             <dt>负责人</dt>
@@ -234,7 +226,10 @@ function sendReply() {
           </div>
           <div>
             <dt>联系方式</dt>
-            <dd>{{ maskedContact }}</dd>
+            <dd class="inline-dd">
+              {{ maskedContact }}
+              <button @click="toggleContactVisible">{{ ticket.contactVisible ? '隐藏' : '查看' }}</button>
+            </dd>
           </div>
         </dl>
       </aside>

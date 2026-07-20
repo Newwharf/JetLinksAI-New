@@ -196,14 +196,9 @@ function openGatewayDetail(gateway: Gateway) {
 }
 
 // ===== 接入网关：复用视联中心新增网关流程 =====
-type BindMethod = 'sn' | 'scan'
 type GuideBindResult = 'configured' | 'empty' | 'offline'
 
 const bindModalVisible = ref(false)
-const bindMethod = ref<BindMethod>('sn')
-const snInput = ref('')
-const binding = ref(false)
-const bindError = ref('')
 const scanSuccess = ref(false)
 const scanOutsideStyle = ref<Record<string, string>>({})
 const guideBindModalVisible = ref(false)
@@ -221,7 +216,7 @@ function openGatewayAccessModal() {
 }
 
 function updateScanOutsidePosition() {
-  if (!bindModalVisible.value || bindMethod.value !== 'scan' || scanSuccess.value) return
+  if (!bindModalVisible.value || scanSuccess.value) return
   const modal = document.querySelector('.bind-modal-wrap .ant-modal') as HTMLElement | null
   if (!modal) return
 
@@ -252,42 +247,7 @@ function openBindModal() {
 
 function closeBindModal() {
   bindModalVisible.value = false
-  snInput.value = ''
-  binding.value = false
-  bindError.value = ''
   scanSuccess.value = false
-}
-
-function switchMethod(method: BindMethod) {
-  bindMethod.value = method
-  bindError.value = ''
-  snInput.value = ''
-  scanSuccess.value = false
-  nextTick(() => {
-    window.dispatchEvent(new Event('guide-position-refresh'))
-    setTimeout(updateScanOutsidePosition, 120)
-    setTimeout(updateScanOutsidePosition, 360)
-  })
-}
-
-function handleBind() {
-  bindError.value = ''
-  const inputValue = snInput.value.trim()
-  if (!inputValue) {
-    bindError.value = '请输入网关 SN 码'
-    return
-  }
-
-  binding.value = true
-  setTimeout(() => {
-    binding.value = false
-    if (inputValue === '1') {
-      message.success('网关识别成功')
-      openGuideBindModal()
-    } else {
-      bindError.value = '绑定失败，请确认 SN 码是否正确'
-    }
-  }, 800)
 }
 
 function openGuideBindModal() {
@@ -698,7 +658,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
       </div>
     </a-modal>
 
-    <!-- SN / 扫码接入 -->
+    <!-- 扫码接入 -->
     <a-modal
       v-model:open="bindModalVisible"
       title="新增网关"
@@ -712,55 +672,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
       @cancel="closeBindModal"
     >
       <div class="bind-modal">
-        <div class="bind-tabs">
-          <button class="bind-tab" :class="{ active: bindMethod === 'sn' }" @click="switchMethod('sn')">
-            <i class="i-ant-design-barcode-outlined" />
-            <span>SN 码绑定</span>
-          </button>
-          <button class="bind-tab" :class="{ active: bindMethod === 'scan' }" @click="switchMethod('scan')">
-            <i class="i-ant-design-scan-outlined" />
-            <span>扫码接入</span>
-          </button>
-        </div>
-
-        <div v-if="bindMethod === 'sn'" class="bind-content">
-          <div v-if="bindError" class="bind-error">
-            <i class="i-ant-design-close-circle-filled" />
-            <span>{{ bindError }}</span>
-          </div>
-          <div class="bind-field">
-            <label class="bind-field__label">网关 SN 码</label>
-            <a-input
-              v-model:value="snInput"
-              class="bind-field__input"
-              placeholder="请输入网关 SN 码（输入 1 成功，输入 2 失败）"
-              allow-clear
-              @pressEnter="handleBind"
-            >
-              <template #prefix>
-                <i class="i-ant-design-barcode-outlined" />
-              </template>
-            </a-input>
-            <p class="bind-field__hint">SN 码印在网关设备背面标签上，通常为 12-16 位字母数字组合。</p>
-            <img :src="gatewayImg" class="bind-field__hint-img" alt="网关背面 SN 码位置示意" draggable="false" />
-          </div>
-          <div class="bind-contact">
-            <i class="i-ant-design-customer-service-outlined" />
-            <span>如需购买网关，请联系商务或项目负责人</span>
-            <div class="bind-contact__ways">
-              <span class="bind-contact__way"><i class="i-ant-design-phone-outlined" />400-888-0000</span>
-              <span class="bind-contact__way"><i class="i-ant-design-mail-outlined" />business@jetlinks.com</span>
-            </div>
-          </div>
-          <div class="bind-actions">
-            <button class="bind-btn bind-btn--primary" type="button" :disabled="binding || !snInput.trim()" @click="handleBind">
-              <i v-if="binding" class="i-ant-design-loading-outlined sync-spin" />
-              <span>{{ binding ? '识别中' : '下一步' }}</span>
-            </button>
-          </div>
-        </div>
-
-        <div v-if="bindMethod === 'scan'" class="bind-content bind-content--scan">
+        <div class="bind-content bind-content--scan">
           <template v-if="!scanSuccess">
             <div class="scan-intro">
               <div class="scan-intro__steps">
@@ -831,7 +743,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
     </a-modal>
 
     <div
-      v-if="bindModalVisible && bindMethod === 'scan' && !scanSuccess"
+      v-if="bindModalVisible && !scanSuccess"
       class="scan-outside-actions"
       :style="scanOutsideStyle"
     >
@@ -1962,99 +1874,11 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
   flex-direction: column;
 }
 
-.bind-tabs {
-  display: flex;
-  border-bottom: 1px solid $border-color-card;
-}
-
-.bind-tab {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 14px 8px;
-  border: none;
-  background: transparent;
-  font-size: 12px;
-  color: $text-secondary;
-  cursor: pointer;
-  font-family: inherit;
-  position: relative;
-  transition: color 0.15s;
-
-  i {
-    font-size: 22px;
-  }
-
-  &:hover,
-  &.active {
-    color: $saas-primary;
-    font-weight: 500;
-  }
-
-  &.active::after {
-    content: '';
-    position: absolute;
-    left: 20%;
-    right: 20%;
-    bottom: -1px;
-    height: 2px;
-    background: $saas-primary;
-    border-radius: 1px;
-  }
-}
-
 .bind-content {
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.bind-error {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  background: rgba(255, 77, 79, 0.08);
-  border: 1px solid rgba(255, 77, 79, 0.3);
-  border-radius: 8px;
-  color: #ff4d4f;
-  font-size: 13px;
-
-  i {
-    font-size: 16px;
-    flex-shrink: 0;
-  }
-}
-
-.bind-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  &__label {
-    font-size: 13px;
-    font-weight: 500;
-    color: $text-base;
-  }
-
-  &__hint {
-    margin: 0;
-    font-size: 12px;
-    color: $text-muted;
-    line-height: 1.5;
-  }
-
-  &__hint-img {
-    width: 100%;
-    height: 150px;
-    margin-top: 8px;
-    border-radius: 8px;
-    border: 1px solid $border-color-card;
-    object-fit: contain;
-  }
 }
 
 .bind-contact {
@@ -2140,16 +1964,6 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
       opacity: 0.5;
       cursor: not-allowed;
     }
-  }
-}
-
-.sync-spin {
-  animation: sync-spin 1s linear infinite;
-}
-
-@keyframes sync-spin {
-  to {
-    transform: rotate(360deg);
   }
 }
 

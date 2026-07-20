@@ -60,8 +60,7 @@ const projectDraft = reactive({
   description: '',
   iconColor: '#6e4bff',
   iconChar: '',
-  logoImg: '',
-  logoPrompt: ''
+  logoImg: ''
 })
 
 const logoInput = ref<HTMLInputElement | null>(null)
@@ -81,7 +80,6 @@ watch(currentProject, (project) => {
   projectDraft.iconColor = project?.iconColor || currentTemplate.value.iconColor || '#6e4bff'
   projectDraft.iconChar = project?.iconChar || projectDraft.name.charAt(0) || currentTemplate.value.logo || '项'
   projectDraft.logoImg = project?.logoImg || ''
-  projectDraft.logoPrompt = ''
   configEditing.value = false
 }, { immediate: true })
 
@@ -124,7 +122,6 @@ function cancelProjectConfig() {
   projectDraft.iconColor = project?.iconColor || currentTemplate.value.iconColor || '#6e4bff'
   projectDraft.iconChar = project?.iconChar || projectDraft.name.charAt(0) || currentTemplate.value.logo || '项'
   projectDraft.logoImg = project?.logoImg || ''
-  projectDraft.logoPrompt = ''
   configEditing.value = false
 }
 
@@ -139,20 +136,6 @@ function onLogoChange(event: Event) {
     projectDraft.logoImg = URL.createObjectURL(file)
   }
   input.value = ''
-}
-
-function generateLogo() {
-  const prompt = projectDraft.logoPrompt.trim()
-  if (!prompt) {
-    message.warning('请输入 Logo 风格描述')
-    return
-  }
-  const seed = `${projectDraft.name || currentTemplate.value.name || 'jetlinks'}-${prompt}-${Date.now()}`
-  projectDraft.logoImg = `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(seed)}`
-}
-
-function clearLogo() {
-  projectDraft.logoImg = ''
 }
 
 function openExpansionModal() {
@@ -267,20 +250,6 @@ const usageCards = computed(() => subscriptions.map(sub => {
                   <i class="i-ant-design-upload-outlined" />
                   上传 Logo
                 </button>
-                <div class="pc-logo-generate">
-                  <a-input
-                    v-model:value="projectDraft.logoPrompt"
-                    :disabled="!configEditing"
-                    placeholder="描述 Logo 风格，例如：科技感、简洁、蓝紫色"
-                  />
-                  <button class="pc-btn" type="button" :disabled="!configEditing" @click="generateLogo">
-                    <i class="i-ant-design-thunderbolt-outlined" />
-                    生成 Logo
-                  </button>
-                </div>
-                <button class="pc-btn pc-btn--text" type="button" :disabled="!configEditing" @click="clearLogo">
-                  恢复文字 Logo
-                </button>
               </div>
             </div>
           </div>
@@ -323,7 +292,7 @@ const usageCards = computed(() => subscriptions.map(sub => {
             <div>
               <h4>{{ service.displayName }}</h4>
             </div>
-            <span class="usage-card__plan">{{ service.plan }}</span>
+            <span class="usage-card__plan" :class="`usage-card__plan--${service.tier}`">{{ service.plan }}</span>
           </div>
 
           <template v-if="service.noOwnMetrics">
@@ -597,19 +566,13 @@ const usageCards = computed(() => subscriptions.map(sub => {
 
   &__actions {
     display: grid;
-    grid-template-columns: auto minmax(260px, 1fr) auto;
+    grid-template-columns: auto;
     align-items: center;
+    justify-content: flex-start;
     gap: 8px;
     flex: 1;
     min-width: 0;
   }
-}
-
-.pc-logo-generate {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) auto;
-  gap: 8px;
-  min-width: 0;
 }
 
 .pc-btn {
@@ -722,6 +685,21 @@ const usageCards = computed(() => subscriptions.map(sub => {
     color: $text-secondary;
     font-size: 12px;
     white-space: nowrap;
+
+    &--free {
+      background: #f3f5f8;
+      color: #64748b;
+    }
+
+    &--basic {
+      background: #e8f1ff;
+      color: #1d4ed8;
+    }
+
+    &--enterprise {
+      background: #ece7ff;
+      color: #6e4bff;
+    }
   }
 
   &__summary {

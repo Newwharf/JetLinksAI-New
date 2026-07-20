@@ -11,6 +11,9 @@ import { useAppStore, type GuideStep } from '@/stores/app'
 import aiChatIcon from '@/assets/AIchaticon.png'
 import aiTicketImage1 from '@/assets/text-search/result-01.jpg'
 import aiTicketImage2 from '@/assets/text-search/result-02.jpg'
+import guideImage1 from '@/assets/gatewayGuide/video-device-guide-1.png'
+import guideImage2 from '@/assets/gatewayGuide/video-device-guide-2.png'
+import guideImage3 from '@/assets/gatewayGuide/video-device-guide-3.png'
 import { createTicket } from '@/views/tickets/ticketData'
 import cameraImg from '@/assets/cameras/camera.png'
 import cam1 from '@/assets/text-search/result-01.jpg'
@@ -92,6 +95,8 @@ const aiHelpDragOffset = ref({ x: 0, y: 0 })
 const aiHelpDragging = ref(false)
 const aiHelpMoved = ref(false)
 const aiHelpOpen = ref(false)
+const legacyAiHelpOpen = ref(false)
+const legacyAiSelectedQuestion = ref('')
 const aiHelpWide = ref(false)
 const aiHelpSize = 48
 const aiHelpInput = ref('')
@@ -127,6 +132,14 @@ const aiHelpQuickQuestions = [
   '当前板块可以做什么？',
   '帮我找到视频设备入口',
   '如何新增摄像头设备？',
+]
+const legacyAiHelpQuestions = [
+  '监控墙如何切换布局？',
+  '摄像头画面如何预览？',
+  '视频设备如何新增？',
+  '网关视频如何配置？',
+  '视频通道状态在哪里查看？',
+  '摄像头回放在哪里查看？',
 ]
 
 function resetAiHelpConversation() {
@@ -217,6 +230,21 @@ function openAiHelpFeedbackTicket() {
   })
 }
 
+function toggleLegacyAiHelp() {
+  aiHelpOpen.value = false
+  legacyAiHelpOpen.value = !legacyAiHelpOpen.value
+  if (!legacyAiHelpOpen.value) legacyAiSelectedQuestion.value = ''
+}
+
+function closeLegacyAiHelp() {
+  legacyAiHelpOpen.value = false
+  legacyAiSelectedQuestion.value = ''
+}
+
+function handleLegacyAiHelpQuestion(question: string) {
+  legacyAiSelectedQuestion.value = question
+}
+
 function startAiHelpDrag(event: PointerEvent) {
   const target = event.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
@@ -257,6 +285,8 @@ function toggleAiHelp() {
     }, 0)
     return
   }
+  legacyAiHelpOpen.value = false
+  legacyAiSelectedQuestion.value = ''
   aiHelpOpen.value = !aiHelpOpen.value
 }
 
@@ -869,7 +899,115 @@ function goBackToList() {
         :style="aiHelpPosition ? { left: `${aiHelpPosition.x}px`, top: `${aiHelpPosition.y}px`, right: 'auto', bottom: 'auto' } : undefined"
       >
         <button
+          class="ga-ai-help__legacy-trigger"
+          type="button"
+          aria-label="常见问题"
+          @click.stop="toggleLegacyAiHelp"
+        >
+          <i class="i-ant-design-question-circle-outlined" />
+        </button>
+        <div class="ga-ai-help__legacy-bubble" :class="{ open: legacyAiHelpOpen, 'has-answer': legacyAiSelectedQuestion }">
+          <div class="ga-ai-help__legacy-head">
+            <div class="ga-ai-help__legacy-head-main">
+              <div class="ga-ai-help__legacy-mark">
+                <i class="i-ant-design-question-circle-outlined" />
+              </div>
+              <div>
+                <div class="ga-ai-help__legacy-title">视频中心常见问题</div>
+                <div class="ga-ai-help__legacy-subtitle">选择问题后在当前页面查看说明</div>
+              </div>
+            </div>
+            <button class="ga-ai-help__legacy-cancel" type="button" aria-label="关闭常见问题" @click.stop="closeLegacyAiHelp">
+              <i class="i-ant-design-close-outlined" />
+            </button>
+          </div>
+          <div class="ga-ai-help__legacy-content">
+            <div class="ga-ai-help__legacy-questions">
+              <button
+                v-for="question in legacyAiHelpQuestions"
+                :key="question"
+                type="button"
+                :class="{ active: question === legacyAiSelectedQuestion }"
+                @click="handleLegacyAiHelpQuestion(question)"
+              >
+                {{ question }}
+              </button>
+            </div>
+            <article v-if="legacyAiSelectedQuestion" class="ga-ai-help__legacy-doc">
+              <h1>新增视频设备</h1>
+
+              <img class="ga-ai-help__legacy-doc-image" :src="guideImage1" alt="新增视频设备入口" />
+
+              <h2>路径</h2>
+              <p>视频中心 → 视频设备 → 新增设备</p>
+
+              <h2>概要</h2>
+              <p>
+                视频设备新增功能用于将摄像头接入边缘网关的视频中心。用户可以通过新增设备入口进入接入流程，选择摄像头接入方式，扫描或填写摄像头信息，并完成账号认证。新增成功后，摄像头会出现在视频设备列表中，后续可用于实时预览、分屏展示、告警联动和录像查看。
+              </p>
+
+              <h2>操作步骤</h2>
+              <ol>
+                <li>进入网关地址页，点击顶部导航栏中的“视频中心”。</li>
+                <li>在左侧菜单中选择“视频设备”。</li>
+                <li>点击页面中的“新增设备”按钮，进入视频设备新增流程。</li>
+                <li>
+                  选择设备接入方式。
+                  <br />
+                  可根据摄像头实际接入方式选择对应类型，例如 Onvif、GB/T28181、固定地址、插件或 Agent 接入。
+                </li>
+                <li>
+                  如果选择 Onvif 接入，可先进行设备扫描。
+                  <br />
+                  系统会扫描当前网络环境中的摄像头设备，并展示可接入的设备列表。
+                </li>
+              </ol>
+
+              <img class="ga-ai-help__legacy-doc-image" :src="guideImage2" alt="扫描摄像头设备" />
+
+              <ol start="6">
+                <li>
+                  在扫描结果中选择需要新增的摄像头。
+                  <br />
+                  已接入的设备不可重复选择，未接入的设备可以勾选后继续操作。
+                </li>
+                <li>点击“下一步”或“绑定设备”，进入账号认证。</li>
+                <li>
+                  输入摄像头账号和密码。
+                  <br />
+                  通常需要填写摄像头自身的登录账号和密码，用于完成设备认证和接入。
+                </li>
+              </ol>
+
+              <img class="ga-ai-help__legacy-doc-image" :src="guideImage3" alt="摄像头账号认证" />
+
+              <ol start="9">
+                <li>
+                  提交认证信息。
+                  <br />
+                  系统会校验账号密码，并返回绑定结果。
+                </li>
+                <li>
+                  查看绑定结果。
+                  <br />
+                  绑定成功的摄像头会加入视频设备列表；绑定失败的摄像头可重新输入账号密码后再次尝试。
+                </li>
+                <li>
+                  确认完成新增。
+                  <br />
+                  新增成功后，可返回视频设备列表查看摄像头名称、IP、厂商、状态等信息。
+                </li>
+              </ol>
+
+              <p>
+                后续可点击摄像头进行视频预览，也可以在分屏展示、告警联动、自动录像等功能中使用该摄像头。
+              </p>
+            </article>
+          </div>
+        </div>
+        <button
           class="ga-ai-help__trigger"
+          v-show="false"
           type="button"
           aria-label="智能对话助手"
           @pointerdown="startAiHelpDrag"
@@ -877,7 +1015,7 @@ function goBackToList() {
         >
           <img :src="aiChatIcon" alt="" draggable="false">
         </button>
-        <div class="ga-ai-help__bubble">
+        <div v-show="false" class="ga-ai-help__bubble">
           <div class="ga-ai-help__toolbar">
             <div class="ga-ai-help__brand">
               <strong>AI 智能助手</strong>
@@ -1374,6 +1512,401 @@ function goBackToList() {
       box-shadow: 0 12px 32px rgba(17, 20, 24, 0.28);
       transform: translateY(-1px);
       outline: none;
+    }
+  }
+
+  &__legacy-trigger {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(110, 75, 255, 0.18);
+    border-radius: 50%;
+    background: #fff;
+    color: #6e4bff;
+    box-shadow: 0 8px 22px rgba(17, 20, 24, 0.14);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+
+    i {
+      font-size: 21px;
+    }
+
+    &:hover,
+    &:focus-visible {
+      border-color: rgba(110, 75, 255, 0.42);
+      box-shadow: 0 10px 26px rgba(17, 20, 24, 0.2);
+      transform: translateY(-1px);
+      outline: none;
+    }
+  }
+
+  &__legacy-bubble {
+    position: absolute;
+    right: 0;
+    bottom: 48px;
+    width: 340px;
+    padding: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 12px;
+    background: linear-gradient(180deg, #fbfaff 0%, #fff 34%);
+    box-shadow: 0 18px 44px rgba(17, 20, 24, 0.16);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(6px);
+    pointer-events: none;
+    transition: width 0.2s ease, opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+
+    &.has-answer {
+      width: min(920px, calc(100vw - 80px));
+    }
+
+    &.open {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      right: 13px;
+      bottom: -7px;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-right: 1px solid rgba(15, 23, 42, 0.08);
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      transform: rotate(45deg);
+    }
+  }
+
+  &__legacy-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  }
+
+  &__legacy-head-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  &__legacy-cancel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #8a94a6;
+    font-family: inherit;
+    cursor: pointer;
+    transition: color 0.15s ease;
+
+    i {
+      font-size: 16px;
+    }
+
+    &:hover,
+    &:focus-visible {
+      color: #6e4bff;
+      outline: none;
+    }
+  }
+
+  &__legacy-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: rgba(110, 75, 255, 0.1);
+    color: #6e4bff;
+
+    i {
+      font-size: 18px;
+    }
+  }
+
+  &__legacy-subtitle {
+    margin-top: 2px;
+    color: #8a94a6;
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  &__legacy-title {
+    color: #111418;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 600;
+  }
+
+  &__legacy-content {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+
+    .has-answer & {
+      grid-template-columns: 240px minmax(0, 1fr);
+      align-items: start;
+    }
+  }
+
+  &__legacy-questions {
+    display: grid;
+    gap: 8px;
+    counter-reset: legacy-question;
+
+    button {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) 14px;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 42px;
+      padding: 9px 10px;
+      border: 1px solid #edf0f6;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.86);
+      color: #3a3f47;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 20px;
+      text-align: left;
+      white-space: normal;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(17, 20, 24, 0.04);
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+      &::before {
+        counter-increment: legacy-question;
+        content: counter(legacy-question);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #f3f5fa;
+        color: #8a94a6;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      &::after {
+        content: '›';
+        color: #aab2c0;
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      &:hover,
+      &.active {
+        border-color: rgba(110, 75, 255, 0.24);
+        background: #fff;
+        color: #6e4bff;
+        box-shadow: 0 8px 18px rgba(110, 75, 255, 0.12);
+        transform: translateY(-1px);
+
+        &::before {
+          background: #6e4bff;
+          color: #fff;
+        }
+
+        &::after {
+          color: #6e4bff;
+        }
+      }
+    }
+  }
+
+  &__legacy-answer {
+    max-height: min(560px, calc(100vh - 180px));
+    overflow-y: auto;
+    padding: 14px;
+    border: 1px solid #eef1f6;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #fbfcff 0%, #fff 46%);
+  }
+
+  &__legacy-answer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+
+    span {
+      color: #8a94a6;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    strong {
+      color: #111418;
+      font-size: 15px;
+      line-height: 22px;
+    }
+  }
+
+  &__legacy-path {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 10px;
+    padding: 9px 10px;
+    border: 1px solid rgba(110, 75, 255, 0.12);
+    border-radius: 6px;
+    background: rgba(110, 75, 255, 0.06);
+
+    span {
+      color: #8a94a6;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    strong {
+      color: #3a2ab8;
+      font-size: 13px;
+      line-height: 20px;
+      font-weight: 600;
+    }
+  }
+
+  &__legacy-summary {
+    margin: 0 0 12px;
+    color: #4b5563;
+    font-size: 13px;
+    line-height: 22px;
+  }
+
+  &__legacy-answer-steps {
+    display: grid;
+    gap: 10px;
+
+    section {
+      padding: 10px 12px;
+      border: 1px solid #eef1f6;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    h4 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 8px;
+      color: #111418;
+      font-size: 13px;
+      line-height: 20px;
+      font-weight: 600;
+    }
+
+    em {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #6e4bff;
+      color: #fff;
+      font-style: normal;
+      font-size: 12px;
+      line-height: 20px;
+      font-weight: 600;
+    }
+
+    ol {
+      display: grid;
+      gap: 5px;
+      margin: 0;
+      padding-left: 18px;
+      color: #4b5563;
+      font-size: 13px;
+      line-height: 21px;
+    }
+  }
+
+  &__legacy-doc {
+    max-height: min(620px, calc(100vh - 180px));
+    overflow-y: auto;
+    padding: 6px 6px 18px;
+    color: #262626;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 15px;
+    line-height: 1.86;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    h1 {
+      margin: 0 0 28px;
+      color: #1f2329;
+      font-size: 32px;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    h2 {
+      margin: 28px 0 10px;
+      color: #1f2329;
+      font-size: 18px;
+      line-height: 1.5;
+      font-weight: 700;
+    }
+
+    p {
+      margin: 0 0 16px;
+    }
+
+    ol {
+      margin: 0 0 18px;
+      padding-left: 24px;
+    }
+
+    li {
+      margin: 8px 0;
+      padding-left: 2px;
+    }
+  }
+
+  &__legacy-doc-image {
+    display: block;
+    max-width: 100%;
+    margin: 18px 0 22px;
+    border-radius: 6px;
+  }
+
+  @media (max-width: 760px) {
+    &__legacy-bubble.has-answer {
+      width: min(420px, calc(100vw - 32px));
+    }
+
+    &__legacy-content {
+      .has-answer & {
+        grid-template-columns: 1fr;
+      }
     }
   }
 

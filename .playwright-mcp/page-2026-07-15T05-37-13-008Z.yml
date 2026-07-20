@@ -1,0 +1,202 @@
+- generic [ref=f3e4]:
+  - generic [ref=f3e8]:
+    - generic [ref=f3e11] [cursor=pointer]:
+      - img "logo" [ref=f3e12]
+      - heading "高通Edge-36.21" [level=1] [ref=f3e13]
+    - menu [ref=f3e15]:
+      - menuitem [ref=f3e16] [cursor=pointer]:
+        - link "工作台" [ref=f3e18]:
+          - /url: "#/workbench"
+      - menuitem [ref=f3e22] [cursor=pointer]:
+        - link "物联网" [ref=f3e24]:
+          - /url: "#/iot"
+      - menuitem [ref=f3e28] [cursor=pointer]:
+        - link "网关配置" [ref=f3e30]:
+          - /url: "#/gateway"
+      - menuitem [ref=f3e34] [cursor=pointer]:
+        - link "视频中心" [ref=f3e36]:
+          - /url: "#/media"
+      - menuitem [ref=f3e40] [cursor=pointer]:
+        - link "系统管理" [ref=f3e42]:
+          - /url: "#/system"
+      - menuitem [ref=f3e46] [cursor=pointer]:
+        - link "人工智能" [ref=f3e48]:
+          - /url: "#/agent"
+      - generic:
+        - link:
+          - /url: "#/resource"
+          - text: 资源库
+      - img "ellipsis" [ref=f3e54] [cursor=pointer]
+    - generic [ref=f3e61] [cursor=pointer]:
+      - img "user" [ref=f3e63]
+      - text: 吴松霖
+  - main [ref=f3e118]:
+    - generic [ref=f3e328]:
+      - navigation [ref=f3e331]:
+        - list [ref=f3e332]:
+          - listitem [ref=f3e333]:
+            - generic [ref=f3e334]: 工作台
+      - generic [ref=f3e340]:
+        - generic [ref=f3e342]:
+          - generic [ref=f3e343]: 系统概览
+          - generic [ref=f3e346]:
+            - generic [ref=f3e347]:
+              - generic [ref=f3e348]:
+                - generic [ref=f3e349]: CPU使用率
+                - generic [ref=f3e350]: "%"
+              - generic [ref=f3e352]:
+                - generic [ref=f3e353]: JVM内存
+                - generic [ref=f3e354]: G / G
+              - generic [ref=f3e356]:
+                - generic [ref=f3e357]: 磁盘占用
+                - generic [ref=f3e358]: G / G
+              - generic [ref=f3e360]:
+                - generic [ref=f3e361]: 系统内存
+                - generic [ref=f3e362]: G / G
+            - generic [ref=f3e367]:
+              - generic [ref=f3e368]: 使用率趋势
+              - generic [ref=f3e369]:
+                - generic [ref=f3e371]:
+                  - generic [ref=f3e372] [cursor=pointer]:
+                    - generic [ref=f3e373]:
+                      - radio "最近1小时" [checked]
+                    - generic [ref=f3e374]: 最近1小时
+                  - generic [ref=f3e375] [cursor=pointer]:
+                    - generic [ref=f3e376]:
+                      - radio "最近24小时"
+                    - generic [ref=f3e377]: 最近24小时
+                  - generic [ref=f3e378] [cursor=pointer]:
+                    - generic [ref=f3e379]:
+                      - radio "近一周"
+                    - generic [ref=f3e380]: 近一周
+                - generic [ref=f3e382]:
+                  - textbox "开始日期" [ref=f3e384]: 2026-07-15 12:36:58
+                  - generic "to" [ref=f3e386]:
+                    - img "swap-right" [ref=f3e387]
+                  - textbox "结束日期" [ref=f3e391]: 2026-07-15 13:36:58
+                  - generic:
+                    - img "calendar"
+        - generic [ref=f3e398]:
+          - generic [ref=f3e399]: 系统信息
+          - generic [ref=f3e401]:
+            - generic [ref=f3e402]:
+              - generic [ref=f3e403]: 当前网关
+              - generic [ref=f3e405]: Jetlinks边缘网关
+              - generic [ref=f3e407]: 已运行
+            - generic [ref=f3e410]:
+              - generic [ref=f3e411]: "51"
+              - text: 小时
+              - generic [ref=f3e412]: "05"
+              - text: 分钟
+              - generic [ref=f3e413]: "33"
+              - text: 秒
+          - generic [ref=f3e414]:
+            - generic [ref=f3e415]:
+              - generic [ref=f3e416]: 设备型号
+              - generic [ref=f3e417]: "--"
+            - generic [ref=f3e418]:
+              - generic [ref=f3e419]: SN
+              - generic [ref=f3e420]: "--"
+            - generic [ref=f3e421]:
+              - generic [ref=f3e422]: 固件版本
+              - generic [ref=f3e423]: 2.11.0-SNAPSHOT
+            - generic [ref=f3e424]:
+              - generic [ref=f3e425]: 本地时间
+              - generic [ref=f3e426]: 2026-07-15 13:37:14
+        - generic [ref=f3e427]:
+          - generic [ref=f3e428]:
+            - generic [ref=f3e429]: 设备在线情况
+            - button "设备管理 right" [ref=f3e430] [cursor=pointer]:
+              - generic [ref=f3e431]: 设备管理
+              - img "right" [ref=f3e432]
+          - generic [ref=f3e439]:
+            - generic [ref=f3e440]:
+              - generic [ref=f3e441]: "1"
+              - generic [ref=f3e442]: 在线
+            - generic [ref=f3e443]:
+              - generic [ref=f3e444]: "1"
+              - generic [ref=f3e445]: 离线
+            - generic [ref=f3e446]:
+              - generic [ref=f3e447]: "0"
+              - generic [ref=f3e448]: 禁用
+        - generic [ref=f3e449]:
+          - generic [ref=f3e450]:
+            - generic [ref=f3e451]: 数据采集
+            - button "数采设备管理 right" [ref=f3e452] [cursor=pointer]:
+              - generic [ref=f3e453]: 数采设备管理
+              - img "right" [ref=f3e454]
+          - generic [ref=f3e457]:
+            - generic [ref=f3e458]:
+              - img "apartment" [ref=f3e460] [cursor=pointer]
+              - generic [ref=f3e463]: 采集并发
+              - generic [ref=f3e464]: "0"
+            - generic [ref=f3e465]:
+              - generic [ref=f3e466]:
+                - generic [ref=f3e467]:
+                  - generic [ref=f3e468]: "-"
+                  - generic [ref=f3e469]: 设备点位数量
+                - generic [ref=f3e470]: "0"
+              - generic [ref=f3e471]:
+                - generic [ref=f3e472]:
+                  - generic [ref=f3e473]: "-"
+                  - generic [ref=f3e474]: 虚拟点位数量
+                - generic [ref=f3e475]: "0"
+          - generic [ref=f3e476]:
+            - generic [ref=f3e477]:
+              - generic [ref=f3e478]: "0"
+              - generic [ref=f3e479]: 通道数量
+            - generic [ref=f3e480]:
+              - generic [ref=f3e481]: "0"
+              - generic [ref=f3e482]: 采集器数量
+        - generic [ref=f3e483]:
+          - generic [ref=f3e484]:
+            - generic [ref=f3e485]: 网络数据量
+            - generic [ref=f3e488]:
+              - textbox "开始日期" [ref=f3e490]: 2026-07-15 12:36:58
+              - generic "to" [ref=f3e492]:
+                - img "swap-right" [ref=f3e493]
+              - textbox "结束日期" [ref=f3e497]: 2026-07-15 13:36:58
+              - generic:
+                - img "calendar"
+          - generic [ref=f3e498]: 所有子设备推送到当前集群的总数据量
+        - generic [ref=f3e503]:
+          - generic [ref=f3e504]:
+            - generic [ref=f3e505]: 消息数量
+            - generic [ref=f3e508]:
+              - textbox "开始日期" [ref=f3e510]: 2026-07-15 12:36:58
+              - generic "to" [ref=f3e512]:
+                - img "swap-right" [ref=f3e513]
+              - textbox "结束日期" [ref=f3e517]: 2026-07-15 13:36:58
+              - generic:
+                - img "calendar"
+          - generic [ref=f3e518]: 所有子设备推送到当前集群的消息数量
+        - generic [ref=f3e523]:
+          - generic [ref=f3e524]:
+            - generic [ref=f3e525]: 视频中心
+            - button "视频设备 right" [ref=f3e526] [cursor=pointer]:
+              - generic [ref=f3e527]: 视频设备
+              - img "right" [ref=f3e528]
+          - generic [ref=f3e536]:
+            - generic [ref=f3e537]:
+              - generic [ref=f3e539]:
+                - generic [ref=f3e540]: "-"
+                - generic [ref=f3e541]: GB/T28181
+              - generic [ref=f3e542]: "1"
+            - generic [ref=f3e544]:
+              - generic [ref=f3e546]:
+                - generic [ref=f3e547]: "-"
+                - generic [ref=f3e548]: 固定地址
+              - generic [ref=f3e549]: "1"
+            - generic [ref=f3e551]:
+              - generic [ref=f3e553]:
+                - generic [ref=f3e554]: "-"
+                - generic [ref=f3e555]: Onvif
+              - generic [ref=f3e556]: "0"
+            - generic [ref=f3e558]:
+              - generic [ref=f3e560]:
+                - generic [ref=f3e561]: "-"
+                - generic [ref=f3e562]: 插件
+              - generic [ref=f3e563]: "0"
+          - generic [ref=f3e566]:
+            - generic [ref=f3e567]: "10"
+            - generic [ref=f3e568]: 通道数量

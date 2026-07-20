@@ -1,0 +1,84 @@
+- generic [ref=f2e4]:
+  - generic [ref=f2e8]:
+    - generic [ref=f2e11] [cursor=pointer]:
+      - img "logo" [ref=f2e12]
+      - heading "高通Edge-36.21" [level=1] [ref=f2e13]
+    - menu [ref=f2e15]:
+      - menuitem [ref=f2e16] [cursor=pointer]:
+        - link "工作台" [ref=f2e18]:
+          - /url: "#/workbench"
+      - menuitem [ref=f2e22] [cursor=pointer]:
+        - link "物联网" [ref=f2e24]:
+          - /url: "#/iot"
+      - menuitem [ref=f2e28] [cursor=pointer]:
+        - link "网关配置" [ref=f2e30]:
+          - /url: "#/gateway"
+      - menuitem [ref=f2e34] [cursor=pointer]:
+        - link "视频中心" [ref=f2e36]:
+          - /url: "#/media"
+      - menuitem [ref=f2e40] [cursor=pointer]:
+        - link "系统管理" [ref=f2e42]:
+          - /url: "#/system"
+      - menuitem [ref=f2e46] [cursor=pointer]:
+        - link "人工智能" [ref=f2e48]:
+          - /url: "#/agent"
+      - generic:
+        - link:
+          - /url: "#/resource"
+          - text: 资源库
+      - img "ellipsis" [ref=f2e54] [cursor=pointer]
+    - generic [ref=f2e61] [cursor=pointer]:
+      - img "user" [ref=f2e63]
+      - text: 吴松霖
+  - generic [ref=f2e66]:
+    - complementary [ref=f2e311]:
+      - generic [ref=f2e312]:
+        - menu [ref=f2e314]:
+          - generic [ref=f2e1315] [cursor=pointer]: 智能体开发
+          - list [ref=f2e1320]:
+            - menuitem [ref=f2e1321] [cursor=pointer]:
+              - link "智能体列表" [ref=f2e1323]:
+                - /url: "#/agent/agentDevelopment/applicationList"
+            - menuitem [ref=f2e1327] [cursor=pointer]:
+              - link "模型供应商" [ref=f2e1329]:
+                - /url: "#/agent/agentDevelopment/LargeModelManagement"
+            - menuitem [ref=f2e1333] [cursor=pointer]:
+              - link [ref=f2e1335]:
+                - /url: "#/agent/agentDevelopment/Tools"
+                - img "tool" [ref=f2e1336]
+                - text: 工具管理
+            - menuitem [ref=f2e1339] [cursor=pointer]:
+              - link [ref=f2e1341]:
+                - /url: "#/agent/agentDevelopment/Skills"
+                - img "read" [ref=f2e1342]
+                - text: 技能管理
+          - generic [ref=f2e1345] [cursor=pointer]: 知识库管理
+          - generic [ref=f2e1350] [cursor=pointer]: 机器视觉
+        - menu [ref=f2e354]:
+          - menuitem [ref=f2e355] [cursor=pointer]:
+            - img "menu-fold" [ref=f2e357]
+    - main [ref=f2e68]:
+      - generic [ref=f2e1359]:
+        - generic [ref=f2e1361]:
+          - heading "智能体管理" [level=2] [ref=f2e1362]
+          - paragraph [ref=f2e1363]: 集中查看已创建的智能体，按分类、状态和来源快速筛选。
+        - generic [ref=f2e1366]:
+          - generic [ref=f2e1368]:
+            - generic [ref=f2e1369]:
+              - button "filter 快速筛选" [ref=f2e1370] [cursor=pointer]:
+                - img "filter" [ref=f2e1371]
+                - generic [ref=f2e1374]: 快速筛选
+              - generic [ref=f2e1376]:
+                - textbox "搜索智能体名称" [ref=f2e1384]
+                - generic [ref=f2e1385]:
+                  - button [disabled] [ref=f2e1386]:
+                    - img "close-circle" [ref=f2e1387] [cursor=pointer]
+                  - button [ref=f2e1391] [cursor=pointer]:
+                    - img "search" [ref=f2e1392]
+            - generic [ref=f2e1396]:
+              - button "plus 新建智能体" [ref=f2e1397] [cursor=pointer]:
+                - img "plus" [ref=f2e1398]
+                - generic [ref=f2e1402]: 新建智能体
+              - button "更多操作" [ref=f2e1403] [cursor=pointer]:
+                - img "down" [ref=f2e1404]
+          - paragraph [ref=f2e1427]: 暂无智能体，先创建一个开始使用。

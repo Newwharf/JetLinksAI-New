@@ -1,0 +1,100 @@
+- generic [ref=f3e4]:
+  - generic [ref=f3e8]:
+    - generic [ref=f3e11] [cursor=pointer]:
+      - img "logo" [ref=f3e12]
+      - heading "高通Edge-36.21" [level=1] [ref=f3e13]
+    - menu [ref=f3e15]:
+      - menuitem [ref=f3e16] [cursor=pointer]:
+        - link "工作台" [ref=f3e18]:
+          - /url: "#/workbench"
+      - menuitem [ref=f3e22] [cursor=pointer]:
+        - link "物联网" [ref=f3e24]:
+          - /url: "#/iot"
+      - menuitem [ref=f3e28] [cursor=pointer]:
+        - link "网关配置" [ref=f3e30]:
+          - /url: "#/gateway"
+      - menuitem [ref=f3e34] [cursor=pointer]:
+        - link "视频中心" [ref=f3e36]:
+          - /url: "#/media"
+      - menuitem [ref=f3e40] [cursor=pointer]:
+        - link "系统管理" [ref=f3e42]:
+          - /url: "#/system"
+      - menuitem [ref=f3e46] [cursor=pointer]:
+        - link "人工智能" [ref=f3e48]:
+          - /url: "#/agent"
+      - generic:
+        - link:
+          - /url: "#/resource"
+          - text: 资源库
+      - img "ellipsis" [ref=f3e54] [cursor=pointer]
+    - generic [ref=f3e61] [cursor=pointer]:
+      - img "user" [ref=f3e63]
+      - text: 吴松霖
+  - generic [ref=f3e66]:
+    - complementary [ref=f3e584]:
+      - generic [ref=f3e585]:
+        - menu [ref=f3e587]:
+          - menuitem [ref=f3e955] [cursor=pointer]:
+            - link "视频设备" [ref=f3e957]:
+              - /url: "#/media/device"
+          - menuitem [ref=f3e961] [cursor=pointer]:
+            - link "分屏展示" [ref=f3e963]:
+              - /url: "#/media/SplitScreen"
+          - menuitem [ref=f3e967] [cursor=pointer]:
+            - link "国标级联" [ref=f3e969]:
+              - /url: "#/media/Cascade"
+          - generic [ref=f3e973] [cursor=pointer]:
+            - img "box-plot" [ref=f3e974]
+            - generic [ref=f3e977]: 自动录像
+        - menu [ref=f3e625]:
+          - menuitem [ref=f3e626] [cursor=pointer]:
+            - img "menu-fold" [ref=f3e628]
+    - main [ref=f3e118]:
+      - generic [ref=f3e978]:
+        - navigation [ref=f3e981]:
+          - list [ref=f3e982]:
+            - listitem [ref=f3e983]:
+              - generic [ref=f3e984]: 视频中心
+              - text: /
+            - listitem [ref=f3e986]:
+              - generic [ref=f3e987]: 视频设备
+        - generic [ref=f3e991]:
+          - generic [ref=f3e995]:
+            - generic [ref=f3e999]:
+              - generic [ref=f3e1001] [cursor=pointer]:
+                - combobox [ref=f3e1003]
+                - generic "名称" [ref=f3e1004]
+              - generic [ref=f3e1006] [cursor=pointer]:
+                - combobox [ref=f3e1008]
+                - generic "包含" [ref=f3e1009]
+              - textbox [ref=f3e1012]
+            - generic [ref=f3e1014]:
+              - generic [ref=f3e1015]:
+                - button "重 置" [ref=f3e1016] [cursor=pointer]
+                - button "保 存" [ref=f3e1018] [cursor=pointer]
+                - generic [ref=f3e1020]:
+                  - button "搜 索" [ref=f3e1021] [cursor=pointer]
+                  - img "down" [ref=f3e1024] [cursor=pointer]
+              - button "更多筛选 double-right" [ref=f3e1027] [cursor=pointer]:
+                - generic [ref=f3e1028]: 更多筛选
+                - img "double-right" [ref=f3e1029]
+          - generic [ref=f3e1032]:
+            - generic:
+              - generic:
+                - generic:
+                  - generic [ref=f3e1033]:
+                    - button "plus 新增" [ref=f3e1035] [cursor=pointer]:
+                      - img "plus" [ref=f3e1036]
+                      - generic [ref=f3e1040]: 新增
+                    - generic [ref=f3e1043]:
+                      - generic [ref=f3e1044] [cursor=pointer]:
+                        - generic [ref=f3e1045]:
+                          - radio "unordered-list"
+                        - img "unordered-list" [ref=f3e1047]
+                      - generic [ref=f3e1050] [cursor=pointer]:
+                        - generic [ref=f3e1051]:
+                          - radio "appstore" [checked]
+                        - img "appstore" [ref=f3e1053]
+                  - generic [ref=f3e1057]:
+                    - img "暂无数据" [ref=f3e1059]
+                    - paragraph [ref=f3e1060]: 暂无数据

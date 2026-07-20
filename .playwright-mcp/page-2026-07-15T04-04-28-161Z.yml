@@ -1,0 +1,258 @@
+- generic [ref=f2e4]:
+  - generic [ref=f2e8]:
+    - generic [ref=f2e11] [cursor=pointer]:
+      - img "logo" [ref=f2e12]
+      - heading "高通Edge-36.21" [level=1] [ref=f2e13]
+    - menu [ref=f2e15]:
+      - menuitem [ref=f2e16] [cursor=pointer]:
+        - link "工作台" [ref=f2e18]:
+          - /url: "#/workbench"
+      - menuitem [ref=f2e22] [cursor=pointer]:
+        - link "物联网" [ref=f2e24]:
+          - /url: "#/iot"
+      - menuitem [ref=f2e28] [cursor=pointer]:
+        - link "网关配置" [ref=f2e30]:
+          - /url: "#/gateway"
+      - menuitem [ref=f2e34] [cursor=pointer]:
+        - link "视频中心" [ref=f2e36]:
+          - /url: "#/media"
+      - menuitem [ref=f2e40] [cursor=pointer]:
+        - link "系统管理" [ref=f2e42]:
+          - /url: "#/system"
+      - menuitem [ref=f2e46] [cursor=pointer]:
+        - link "人工智能" [ref=f2e48]:
+          - /url: "#/agent"
+      - generic:
+        - link:
+          - /url: "#/resource"
+          - text: 资源库
+      - img "ellipsis" [ref=f2e54] [cursor=pointer]
+    - generic [ref=f2e61] [cursor=pointer]:
+      - img "user" [ref=f2e63]
+      - text: 吴松霖
+  - generic [ref=f2e66]:
+    - complementary [ref=f2e311]:
+      - generic [ref=f2e312]:
+        - menu [ref=f2e314]:
+          - menuitem [ref=f2e569] [cursor=pointer]:
+            - link "平台接入" [ref=f2e571]:
+              - /url: "#/gateway/north"
+          - menuitem [ref=f2e575] [cursor=pointer]:
+            - link "远程终端" [ref=f2e577]:
+              - /url: "#/gateway/terminal"
+          - menuitem [ref=f2e581] [cursor=pointer]:
+            - link [ref=f2e583]:
+              - /url: "#/gateway/plugin"
+              - img "box-plot" [ref=f2e584]
+              - text: 插件管理
+          - menuitem [ref=f2e587] [cursor=pointer]:
+            - link "固件升级" [ref=f2e589]:
+              - /url: "#/gateway/firmware"
+          - menuitem [ref=f2e593] [cursor=pointer]:
+            - link "网络配置" [ref=f2e595]:
+              - /url: "#/gateway/network"
+          - menuitem [ref=f2e599] [cursor=pointer]:
+            - link "串口管理" [ref=f2e601]:
+              - /url: "#/gateway/serialPort"
+        - menu [ref=f2e354]:
+          - menuitem [ref=f2e355] [cursor=pointer]:
+            - img "menu-fold" [ref=f2e357]
+    - main [ref=f2e68]:
+      - generic [ref=f2e605]:
+        - navigation [ref=f2e608]:
+          - list [ref=f2e609]:
+            - listitem [ref=f2e610]:
+              - generic [ref=f2e611]: 网关配置
+              - text: /
+            - listitem [ref=f2e613]:
+              - generic [ref=f2e614]: 平台接入
+        - generic [ref=f2e619]:
+          - generic [ref=f2e623]:
+            - generic [ref=f2e627]:
+              - generic [ref=f2e629] [cursor=pointer]:
+                - combobox [ref=f2e631]
+                - generic "启用状态" [ref=f2e632]
+              - generic [ref=f2e634] [cursor=pointer]:
+                - combobox [ref=f2e636]
+                - generic "=" [ref=f2e637]
+              - combobox [ref=f2e642]
+            - generic [ref=f2e643]:
+              - generic [ref=f2e644]:
+                - button "重 置" [ref=f2e645] [cursor=pointer]
+                - button "保 存" [ref=f2e647] [cursor=pointer]
+                - generic [ref=f2e649]:
+                  - button "搜 索" [ref=f2e650] [cursor=pointer]
+                  - img "down" [ref=f2e653] [cursor=pointer]
+              - button "更多筛选 double-right" [ref=f2e656] [cursor=pointer]:
+                - generic [ref=f2e657]: 更多筛选
+                - img "double-right" [ref=f2e658]
+          - generic [ref=f2e665]:
+            - button "plus 新增" [ref=f2e668] [cursor=pointer]:
+              - img "plus" [ref=f2e669]
+              - generic [ref=f2e673]: 新增
+            - generic [ref=f2e676]:
+              - generic [ref=f2e678]:
+                - generic [ref=f2e680] [cursor=pointer]:
+                  - generic [ref=f2e686]:
+                    - generic [ref=f2e687]: lqd测试
+                    - generic [ref=f2e688]:
+                      - generic [ref=f2e689]:
+                        - generic [ref=f2e690]: 连接平台
+                        - generic [ref=f2e691]: IoT
+                      - generic [ref=f2e692]:
+                        - generic [ref=f2e693]: 已映射设备数
+                        - generic [ref=f2e694]: "0"
+                      - generic [ref=f2e695]:
+                        - generic [ref=f2e696]: 已映射通道数
+                        - generic [ref=f2e697]: "0"
+                  - generic [ref=f2e698]: 已连接
+                - generic [ref=f2e702]:
+                  - generic [ref=f2e704]:
+                    - button "edit 编辑" [disabled]:
+                      - img "edit"
+                      - generic: 编辑
+                  - button "stop 禁用" [ref=f2e706] [cursor=pointer]:
+                    - img "stop" [ref=f2e707]
+                    - generic [ref=f2e710]: 禁用
+                  - generic [ref=f2e712]:
+                    - button "delete" [disabled]:
+                      - img "delete"
+              - generic [ref=f2e714]:
+                - generic [ref=f2e716] [cursor=pointer]:
+                  - generic [ref=f2e722]:
+                    - generic [ref=f2e723]: Cloud西南区
+                    - generic [ref=f2e724]:
+                      - generic [ref=f2e725]:
+                        - generic [ref=f2e726]: 连接平台
+                        - generic [ref=f2e727]: IoT
+                      - generic [ref=f2e728]:
+                        - generic [ref=f2e729]: 已映射设备数
+                        - generic [ref=f2e730]: "0"
+                      - generic [ref=f2e731]:
+                        - generic [ref=f2e732]: 已映射通道数
+                        - generic [ref=f2e733]: "0"
+                  - generic [ref=f2e734]: 已连接
+                - generic [ref=f2e738]:
+                  - generic [ref=f2e740]:
+                    - button "edit 编辑" [disabled]:
+                      - img "edit"
+                      - generic: 编辑
+                  - button "stop 禁用" [ref=f2e742] [cursor=pointer]:
+                    - img "stop" [ref=f2e743]
+                    - generic [ref=f2e746]: 禁用
+                  - generic [ref=f2e748]:
+                    - button "delete" [disabled]:
+                      - img "delete"
+              - generic [ref=f2e750]:
+                - generic [ref=f2e752] [cursor=pointer]:
+                  - generic [ref=f2e758]:
+                    - generic [ref=f2e759]: "111"
+                    - generic [ref=f2e760]:
+                      - generic [ref=f2e761]:
+                        - generic [ref=f2e762]: 连接平台
+                        - generic [ref=f2e763]: IoT
+                      - generic [ref=f2e764]:
+                        - generic [ref=f2e765]: 已映射设备数
+                        - generic [ref=f2e766]: "0"
+                      - generic [ref=f2e767]:
+                        - generic [ref=f2e768]: 已映射通道数
+                        - generic [ref=f2e769]: "0"
+                  - generic [ref=f2e770]: 禁用
+                - generic [ref=f2e774]:
+                  - button "edit 编辑" [ref=f2e776] [cursor=pointer]:
+                    - img "edit" [ref=f2e777]
+                    - generic [ref=f2e780]: 编辑
+                  - button "check-circle 启用" [ref=f2e782] [cursor=pointer]:
+                    - img "check-circle" [ref=f2e783]
+                    - generic [ref=f2e787]: 启用
+                  - button [ref=f2e789] [cursor=pointer]:
+                    - img "delete" [ref=f2e790]
+              - generic [ref=f2e794]:
+                - generic [ref=f2e796] [cursor=pointer]:
+                  - generic [ref=f2e802]:
+                    - generic [ref=f2e803]: UAT质检项目
+                    - generic [ref=f2e804]:
+                      - generic [ref=f2e805]:
+                        - generic [ref=f2e806]: 连接平台
+                        - generic [ref=f2e807]: IoT
+                      - generic [ref=f2e808]:
+                        - generic [ref=f2e809]: 已映射设备数
+                        - generic [ref=f2e810]: "0"
+                      - generic [ref=f2e811]:
+                        - generic [ref=f2e812]: 已映射通道数
+                        - generic [ref=f2e813]: "0"
+                  - generic [ref=f2e814]: 禁用
+                - generic [ref=f2e818]:
+                  - button "edit 编辑" [ref=f2e820] [cursor=pointer]:
+                    - img "edit" [ref=f2e821]
+                    - generic [ref=f2e824]: 编辑
+                  - button "check-circle 启用" [ref=f2e826] [cursor=pointer]:
+                    - img "check-circle" [ref=f2e827]
+                    - generic [ref=f2e831]: 启用
+                  - button [ref=f2e833] [cursor=pointer]:
+                    - img "delete" [ref=f2e834]
+              - generic [ref=f2e838]:
+                - generic [ref=f2e840] [cursor=pointer]:
+                  - generic [ref=f2e846]:
+                    - generic [ref=f2e847]: qs环境
+                    - generic [ref=f2e848]:
+                      - generic [ref=f2e849]:
+                        - generic [ref=f2e850]: 连接平台
+                        - generic [ref=f2e851]: IoT
+                      - generic [ref=f2e852]:
+                        - generic [ref=f2e853]: 已映射设备数
+                        - generic [ref=f2e854]: "0"
+                      - generic [ref=f2e855]:
+                        - generic [ref=f2e856]: 已映射通道数
+                        - generic [ref=f2e857]: "0"
+                  - generic [ref=f2e858]: 已连接
+                - generic [ref=f2e862]:
+                  - generic [ref=f2e864]:
+                    - button "edit 编辑" [disabled]:
+                      - img "edit"
+                      - generic: 编辑
+                  - button "stop 禁用" [ref=f2e866] [cursor=pointer]:
+                    - img "stop" [ref=f2e867]
+                    - generic [ref=f2e870]: 禁用
+                  - generic [ref=f2e872]:
+                    - button "delete" [disabled]:
+                      - img "delete"
+              - generic [ref=f2e874]:
+                - generic [ref=f2e876] [cursor=pointer]:
+                  - generic [ref=f2e882]:
+                    - generic [ref=f2e883]: uatSaaS环境
+                    - generic [ref=f2e884]:
+                      - generic [ref=f2e885]:
+                        - generic [ref=f2e886]: 连接平台
+                        - generic [ref=f2e887]: IoT
+                      - generic [ref=f2e888]:
+                        - generic [ref=f2e889]: 已映射设备数
+                        - generic [ref=f2e890]: "0"
+                      - generic [ref=f2e891]:
+                        - generic [ref=f2e892]: 已映射通道数
+                        - generic [ref=f2e893]: "8"
+                  - generic [ref=f2e894]: 已连接
+                - generic [ref=f2e898]:
+                  - generic [ref=f2e900]:
+                    - button "edit 编辑" [disabled]:
+                      - img "edit"
+                      - generic: 编辑
+                  - button "stop 禁用" [ref=f2e902] [cursor=pointer]:
+                    - img "stop" [ref=f2e903]
+                    - generic [ref=f2e906]: 禁用
+                  - generic [ref=f2e908]:
+                    - button "delete" [disabled]:
+                      - img "delete"
+            - list [ref=f2e910]:
+              - listitem [ref=f2e911]:
+                - generic [ref=f2e912]: 第 1 - 6 条/总共6条
+              - listitem "上一页" [ref=f2e913]:
+                - button [disabled] [ref=f2e914]:
+                  - img "left" [ref=f2e915]
+              - listitem "下一页" [ref=f2e918]:
+                - button [disabled] [ref=f2e919]:
+                  - img "right" [ref=f2e920]
+              - listitem [ref=f2e923]:
+                - generic [ref=f2e925] [cursor=pointer]:
+                  - combobox [ref=f2e927]
+                  - generic [ref=f2e928]: 12 条/页

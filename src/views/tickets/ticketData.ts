@@ -22,7 +22,7 @@ export interface TicketItem {
   contact: string
   attachments: string[]
   messages: TicketMessage[]
-  accountVisible?: boolean
+  contactVisible?: boolean
 }
 
 export const moduleOptions = [
@@ -68,7 +68,7 @@ export const tickets = ref<TicketItem[]>([
     account: '用户名',
     assignee: currentOperatorName,
     submitTime: '2026-07-16 09:42',
-    contact: '138****2196',
+    contact: '13812342196',
     attachments: ['monitor-wall.mp4'],
     messages: [
       {
@@ -122,7 +122,7 @@ export const tickets = ref<TicketItem[]>([
     account: 'site_admin',
     assignee: currentOperatorName,
     submitTime: '2026-07-15 10:36',
-    contact: '139****6812',
+    contact: '13955686812',
     attachments: ['alarm-rule.png'],
     messages: [
       {
@@ -150,7 +150,7 @@ export const tickets = ref<TicketItem[]>([
     account: 'project_viewer',
     assignee: '王工',
     submitTime: '2026-07-14 11:05',
-    contact: '186****7021',
+    contact: '18690887021',
     attachments: ['dashboard-count.png'],
     messages: [
       {

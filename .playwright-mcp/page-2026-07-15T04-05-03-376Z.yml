@@ -1,0 +1,107 @@
+- generic [ref=f2e4]:
+  - generic [ref=f2e8]:
+    - generic [ref=f2e11] [cursor=pointer]:
+      - img "logo" [ref=f2e12]
+      - heading "高通Edge-36.21" [level=1] [ref=f2e13]
+    - menu [ref=f2e15]:
+      - menuitem [ref=f2e16] [cursor=pointer]:
+        - link "工作台" [ref=f2e18]:
+          - /url: "#/workbench"
+      - menuitem [ref=f2e22] [cursor=pointer]:
+        - link "物联网" [ref=f2e24]:
+          - /url: "#/iot"
+      - menuitem [ref=f2e28] [cursor=pointer]:
+        - link "网关配置" [ref=f2e30]:
+          - /url: "#/gateway"
+      - menuitem [ref=f2e34] [cursor=pointer]:
+        - link "视频中心" [ref=f2e36]:
+          - /url: "#/media"
+      - menuitem [ref=f2e40] [cursor=pointer]:
+        - link "系统管理" [ref=f2e42]:
+          - /url: "#/system"
+      - menuitem [ref=f2e46] [cursor=pointer]:
+        - link "人工智能" [ref=f2e48]:
+          - /url: "#/agent"
+      - generic:
+        - link:
+          - /url: "#/resource"
+          - text: 资源库
+      - img "ellipsis" [ref=f2e54] [cursor=pointer]
+    - generic [ref=f2e61] [cursor=pointer]:
+      - img "user" [ref=f2e63]
+      - text: 吴松霖
+  - generic [ref=f2e66]:
+    - complementary [ref=f2e311]:
+      - generic [ref=f2e312]:
+        - menu [ref=f2e314]:
+          - generic [ref=f2e1534] [cursor=pointer]: 设备管理
+          - list:
+            - menuitem [ref=f2e1539] [cursor=pointer]:
+              - link "产品" [ref=f2e1541]:
+                - /url: "#/iot/device/Product"
+            - menuitem [ref=f2e1545] [cursor=pointer]:
+              - link "设备" [ref=f2e1547]:
+                - /url: "#/iot/device/Instance"
+          - generic [ref=f2e1551] [cursor=pointer]: 运维管理
+          - generic [ref=f2e1556] [cursor=pointer]: 告警中心
+          - generic [ref=f2e1561] [cursor=pointer]: 规则引擎
+          - generic [ref=f2e1566] [cursor=pointer]: 数据采集
+        - menu [ref=f2e354]:
+          - menuitem [ref=f2e355] [cursor=pointer]:
+            - img "menu-fold" [ref=f2e357]
+    - main [ref=f2e68]:
+      - generic [ref=f2e1571]:
+        - navigation [ref=f2e1574]:
+          - list [ref=f2e1575]:
+            - listitem [ref=f2e1576]:
+              - generic [ref=f2e1577]: 物联网
+              - text: /
+            - listitem [ref=f2e1579]:
+              - generic [ref=f2e1580]: 设备管理
+              - text: /
+            - listitem [ref=f2e1582]:
+              - generic [ref=f2e1583]: 产品
+        - generic [ref=f2e1587]:
+          - generic [ref=f2e1591]:
+            - generic [ref=f2e1595]:
+              - generic [ref=f2e1597] [cursor=pointer]:
+                - combobox [ref=f2e1599]
+                - generic "名称" [ref=f2e1600]
+              - generic [ref=f2e1602] [cursor=pointer]:
+                - combobox [ref=f2e1604]
+                - generic "包含" [ref=f2e1605]
+              - textbox [ref=f2e1608]
+            - generic [ref=f2e1610]:
+              - generic [ref=f2e1611]:
+                - button "重 置" [ref=f2e1612] [cursor=pointer]
+                - button "保 存" [ref=f2e1614] [cursor=pointer]
+                - generic [ref=f2e1616]:
+                  - button "搜 索" [ref=f2e1617] [cursor=pointer]
+                  - img "down" [ref=f2e1620] [cursor=pointer]
+              - button "更多筛选 double-right" [ref=f2e1623] [cursor=pointer]:
+                - generic [ref=f2e1624]: 更多筛选
+                - img "double-right" [ref=f2e1625]
+          - generic [ref=f2e1628]:
+            - generic:
+              - generic:
+                - generic:
+                  - generic [ref=f2e1629]:
+                    - generic [ref=f2e1631]:
+                      - button "plus 新增" [ref=f2e1633] [cursor=pointer]:
+                        - img "plus" [ref=f2e1634]
+                        - generic [ref=f2e1638]: 新增
+                      - button "批量操作 down" [ref=f2e1642] [cursor=pointer]:
+                        - generic [ref=f2e1643]: 批量操作
+                        - img "down" [ref=f2e1644]
+                    - generic [ref=f2e1649]:
+                      - generic [ref=f2e1650] [cursor=pointer]:
+                        - generic [ref=f2e1651]:
+                          - radio "unordered-list"
+                        - img "unordered-list" [ref=f2e1653]
+                      - generic [ref=f2e1656] [cursor=pointer]:
+                        - generic [ref=f2e1657]:
+                          - radio "appstore" [checked]
+                        - img "appstore" [ref=f2e1659]
+                  - generic [ref=f2e1663]:
+                    - img "暂无数据" [ref=f2e1665]
+                    - paragraph [ref=f2e1666]: 暂无数据
