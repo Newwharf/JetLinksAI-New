@@ -8,8 +8,6 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useAppStore } from '@/stores/app'
 import { scenarioOptions } from '@/views/workbench/templates'
-import WelcomeModal from '@/components/WelcomeModal.vue'
-import GuideOverlay from '@/components/GuideOverlay.vue'
 import aiChatIcon from '@/assets/AIchaticon.png'
 import serviceQrImg from '@/assets/iot/erweima.png'
 import aiTicketImage1 from '@/assets/text-search/result-01.jpg'
@@ -31,6 +29,19 @@ const router = useRouter()
 const appStore = useAppStore()
 const usageCapacityModalVisible = ref(false)
 const usageAlertOpen = ref(false)
+const projectGuideOpen = ref(false)
+type ProjectGuideScenario = 'iot-only' | 'video-only' | 'both'
+type ProjectGuideState = 'none' | 'has'
+type ProjectGuideStage = 'welcome' | 'iot-choice' | 'video-choice' | 'iot-result' | 'video-result' | 'alarm-result'
+type ProjectGuideSimulationKind = 'alarm-rule'
+const projectGuideStage = ref<ProjectGuideStage>('welcome')
+const projectGuideScenario = ref<ProjectGuideScenario>('iot-only')
+const iotDeviceState = ref<ProjectGuideState>('none')
+const videoDeviceState = ref<ProjectGuideState>('none')
+const alarmRuleState = ref<ProjectGuideState>('none')
+const projectGuidePendingOpen = ref(false)
+const projectGuideSimulationOpen = ref(false)
+const projectGuideSimulationKind = ref<ProjectGuideSimulationKind>('alarm-rule')
 
 const serviceDisplayNames: Record<string, string> = {
   basic: '基础服务',
@@ -103,6 +114,205 @@ function goUsageSettings() {
   router.push('/system/project')
 }
 
+const projectGuideScenarioOptions: { label: string; value: ProjectGuideScenario }[] = [
+  { label: '有物联板块，没视联板块', value: 'iot-only' },
+  { label: '有视联板块，没物联板块', value: 'video-only' },
+  { label: '两个都有', value: 'both' }
+]
+const projectGuideTitle = computed(() => {
+  if (projectGuideStage.value === 'iot-result') {
+    return iotDeviceState.value === 'none' ? '还没有接入物联设备' : '已有物联设备'
+  }
+  if (projectGuideStage.value === 'iot-choice') return '欢迎使用Jetlinks'
+  if (projectGuideStage.value === 'video-choice') return '欢迎使用Jetlinks'
+  if (projectGuideStage.value === 'video-result') {
+    return videoDeviceState.value === 'none' ? '还没有接入视联设备' : '已有视联设备'
+  }
+  if (projectGuideStage.value === 'alarm-result') return '已有告警规则'
+  return '欢迎使用Jetlinks'
+})
+
+const projectGuideText = computed(() => {
+  if (projectGuideStage.value === 'iot-result') {
+    return iotDeviceState.value === 'none'
+      ? '当前还没有物联设备，先新增一台设备。'
+      : '发现已有物联设备，可继续查看数据与联动能力。'
+  }
+  if (projectGuideStage.value === 'iot-choice') {
+    return '从第一台设备开始了解物联能力。'
+  }
+  if (projectGuideStage.value === 'video-choice') {
+    return '先接入视频设备，再配置告警规则。'
+  }
+  if (projectGuideStage.value === 'video-result') {
+    return videoDeviceState.value === 'none'
+      ? '当前还没有视联设备，先通过网关接入。'
+      : '发现已有视联设备，可继续配置告警规则。'
+  }
+  if (projectGuideStage.value === 'alarm-result') {
+    return '发现已有告警规则，可继续查看事件与联动效果。'
+  }
+  if (projectGuideScenario.value === 'both') {
+    return '完成几个简单步骤，快速了解常用入口。'
+  }
+  return projectGuideScenario.value === 'iot-only'
+    ? '先进入物联中心，了解设备接入。'
+    : '先进入视联中心，了解监控设备。'
+})
+
+const projectGuideActionText = computed(() => {
+  if (projectGuideStage.value === 'iot-result') {
+    return iotDeviceState.value === 'none' ? '新增物联设备' : '去文档中心'
+  }
+  if (projectGuideStage.value === 'video-result') {
+    return videoDeviceState.value === 'none' ? '去接入视频设备' : '前往告警规则'
+  }
+  if (projectGuideStage.value === 'alarm-result') return '去文档中心'
+  if (projectGuideStage.value === 'iot-choice') return '下一步'
+  if (projectGuideStage.value === 'video-choice') return '下一步'
+  return '继续'
+})
+
+const projectGuideStepText = computed(() => {
+  if (projectGuideStage.value === 'welcome' && projectGuideScenario.value === 'both') return '1/5'
+  if (projectGuideStage.value === 'alarm-result') return '3/3'
+  if (projectGuideStage.value === 'video-result' && videoDeviceState.value === 'has') return '2/3'
+  if (projectGuideStage.value === 'iot-result' || projectGuideStage.value === 'video-result') return '2/2'
+  if (projectGuideStage.value === 'iot-choice') return '1/3'
+  if (projectGuideStage.value === 'video-choice') return '1/3'
+  return '1/2'
+})
+
+function selectProjectGuideScenario(value: ProjectGuideScenario) {
+  projectGuideScenario.value = value
+  if (value === 'iot-only') {
+    projectGuideStage.value = 'iot-choice'
+  } else if (value === 'video-only') {
+    projectGuideStage.value = 'video-choice'
+  } else {
+    projectGuideStage.value = 'welcome'
+  }
+  projectGuideOpen.value = true
+}
+
+watch(
+  () => route.query.projectGuide,
+  (guide) => {
+    if (guide === 'iot-choice') {
+      projectGuideScenario.value = 'iot-only'
+      projectGuideStage.value = 'iot-choice'
+      projectGuideOpen.value = true
+    } else if (guide === 'video-choice') {
+      projectGuideScenario.value = 'video-only'
+      projectGuideStage.value = 'video-choice'
+      projectGuideOpen.value = true
+    } else if (guide === 'both-welcome') {
+      projectGuideScenario.value = 'both'
+      projectGuideStage.value = 'welcome'
+      projectGuideOpen.value = true
+    }
+  },
+  { immediate: true }
+)
+
+function openGuideAfterRoute() {
+  projectGuidePendingOpen.value = true
+}
+
+function skipProjectGuide() {
+  projectGuideOpen.value = false
+  projectGuideSimulationOpen.value = false
+}
+
+function navigateWithGuide(path: string) {
+  openGuideAfterRoute()
+  router.push(path).finally(() => {
+    if (projectGuidePendingOpen.value) {
+      projectGuidePendingOpen.value = false
+      projectGuideOpen.value = true
+    }
+  })
+}
+
+function beginIotCreateGuide(next: 'video' | 'done' = 'done') {
+  iotDeviceState.value = 'none'
+  projectGuideOpen.value = false
+  router.push({
+    path: '/iot/device',
+    query: {
+      guide: 'iot-device-tab',
+      next,
+      step: next === 'video' ? 2 : 2,
+      total: next === 'video' ? 5 : 3,
+      _t: Date.now()
+    }
+  })
+}
+
+function beginVideoConnectGuide() {
+  videoDeviceState.value = 'none'
+  projectGuideOpen.value = false
+  router.push({ path: '/video/device', query: { guide: 'connect-device', step: 2, total: 3, _t: Date.now() } })
+}
+
+function openProjectGuideSimulation(kind: ProjectGuideSimulationKind) {
+  projectGuideSimulationKind.value = kind
+  projectGuideSimulationOpen.value = true
+}
+
+function handleProjectGuideSimulationSelect(state: ProjectGuideState) {
+  projectGuideSimulationOpen.value = false
+  alarmRuleState.value = state
+  if (state === 'has') {
+    projectGuideStage.value = 'alarm-result'
+    navigateWithGuide('/alarm/rule')
+  } else {
+    projectGuideOpen.value = false
+    router.push({ path: '/alarm/rule', query: { action: 'create', _t: Date.now() } })
+  }
+}
+
+function handleWelcomeGuideAction() {
+  if (projectGuideScenario.value === 'iot-only') {
+    projectGuideStage.value = 'iot-choice'
+  } else if (projectGuideScenario.value === 'video-only') {
+    projectGuideStage.value = 'video-choice'
+  }
+}
+
+function handleProjectGuideAction() {
+  if (projectGuideStage.value === 'welcome') {
+    handleWelcomeGuideAction()
+  } else if (projectGuideStage.value === 'iot-choice') {
+    beginIotCreateGuide()
+  } else if (projectGuideStage.value === 'video-choice') {
+    beginVideoConnectGuide()
+  } else if (projectGuideStage.value === 'iot-result') {
+    projectGuideOpen.value = false
+    if (iotDeviceState.value === 'none') {
+      router.push({ path: '/iot/device', query: { action: 'create', _t: Date.now() } })
+    } else {
+      router.push('/docs')
+    }
+  } else if (projectGuideStage.value === 'video-result') {
+    if (videoDeviceState.value === 'none') {
+      projectGuideOpen.value = false
+      router.push('/video/device/gateway/gw-e1/address')
+    } else {
+      openProjectGuideSimulation('alarm-rule')
+    }
+  } else {
+    projectGuideOpen.value = false
+    router.push('/docs')
+  }
+}
+
+function goDocsCenter() {
+  projectGuideOpen.value = false
+  projectGuideSimulationOpen.value = false
+  router.push('/docs')
+}
+
 // 亮色/暗色模式切换
 const isDark = ref(false)
 function toggleTheme() {
@@ -171,6 +381,7 @@ const SCENARIOS: Record<string, string[]> = {
   // 安防场景（业务名菜单，不含系统管理——系统管理在底部固定区）
   security: ['security-dashboard', 'security-space', 'security-video', 'security-image', 'security-alarm', 'archive'],
   commercial: ['dashboard', 'flow', 'vehicle', 'security-posture', 'video', 'image-search', 'alarm', 'visualization', 'work-order', 'energy', 'iot', 'archive'],
+  iot: ['dashboard', 'iot', 'space', 'inspection', 'visualization', 'archive'],
   // 公寓场景
   apartment: ['dashboard', 'video', 'space', 'image-search', 'alarm', 'archive'],
   elderly: ['dashboard', 'elderly-security', 'elderly-behavior', 'elderly-staff', 'video', 'image-search', 'alarm', 'archive'],
@@ -411,11 +622,15 @@ const cameraGuideStepGroups = [
   },
 ]
 
-watch(() => route.path, () => {
+watch(() => route.fullPath, () => {
   pageHelpOpen.value = false
   legacyPageHelpOpen.value = false
   legacySelectedQuestion.value = ''
   pageHelpWide.value = false
+  if (projectGuidePendingOpen.value) {
+    projectGuidePendingOpen.value = false
+    projectGuideOpen.value = true
+  }
 })
 
 function resetPageHelpConversation() {
@@ -568,21 +783,6 @@ function handleMenuClick(m: MenuItem) {
   }
   router.push(m.path)
 }
-
-// 启动新手引导
-function startGuide(type: 'system' | 'iot' | 'alarm') {
-  if (type === 'system') {
-    currentScenario.value = 'general'
-    appStore.showWelcome()
-    router.push('/dashboard')
-  } else if (type === 'iot') {
-    appStore.startIotGuideDirect()
-    router.push('/iot/device')
-  } else {
-    appStore.startAlarmGuideDirect()
-    router.push('/alarm/rule')
-  }
-}
 </script>
 
 <template>
@@ -595,7 +795,7 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
       </div>
       <div class="header-right">
         <a-popover v-model:open="usageAlertOpen" trigger="click" placement="bottomRight" overlay-class-name="usage-alert-popover">
-          <button class="usage-alert-btn" type="button">
+          <button class="usage-alert-btn header-icon-btn" type="button" aria-label="用量提醒">
             <i class="i-ant-design-warning-outlined" />
             <span>用量提醒</span>
             <em v-if="usageLimitAlerts.length">{{ usageLimitAlerts.length }}</em>
@@ -633,34 +833,10 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
           </template>
         </a-popover>
         <!-- 工单管理入口 -->
-        <button class="ticket-entry-btn" @click="router.push('/tickets')">
+        <button class="ticket-entry-btn header-icon-btn" aria-label="工单管理" @click="router.push('/tickets')">
           <i class="i-ant-design-profile-outlined ticket-entry-icon" />
-          <span class="ticket-entry-text">工单管理</span>
+          <span>工单管理</span>
         </button>
-        <!-- 新手引导下拉 -->
-        <a-dropdown v-if="!appStore.guideActive">
-          <div class="guide-trigger" @click.prevent>
-            <i class="i-ant-design-question-circle-outlined" />
-            <span>引导模拟</span>
-            <i class="i-ant-design-down-outlined guide-arrow" />
-          </div>
-          <template #overlay>
-            <a-menu>
-              <a-menu-item @click="startGuide('system')">
-                <i class="i-ant-design-appstore-outlined" />
-                <span>系统总览</span>
-              </a-menu-item>
-              <a-menu-item @click="startGuide('iot')">
-                <i class="i-ant-design-api-outlined" />
-                <span>创建物联设备</span>
-              </a-menu-item>
-              <a-menu-item @click="startGuide('alarm')">
-                <i class="i-ant-design-bell-outlined" />
-                <span>创建告警规则</span>
-              </a-menu-item>
-            </a-menu>
-          </template>
-        </a-dropdown>
         <!-- 场景切换下拉框 -->
         <a-dropdown>
           <div class="scenario-trigger" @click.prevent>
@@ -676,6 +852,66 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
             </a-menu>
           </template>
         </a-dropdown>
+        <div class="project-guide-anchor">
+          <!-- 项目内轻量引导入口 -->
+          <a-dropdown :trigger="['click']">
+            <button class="guide-trigger header-icon-btn" type="button" aria-label="项目引导" @click.prevent>
+              <i class="i-ant-design-compass-outlined" />
+              <span>引导模拟</span>
+              <i class="i-ant-design-down-outlined guide-arrow" />
+            </button>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item
+                  v-for="option in projectGuideScenarioOptions"
+                  :key="option.value"
+                  @click="selectProjectGuideScenario(option.value)"
+                >
+                  <i
+                    :class="{
+                      'i-ant-design-api-outlined': option.value === 'iot-only',
+                      'i-ant-design-video-camera-outlined': option.value === 'video-only',
+                      'i-ant-design-cluster-outlined': option.value === 'both'
+                    }"
+                  />
+                  <span>{{ option.label }}</span>
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+          <div v-if="projectGuideOpen" class="project-guide-popover-panel">
+            <div class="project-guide-panel">
+              <button class="project-guide-panel__close" type="button" aria-label="关闭" @click="skipProjectGuide">
+                <i class="i-ant-design-close-outlined" />
+              </button>
+              <h3 class="project-guide-panel__title">{{ projectGuideTitle }}</h3>
+              <p class="project-guide-panel__desc">{{ projectGuideText }}</p>
+              <div class="project-guide-panel__footer">
+                <span class="project-guide-panel__step">{{ projectGuideStepText }}</span>
+                <div v-if="projectGuideStage === 'welcome' && projectGuideScenario === 'both'" class="project-guide-panel__actions">
+                  <button class="project-guide-panel__mini-btn project-guide-panel__mini-btn--ghost" type="button" @click="skipProjectGuide">
+                    跳过
+                  </button>
+                  <button class="project-guide-panel__mini-btn" type="button" @click="beginIotCreateGuide('video')">
+                    下一步
+                  </button>
+                </div>
+                <div v-else class="project-guide-panel__actions">
+                  <button class="project-guide-panel__mini-btn project-guide-panel__mini-btn--ghost" type="button" @click="skipProjectGuide">
+                    跳过
+                  </button>
+                  <button class="project-guide-panel__mini-btn" type="button" @click="handleProjectGuideAction">
+                    {{ projectGuideActionText }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="docs-entry-btn header-icon-btn" type="button" aria-label="文档中心" @click="goDocsCenter">
+          <i class="i-ant-design-question-circle-outlined" />
+          <span>文档中心</span>
+        </button>
         <a-dropdown>
           <div class="lang-trigger" @click.prevent>
             <i class="i-ant-design-global-outlined" />
@@ -774,10 +1010,6 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
       </main>
     </div>
 
-    <!-- 欢迎弹窗 -->
-    <WelcomeModal />
-    <!-- 全局引导覆盖层 -->
-    <GuideOverlay />
     <a-modal
       v-model:open="usageCapacityModalVisible"
       :width="420"
@@ -794,6 +1026,45 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
         <img :src="serviceQrImg" alt="售后服务二维码" class="usage-capacity-modal__qr">
         <button class="usage-capacity-modal__btn" type="button" @click="goUsageSettings">
           查看当前用量
+        </button>
+      </div>
+    </a-modal>
+    <a-modal
+      v-model:open="projectGuideSimulationOpen"
+      :width="360"
+      :footer="null"
+      centered
+      wrap-class-name="project-guide-simulation-modal"
+      title="场景模拟"
+    >
+      <div class="project-guide-simulation">
+        <button
+          v-if="projectGuideSimulationKind === 'alarm-rule'"
+          class="project-guide-simulation__option project-guide-simulation__option--primary"
+          type="button"
+          @click="handleProjectGuideSimulationSelect('none')"
+        >
+          <span class="project-guide-simulation__icon">
+            <i class="i-ant-design-plus-outlined" />
+          </span>
+          <span>
+            <strong>无告警规则</strong>
+            <small>打开新增规则</small>
+          </span>
+        </button>
+        <button
+          v-if="projectGuideSimulationKind === 'alarm-rule'"
+          class="project-guide-simulation__option"
+          type="button"
+          @click="handleProjectGuideSimulationSelect('has')"
+        >
+          <span class="project-guide-simulation__icon">
+            <i class="i-ant-design-bell-outlined" />
+          </span>
+          <span>
+            <strong>有告警规则</strong>
+            <small>进入规则页面</small>
+          </span>
         </button>
       </div>
     </a-modal>
@@ -1170,29 +1441,45 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
 }
 
-.usage-alert-btn {
-  display: flex;
+.header-icon-btn {
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
   height: 32px;
+  gap: 5px;
   padding: 0 12px;
-  border: 1px solid rgba(250, 140, 22, 0.34);
+  border: 1px solid $border-color-card;
   border-radius: 9999px;
-  background: rgba(250, 140, 22, 0.08);
-  color: #fa8c16;
+  background: #fff;
+  color: $text-secondary;
   cursor: pointer;
   font-family: inherit;
   font-size: 13px;
-  transition: all 0.15s;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 
   i {
-    font-size: 14px;
+    font-size: 16px;
   }
 
+  &:hover {
+    border-color: rgba(110, 75, 255, 0.32);
+    background: #faf9ff;
+    color: $color-primary;
+  }
+}
+
+.usage-alert-btn {
+  color: #fa8c16;
+
   em {
+    position: absolute;
+    top: -6px;
+    right: -6px;
     min-width: 18px;
     height: 18px;
     padding: 0 5px;
@@ -1206,8 +1493,9 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
   }
 
   &:hover {
-    border-color: #fa8c16;
+    border-color: rgba(250, 140, 22, 0.38);
     background: rgba(250, 140, 22, 0.12);
+    color: #fa8c16;
   }
 }
 
@@ -1408,26 +1696,6 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
 
 /* ===== 工单管理入口 ===== */
 .ticket-entry-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid $border-color-card;
-  border-radius: 9999px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 400;
-  color: $text-base;
-  background: #fff;
-  transition: all 0.2s;
-
-  &:hover {
-    color: $color-primary;
-    border-color: $color-primary;
-  }
-
   .ticket-entry-icon {
     display: flex;
     align-items: center;
@@ -1437,27 +1705,229 @@ function startGuide(type: 'system' | 'iot' | 'alarm') {
   }
 }
 
-/* 新手引导下拉 */
+/* 项目内轻量引导入口 */
 .guide-trigger {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid $border-color-card;
-  border-radius: 9999px;
-  background: #fff;
-  cursor: pointer;
-  font-size: 13px;
-  color: $text-base;
-  transition: all 0.15s;
+  color: $color-primary;
 
-  &:hover {
-    border-color: $color-primary;
-    color: $color-primary;
+  i {
+    font-size: 17px;
   }
 
-  .guide-arrow { font-size: 10px; color: $text-muted; }
+  .guide-arrow {
+    font-size: 10px;
+    color: $text-muted;
+  }
+}
+
+.docs-entry-btn {
+  color: $text-secondary;
+}
+
+.project-guide-anchor {
+  position: relative;
+}
+
+.project-guide-popover-panel {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  z-index: 30;
+  padding: 0;
+  border-radius: 8px;
+  background: $color-primary;
+  box-shadow: 0 10px 24px rgba(74, 45, 190, 0.22);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 22px;
+    width: 12px;
+    height: 12px;
+    background: $color-primary;
+    transform: rotate(45deg);
+  }
+}
+
+.project-guide-panel {
+  position: relative;
+  width: 286px;
+  padding: 14px 14px 12px;
+  color: #fff;
+
+  &__close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.78);
+    cursor: pointer;
+    transition: color 0.15s ease;
+
+    i {
+      font-size: 12px;
+    }
+
+    &:hover {
+      color: #fff;
+    }
+  }
+
+  &__title {
+    margin: 0 24px 6px 0;
+    color: #fff;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 600;
+  }
+
+  &__desc {
+    margin: 0 0 12px;
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__step {
+    flex: 0 0 auto;
+    color: rgba(255, 255, 255, 0.84);
+    font-size: 12px;
+    line-height: 24px;
+    font-weight: 600;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  &__mini-btn {
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid #fff;
+    border-radius: 6px;
+    background: #fff;
+    color: $color-primary;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 24px;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    &--ghost {
+      border-color: rgba(255, 255, 255, 0.34);
+      background: transparent;
+      color: rgba(255, 255, 255, 0.88);
+
+      &:hover {
+        border-color: rgba(255, 255, 255, 0.72);
+        background: rgba(255, 255, 255, 0.10);
+        color: #fff;
+      }
+    }
+  }
+}
+
+.project-guide-simulation-modal {
+  .ant-modal-content {
+    border-radius: 10px;
+  }
+
+  .ant-modal-header {
+    margin-bottom: 10px;
+  }
+
+  .ant-modal-title {
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 600;
+  }
+}
+
+.project-guide-simulation {
+  display: grid;
+  gap: 8px;
+  padding-top: 2px;
+
+  &__option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 48px;
+    padding: 9px 10px;
+    border: 1px solid $border-color-card;
+    border-radius: 8px;
+    background: #fff;
+    color: $text-base;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+
+    &:hover {
+      border-color: rgba(110, 75, 255, 0.42);
+      background: #faf9ff;
+      box-shadow: 0 4px 10px rgba(110, 75, 255, 0.08);
+    }
+
+    strong {
+      display: block;
+      color: $text-base;
+      font-size: 13px;
+      line-height: 18px;
+      font-weight: 600;
+    }
+
+    small {
+      display: block;
+      margin-top: 2px;
+      color: $text-tertiary;
+      font-size: 12px;
+      line-height: 16px;
+    }
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    background: rgba(43, 179, 163, 0.10);
+    color: #2bb3a3;
+
+    i {
+      font-size: 16px;
+    }
+  }
+
+  &__option--primary &__icon {
+    background: rgba(110, 75, 255, 0.10);
+    color: $color-primary;
+  }
 }
 
 /* 场景切换下拉框 */

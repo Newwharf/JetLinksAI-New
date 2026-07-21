@@ -9,7 +9,7 @@ export interface Project {
   region: string                 // 项目所在区域，如「西南1」
   description: string            // 项目说明
   subscriptionDays: number       // 剩余订阅天数
-  status: 'running' | 'paused'   // 运行中 / 暂停中
+  status: 'running'              // 运行中
   alarmCount: number             // 待处理告警数
   iconColor: string              // 图标背景色
   iconChar: string               // 图标里的单字
@@ -48,7 +48,7 @@ export const projects = ref<Project[]>([
     region: '华北1',
     description: '工业园区环境健康安全监测，含废气废水实时管控',
     subscriptionDays: 23,
-    status: 'paused',
+    status: 'running',
     alarmCount: 0,
     iconColor: '#10b981',
     iconChar: '厂'
@@ -81,7 +81,7 @@ export const projects = ref<Project[]>([
     region: '华东1',
     description: '物流园区车辆调度与周界安防一体化管理',
     subscriptionDays: 12,
-    status: 'paused',
+    status: 'running',
     alarmCount: 0,
     iconColor: '#06b6d4',
     iconChar: '流'

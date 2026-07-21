@@ -65,6 +65,11 @@ const levelClass: Record<AlarmLevel, string> = {
 }
 
 const appStore = useAppStore()
+const route = useRoute()
+const alarmRuleGuideOpen = ref(false)
+const alarmRuleGuideStep = ref(3)
+const alarmRuleGuideTotal = ref(3)
+const alarmRuleGuideStepText = computed(() => `${alarmRuleGuideStep.value}/${alarmRuleGuideTotal.value}`)
 
 // ===== 弹窗 =====
 const modalVisible = ref(false)
@@ -180,6 +185,30 @@ function openCreateModal() {
   }
   modalVisible.value = true
 }
+
+watch(
+  () => route.query.action,
+  (action) => {
+    if (action === 'create') {
+      nextTick(openCreateModal)
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => route.query.guide,
+  (guide) => {
+    if (guide === 'alarm-rule') {
+      nextTick(() => {
+        alarmRuleGuideStep.value = Number(route.query.step || 3)
+        alarmRuleGuideTotal.value = Number(route.query.total || 3)
+        alarmRuleGuideOpen.value = true
+      })
+    }
+  },
+  { immediate: true }
+)
 
 function openEditModal(rule: AlarmRule) {
   editingRule.value = rule
@@ -393,9 +422,22 @@ const notifyPreview = computed(() => {
       </a-input>
       <div class="rule-toolbar__right">
         <span class="rule-total">共 {{ filteredRules.length }} 条</span>
-        <button class="rule-add-btn" type="button" data-guide="alarm-create" @click="openCreateModal">
-          <i class="i-ant-design-plus-outlined" /><span>新建告警规则</span>
-        </button>
+        <div class="alarm-rule-guide-anchor">
+          <button class="rule-add-btn" type="button" data-guide="alarm-create" @click="openCreateModal">
+            <i class="i-ant-design-plus-outlined" /><span>新建告警规则</span>
+          </button>
+          <div v-if="alarmRuleGuideOpen" class="alarm-rule-guide">
+            <button class="alarm-rule-guide__close" type="button" aria-label="关闭" @click.stop="alarmRuleGuideOpen = false">
+              <i class="i-ant-design-close-outlined" />
+            </button>
+            <h3>告警规则管理</h3>
+            <p>通过告警规则，可以为摄像头绑定识别算法、设置生效范围和生效时间，并配置事件通知方式。</p>
+            <div class="alarm-rule-guide__footer">
+              <span>{{ alarmRuleGuideStepText }}</span>
+              <button type="button" @click="alarmRuleGuideOpen = false">知道了</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -927,11 +969,97 @@ const notifyPreview = computed(() => {
 }
 .rule-search { width: 320px; }
 .rule-total { font-size: 13px; color: $text-tertiary; }
+.alarm-rule-guide-anchor { position: relative; display: inline-flex; }
 .rule-add-btn {
   display: flex; align-items: center; gap: 5px; height: 32px; padding: 0 14px;
   border: 1px solid $color-primary; border-radius: 6px; background: $color-primary; color: #fff;
   font-size: 13px; cursor: pointer; font-family: inherit; transition: all 0.15s;
   &:hover { background: $color-primary-hover; } i { font-size: 13px; }
+}
+.alarm-rule-guide {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  z-index: 40;
+  width: 276px;
+  padding: 14px 14px 12px;
+  border-radius: 8px;
+  background: $color-primary;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(74, 45, 190, 0.22);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 26px;
+    width: 12px;
+    height: 12px;
+    background: $color-primary;
+    transform: rotate(45deg);
+  }
+
+  &__close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.78);
+    cursor: pointer;
+
+    i { font-size: 12px; }
+    &:hover { color: #fff; }
+  }
+
+  h3 {
+    margin: 0 24px 6px 0;
+    color: #fff;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0 0 12px;
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    span {
+      color: rgba(255, 255, 255, 0.84);
+      font-size: 12px;
+      line-height: 24px;
+      font-weight: 600;
+    }
+
+    button {
+      height: 26px;
+      padding: 0 10px;
+      border: 1px solid #fff;
+      border-radius: 6px;
+      background: #fff;
+      color: $color-primary;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      line-height: 24px;
+
+      &:hover { background: rgba(255, 255, 255, 0.92); }
+    }
+  }
 }
 
 /* 表格 */

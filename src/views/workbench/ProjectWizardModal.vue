@@ -57,7 +57,8 @@ watch(() => props.open, (v) => {
   }
 })
 
-const availableTemplates = computed(() => scenarioOptions.filter(item => item.value !== 'blank'))
+const hiddenTemplateValues = ['blank', 'apartment', 'construction']
+const availableTemplates = computed(() => scenarioOptions.filter(item => !hiddenTemplateValues.includes(item.value)))
 const templateDetail = ref<(typeof scenarioOptions)[number] | null>(null)
 
 // 选择模板 → 仅填充未被用户修改过的字段

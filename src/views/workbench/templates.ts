@@ -19,5 +19,6 @@ export const scenarioOptions: ScenarioOption[] = [
   { value: 'commercial', label: '商业体模板', logo: '商', icon: 'i-ant-design-audit-outlined', iconColor: '#10b981', name: '商业体场景项目', desc: '商业综合体运营，含客流分析、车流、能耗与工单' },
   { value: 'apartment', label: '公寓模板', logo: '公', icon: 'i-ant-design-home-outlined', iconColor: '#8b5cf6', name: '公寓场景项目', desc: '智慧公寓人通行与安全管理，含门禁访客' },
   { value: 'elderly', label: '养老模板', logo: '养', icon: 'i-ant-design-medicine-box-outlined', iconColor: '#ec4899', name: '养老场景项目', desc: '养老机构安全看护与老人行为分析' },
+  { value: 'iot', label: '物联设备模板', logo: '物', icon: 'i-ant-design-cloud-server-outlined', iconColor: '#2563eb', name: '物联设备管理项目', desc: '以物联设备接入为核心，配套空间态势、巡检与可视化能力' },
   { value: 'construction', label: '工地模板', logo: '工', icon: 'i-ant-design-tool-outlined', iconColor: '#f97316', name: '工地场景项目', desc: '施工现场安全监管与设备管理，含工地态势、安全报告、视频监控' }
 ]

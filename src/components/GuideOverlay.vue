@@ -660,13 +660,12 @@ function goToProject() {
   router.push('/dashboard')
 }
 
-/** 从网关接入结果页继续引导到工作台网关详情 */
+/** 从网关接入结果页直接进入网关地址页 */
 function goToConfig() {
   gwOnlineModalVisible.value = false
-  appStore.setGuideStep('workbench-gateway-detail')
-  router.push('/workbench').then(() => {
-    nextTick(() => window.dispatchEvent(new Event('guide-position-refresh')))
-  })
+  const gatewayId = appStore.guideGatewayId || 'demo'
+  appStore.finishGuide()
+  router.push(`/video/device/gateway/${gatewayId}/address`)
 }
 
 // ===== 离线网关：视频教程播放 =====

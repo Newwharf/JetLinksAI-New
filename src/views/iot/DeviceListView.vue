@@ -18,11 +18,17 @@ import {
 } from './mock'
 
 const router = useRouter()
+const route = useRoute()
 const appStore = useAppStore()
 
 const searchKey = ref('')
 const pageSize = ref(10)
 const currentPage = ref(1)
+const createDeviceGuideOpen = ref(false)
+const createDeviceGuideNext = ref<'video' | 'done'>('done')
+const createDeviceGuideStep = ref(2)
+const createDeviceGuideTotal = ref(2)
+const createDeviceGuideStepText = computed(() => `${createDeviceGuideStep.value}/${createDeviceGuideTotal.value}`)
 
 const filteredDevices = computed(() => {
   const kw = searchKey.value.trim().toLowerCase()
@@ -210,6 +216,7 @@ function jumpIotImageGuide(step: GuideStep, index: number) {
 }
 
 function openAddModal() {
+  createDeviceGuideOpen.value = false
   if (appStore.guideActive && appStore.guideStep === 'iot-add') return
   if (devices.value.some(d => d.productId === 'prod-new')) {
     deviceLimitModalVisible.value = true
@@ -218,6 +225,61 @@ function openAddModal() {
   addStep.value = 'select'; selectedTemplate.value = null; activeCategory.value = deviceTemplateCategories[0].id
   addModalVisible.value = true
 }
+
+watch(
+  () => route.query.action,
+  (action) => {
+    if (action === 'create') {
+      nextTick(openAddModal)
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => route.query.guide,
+  (guide) => {
+    if (guide === 'create-device') {
+      nextTick(() => {
+        createDeviceGuideNext.value = route.query.next === 'video' ? 'video' : 'done'
+        createDeviceGuideStep.value = Number(route.query.step || 2)
+        createDeviceGuideTotal.value = Number(route.query.total || 2)
+        createDeviceGuideOpen.value = true
+      })
+    }
+  },
+  { immediate: true }
+)
+
+function handleCreateDeviceGuideNext() {
+  createDeviceGuideOpen.value = false
+  if (createDeviceGuideNext.value === 'video') {
+    router.push({
+      path: '/video/device',
+      query: {
+        guide: 'connect-device',
+        step: createDeviceGuideStep.value + 1,
+        total: createDeviceGuideTotal.value,
+        _t: Date.now()
+      }
+    })
+  }
+}
+
+function handleCreateDeviceGuidePrev() {
+  createDeviceGuideOpen.value = false
+  router.push({
+    path: '/iot/device',
+    query: {
+      guide: 'iot-device-tab',
+      next: createDeviceGuideNext.value,
+      step: createDeviceGuideStep.value - 1,
+      total: createDeviceGuideTotal.value,
+      _t: Date.now()
+    }
+  })
+}
+
 function selectTemplate(tpl: DeviceTemplate) {
   if (appStore.guideActive && appStore.guideStep === 'iot-select') return
   selectedTemplate.value = tpl; addStep.value = 'config'
@@ -273,7 +335,23 @@ const businessOptions = ['消防安全', '环境监测', '能耗分析', '安全
       </a-input>
       <div class="dl-toolbar__right">
         <span class="dl-total">共 {{ filteredDevices.length }} 台</span>
-        <button class="dl-add-btn" type="button" data-guide="iot-add-device" @click="openAddModal"><i class="i-ant-design-plus-outlined" /><span>新增设备</span></button>
+        <div class="dl-add-guide-anchor">
+          <button class="dl-add-btn" type="button" data-guide="iot-add-device" @click="openAddModal"><i class="i-ant-design-plus-outlined" /><span>新增设备</span></button>
+          <div v-if="createDeviceGuideOpen" class="iot-create-guide">
+            <button class="iot-create-guide__close" type="button" aria-label="关闭" @click.stop="createDeviceGuideOpen = false">
+              <i class="i-ant-design-close-outlined" />
+            </button>
+            <h3>创建物联设备</h3>
+            <p>通过选择对应的设备库模板创建物联设备。</p>
+            <div class="iot-create-guide__footer">
+              <span>{{ createDeviceGuideStepText }}</span>
+              <div class="iot-create-guide__actions">
+                <button v-if="createDeviceGuideNext === 'video'" class="iot-create-guide__btn iot-create-guide__btn--ghost" type="button" @click="handleCreateDeviceGuidePrev">上一步</button>
+                <button class="iot-create-guide__btn" type="button" @click="handleCreateDeviceGuideNext">{{ createDeviceGuideNext === 'video' ? '下一步' : '知道了' }}</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -574,7 +652,111 @@ const businessOptions = ['消防安全', '环境监测', '能耗分析', '安全
 .dl-toolbar { display: flex; align-items: center; gap: 12px; flex-shrink: 0; &__right { display: flex; align-items: center; gap: 12px; margin-left: auto; } }
 .dl-search { width: 380px; }
 .dl-total { font-size: 13px; color: $text-tertiary; }
+.dl-add-guide-anchor { position: relative; display: inline-flex; }
 .dl-add-btn { display: flex; align-items: center; gap: 5px; height: 32px; padding: 0 14px; border: 1px solid $color-primary; border-radius: 6px; background: $color-primary; color: #fff; font-size: 13px; cursor: pointer; font-family: inherit; &:hover { background: $color-primary-hover; } i { font-size: 13px; } }
+.iot-create-guide {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  z-index: 40;
+  width: 276px;
+  padding: 14px 14px 12px;
+  border-radius: 8px;
+  background: $color-primary;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(74, 45, 190, 0.22);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 26px;
+    width: 12px;
+    height: 12px;
+    background: $color-primary;
+    transform: rotate(45deg);
+  }
+
+  &__close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.78);
+    cursor: pointer;
+
+    i { font-size: 12px; }
+    &:hover { color: #fff; }
+  }
+
+  h3 {
+    margin: 0 24px 6px 0;
+    color: #fff;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0 0 12px;
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    span {
+      color: rgba(255, 255, 255, 0.84);
+      font-size: 12px;
+      line-height: 24px;
+      font-weight: 600;
+    }
+  }
+
+  &__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__btn {
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid #fff;
+    border-radius: 6px;
+    background: #fff;
+    color: $color-primary;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 24px;
+
+    &:hover { background: rgba(255, 255, 255, 0.92); }
+
+    &--ghost {
+      border-color: rgba(255, 255, 255, 0.34);
+      background: transparent;
+      color: rgba(255, 255, 255, 0.88);
+
+      &:hover {
+        border-color: rgba(255, 255, 255, 0.72);
+        background: rgba(255, 255, 255, 0.10);
+        color: #fff;
+      }
+    }
+  }
+}
 
 .dl-table-wrap { flex: 1; overflow: auto; background: #fff; border-radius: 12px; overflow: hidden; scrollbar-width: none; -ms-overflow-style: none; &::-webkit-scrollbar { display: none; } }
 .dl-table { width: 100%; border-collapse: collapse; font-size: 13px;

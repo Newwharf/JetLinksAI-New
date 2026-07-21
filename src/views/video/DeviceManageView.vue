@@ -200,7 +200,6 @@ function toggleConnectingStatus() {
 
 function goToAlarmFromConnecting() {
   connectingModalVisible.value = false
-  appStore.startAlarmGuideDirect()
   router.push('/alarm/rule')
 }
 

@@ -1,10 +1,8 @@
 <script setup lang="ts">
 /**
  * SaaS 工作台 · 欢迎首页（落地页）
- * 全屏渐变背景 + 居中 AI 对话框 + 下方两个快捷入口卡片 + 我的项目/网关列表
+ * 全屏渐变背景 + 快速入口卡片 + 我的项目/网关列表
  */
-import chatHeadImg from '@/assets/saas/chat_head.png'
-import chatSendImg from '@/assets/saas/chat_send.png'
 import newProjectImg from '@/assets/saas/newproject.png'
 import newGatewayImg from '@/assets/saas/newgateway.png'
 import bgImg from '@/assets/saas/backgroup.png'
@@ -29,12 +27,8 @@ function enterProject(project?: Project) {
     appStore.setActiveProject(target.id)
   }
   appStore.setScenario(target?.template && target.template !== 'blank' ? target.template : 'general')
-  appStore.requestProjectWelcome()
   router.push('/dashboard')
 }
-
-// AI 输入框（纯展示）
-const aiInput = ref('')
 
 // ===== 新建项目向导 =====
 const wizardOpen = ref(false)
@@ -57,10 +51,7 @@ function closeProjectGuide() {
 
 function goAccessGatewayFromGuide() {
   projectGuideOpen.value = false
-  gatewayFilter.value = 'unjoined'
-  gatewayProjectId.value = undefined
-  appStore.startWorkbenchGatewayGuide()
-  nextTick(() => window.dispatchEvent(new Event('guide-position-refresh')))
+  openGatewayScanModal()
 }
 
 // ===== 我的项目 / 我的网关 列表区 =====
@@ -69,12 +60,6 @@ const listTab = ref<ListTab>('project')
 
 function switchListTab(tab: ListTab) {
   listTab.value = tab
-  if (tab === 'gateway' && appStore.guideStep === 'workbench-gateway-tab') {
-    nextTick(() => {
-      appStore.setGuideStep('workbench-gateway-access')
-      window.dispatchEvent(new Event('guide-position-refresh'))
-    })
-  }
 }
 
 // 网关筛选条件：全部 / 已加入 / 未加入（按项目走下拉）
@@ -204,15 +189,16 @@ const scanOutsideStyle = ref<Record<string, string>>({})
 const guideBindModalVisible = ref(false)
 
 function openGatewayAccessModal() {
-  openBindModal()
-  if (appStore.guideStep === 'workbench-gateway-access') {
-    nextTick(() => {
-      setTimeout(() => {
-        appStore.setGuideStep('bind-gateway')
-        window.dispatchEvent(new Event('guide-position-refresh'))
-      }, 120)
-    })
-  }
+  openGatewayScanModal()
+}
+
+function openGatewayScanModal() {
+  bindModalVisible.value = true
+  nextTick(() => {
+    setTimeout(updateScanOutsidePosition, 120)
+    setTimeout(updateScanOutsidePosition, 360)
+    setTimeout(updateScanOutsidePosition, 800)
+  })
 }
 
 function updateScanOutsidePosition() {
@@ -234,15 +220,6 @@ function updateScanOutsidePosition() {
     top: `${Math.min(rect.bottom - 96, window.innerHeight - 72)}px`,
     transform: 'none'
   }
-}
-
-function openBindModal() {
-  bindModalVisible.value = true
-  nextTick(() => {
-    setTimeout(updateScanOutsidePosition, 120)
-    setTimeout(updateScanOutsidePosition, 360)
-    setTimeout(updateScanOutsidePosition, 800)
-  })
 }
 
 function closeBindModal() {
@@ -339,55 +316,36 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
 
     <!-- 居中主体 -->
     <section class="wb-hero">
-      <!-- 对话框外上方：欢迎标题 -->
-      <h1 class="wb-welcome">Hi～欢迎使用 JetLinks Cloud</h1>
-
-      <!-- AI 对话框 -->
-      <div class="ai-dialog">
-        <!-- 顶部：图标 + 问候/提示文案（整体居中）-->
-        <div class="ai-dialog__head">
-          <img :src="chatHeadImg" alt="AI 助手" class="ai-head__icon" draggable="false" />
-          <div class="ai-head__text">
-            <div class="ai-greeting">您好，我是 AI 助手小獭</div>
-            <p class="ai-tip">告诉我您的需求，我会帮您快速创建项目、接入设备</p>
-          </div>
+      <div class="wb-quick-panel">
+        <div class="wb-quick-panel__intro">
+          <h1 class="wb-welcome">快速开始项目建设</h1>
+          <p class="wb-hero-desc">从项目创建到网关接入，统一管理业务空间、边缘网关与现场设备数据。</p>
         </div>
 
-        <!-- 输入框（内含右侧发送按钮）-->
-        <div class="ai-input-box">
-          <input
-            v-model="aiInput"
-            class="ai-input"
-            placeholder="例如：帮我创建一个园区安防项目"
-          />
-          <button class="ai-send" title="发送">
-            <img :src="chatSendImg" alt="发送" />
-          </button>
-        </div>
-      </div>
-
-      <!-- 下方两个快捷入口卡片 -->
-      <div class="wb-actions">
-        <div class="wb-entry" role="button" tabindex="0" @click="wizardOpen = true" @keydown.enter="wizardOpen = true">
-          <div class="wb-entry__main">
-            <img :src="newProjectImg" alt="新建项目" class="wb-entry__icon" />
-            <div class="wb-entry__text">
-              <span class="wb-entry__title">新建项目</span>
-              <span class="wb-entry__desc">创建一个项目，开始管理设备与数据</span>
+        <div class="wb-actions">
+          <div class="wb-entry" role="button" tabindex="0" @click="wizardOpen = true" @keydown.enter="wizardOpen = true">
+            <div class="wb-entry__main">
+              <img :src="newProjectImg" alt="新建项目" class="wb-entry__icon" />
+              <div class="wb-entry__text">
+                <span class="wb-entry__tag">项目初始化</span>
+                <span class="wb-entry__title">新建项目</span>
+                <span class="wb-entry__desc">选择业务模板，快速生成项目内的功能导航与演示数据。</span>
+              </div>
             </div>
+            <button class="wb-entry__btn" @click.stop="wizardOpen = true">立即创建</button>
           </div>
-          <button class="wb-entry__btn" @click.stop="wizardOpen = true">立即创建</button>
-        </div>
 
-        <div class="wb-entry" role="button" tabindex="0" @click="openGatewayAccessModal" @keydown.enter="openGatewayAccessModal">
-          <div class="wb-entry__main">
-            <img :src="newGatewayImg" alt="接入网关" class="wb-entry__icon" />
-            <div class="wb-entry__text">
-              <span class="wb-entry__title">接入网关</span>
-              <span class="wb-entry__desc">接入 JetLinks-Edge 网关采集设备数据</span>
+          <div class="wb-entry wb-entry--gateway" role="button" tabindex="0" @click="openGatewayAccessModal" @keydown.enter="openGatewayAccessModal">
+            <div class="wb-entry__main">
+              <img :src="newGatewayImg" alt="接入网关" class="wb-entry__icon" />
+              <div class="wb-entry__text">
+                <span class="wb-entry__tag">边缘接入</span>
+                <span class="wb-entry__title">接入网关</span>
+                <span class="wb-entry__desc">扫码绑定 JetLinks-Edge 网关，把现场设备数据接入平台。</span>
+              </div>
             </div>
+            <button class="wb-entry__btn" @click.stop="openGatewayAccessModal">接入网关</button>
           </div>
-          <button class="wb-entry__btn" @click.stop="openGatewayAccessModal">接入网关</button>
         </div>
       </div>
 
@@ -426,7 +384,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
                 </span>
               </div>
               <span class="proj-card__status" :class="p.status">
-                {{ p.status === 'running' ? '运行中' : '暂停中' }}
+                运行中
               </span>
             </div>
             <p class="proj-card__desc">{{ p.description }}</p>
@@ -554,9 +512,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
 
             <!-- 新建网关入口（始终在末尾）-->
             <div
-              data-guide="workbench-gateway-access"
               class="add-card"
-              :class="{ 'is-guide-target': appStore.guideStep === 'workbench-gateway-access' }"
               @click="openGatewayAccessModal"
             >
               <i class="i-ant-design-plus-outlined add-card__icon" />
@@ -816,14 +772,14 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
   top: 0;
   left: 0;
   width: 100%;
-  height: 340px; /* 固定高度，等比压低 */
+  height: 300px; /* 固定高度，等比压低 */
   object-fit: cover; /* 宽度填满，高度裁切 */
   object-position: center top;
   pointer-events: none;
   user-select: none;
   z-index: 0;
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 62%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 62%, transparent 100%);
 }
 
 /* ===== 居中主体（置于背景图之上）===== */
@@ -833,224 +789,171 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 28px;
+  align-items: stretch;
+  gap: 22px;
 }
 
-/* 对话框外上方：欢迎标题（白色，加大加粗） */
-.wb-welcome {
-  margin: 0;
-  font-size: 34px;
-  font-weight: 700;
-  color: #ffffff;
-  text-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
-  letter-spacing: 1px;
-}
-
-/* ===== AI 对话框（宽度 66%）===== */
-.ai-dialog {
-  width: 66%;
-  /* 半透明白色背景（60%），透出底部的蓝色渐变 */
-  background: rgba(255, 255, 255, 0.6);
+.wb-quick-panel {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(300px, 0.86fr) minmax(520px, 1.14fr);
+  gap: 22px;
+  align-items: stretch;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.54);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.68)),
+    linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(20, 184, 166, 0.1));
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.1);
   backdrop-filter: blur(10px);
-  border-radius: 20px;
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.1);
-  padding: 28px 32px;
+}
+
+.wb-quick-panel__intro {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-}
-
-/* 顶部：图标 + 文案（整体居中） */
-.ai-dialog__head {
-  display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 14px;
+  padding: 4px 6px;
 }
 
-/* 文案也居中对齐 */
-.ai-head__text {
-  min-width: 0;
-  text-align: center;
+.wb-welcome {
+  margin: 0 0 10px;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #172033;
+  text-shadow: none;
+  letter-spacing: 0;
 }
 
-.ai-head__icon {
-  width: 56px;
-  height: 56px;
-  flex-shrink: 0;
-  object-fit: contain;
-  user-select: none;
-}
-
-.ai-head__text {
-  min-width: 0;
-}
-
-.ai-greeting {
-  font-size: 18px;
-  font-weight: 600;
-  color: $text-base;
-}
-
-.ai-tip {
-  margin: 6px 0 0;
-  font-size: 13px;
-  line-height: 1.6;
-  color: $text-tertiary;
-}
-
-/* 输入框容器：包裹 input + 发送按钮 */
-.ai-input-box {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.ai-input {
-  width: 100%;
-  height: 48px;
-  /* 输入框白色半透明（60%）*/
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid transparent;
-  border-radius: 12px;
-  padding: 0 60px 0 16px; /* 右侧留出发送按钮空间 */
+.wb-hero-desc {
+  max-width: 420px;
+  margin: 0;
+  color: $text-secondary;
   font-size: 14px;
-  font-family: inherit;
-  color: $text-base;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-
-  &::placeholder {
-    color: $text-muted;
-  }
-
-  &:focus {
-    border-color: $saas-primary;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
-  }
+  line-height: 1.8;
 }
 
-/* 发送按钮：圆形白底，位于输入框内部右侧 */
-.ai-send {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 50%;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.2s;
-
-  img {
-    width: 16px;
-    height: 16px;
-  }
-
-  &:hover {
-    box-shadow: 0 2px 10px rgba(59, 130, 246, 0.25);
-  }
-}
-
-/* 创建方式按钮 */
-.ai-create {
-  display: flex;
-  gap: 12px;
-}
-
-/* ===== 下方两个快捷入口卡片（撑满，两边各留 100px 由 page padding 提供）===== */
+/* ===== 快捷入口卡片 ===== */
 .wb-actions {
-  display: flex;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
   width: 100%;
   align-self: stretch;
 }
 
 .wb-entry {
-  flex: 1;
+  min-height: 152px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px 20px;
+  gap: 18px;
+  padding: 18px;
   border: 1px solid $border-color-card;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(4px);
+  border-radius: 8px;
+  background: #ffffff;
   cursor: pointer;
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s;
 
   &:hover {
-    border-color: transparent;
-    box-shadow: $shadow-card-active;
+    border-color: rgba(59, 130, 246, 0.3);
+    box-shadow: 0 16px 34px rgba(37, 99, 235, 0.12);
+    transform: translateY(-2px);
   }
 
   &__main {
     display: flex;
-    align-items: center;
-    gap: 12px;
+    align-items: flex-start;
+    gap: 14px;
     min-width: 0;
   }
 
   &__icon {
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
     flex-shrink: 0;
     object-fit: contain;
+    padding: 8px;
+    border-radius: 8px;
+    background: #eef5ff;
   }
 
   &__text {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 5px;
     min-width: 0;
   }
 
+  &__tag {
+    width: fit-content;
+    color: $saas-primary;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
   &__title {
-    font-size: 14px;
+    font-size: 17px;
     font-weight: 600;
     color: $text-base;
     white-space: nowrap;
   }
 
   &__desc {
-    font-size: 12px;
-    color: $text-muted;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 13px;
+    line-height: 1.6;
+    color: $text-secondary;
   }
 
   &__btn {
-    flex-shrink: 0;
-    height: 32px;
-    padding: 0 20px;
-    border: 1px solid $border-color-input;
-    border-radius: 9999px; /* 完全圆角（胶囊形）*/
-    background: #ffffff;
-    color: $text-base;
+    height: 34px;
+    padding: 0 18px;
+    border: 1px solid $saas-primary;
+    border-radius: 6px;
+    background: $saas-primary;
+    color: #ffffff;
     font-size: 13px;
     font-family: inherit;
     cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
+    transition: opacity 0.2s, transform 0.2s;
 
     &:hover {
-      border-color: $saas-primary;
-      color: $saas-primary;
+      opacity: 0.92;
+    }
+  }
+
+  &--gateway {
+    .wb-entry__icon {
+      background: #ecfdf5;
+    }
+
+    .wb-entry__tag {
+      color: #0f766e;
+    }
+
+    .wb-entry__btn {
+      border-color: #0f766e;
+      background: #0f766e;
     }
   }
 }
 
+@media (max-width: 1180px) {
+  .wb-quick-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 640px) {
+  .wb-quick-panel {
+    padding: 18px;
+  }
+
   .wb-actions {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1214,10 +1117,6 @@ onBeforeUnmount(() => window.removeEventListener('resize', onWindowResize))
     background: $color-online-bg;
   }
 
-  &.paused {
-    color: $text-muted;
-    background: $bg-hover;
-  }
 }
 
 .proj-card__desc {

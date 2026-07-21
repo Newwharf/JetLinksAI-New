@@ -44,7 +44,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '网关详情' }
       },
       { path: 'apps', name: 'apps', ...ph('应用中心') },
-      { path: 'docs', name: 'docs', ...ph('文档中心') },
+      {
+        path: 'docs',
+        name: 'docs',
+        component: () => import('@/views/docs/DocumentCenterView.vue'),
+        meta: { title: '文档中心' }
+      },
       { path: 'dev', name: 'dev', ...ph('开发中心') },
       {
         path: 'ops',

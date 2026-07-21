@@ -20,7 +20,6 @@ interface TopMenu {
 const menus: TopMenu[] = [
   { key: 'workbench', label: '工作台', path: '/workbench' },
   { key: 'apps', label: '应用中心', path: '/apps' },
-  { key: 'docs', label: '文档中心', path: '/docs' },
   { key: 'dev', label: '开发中心', path: '/dev' },
   { key: 'ops', label: '运营中心', path: '/ops' },
   { key: 'billing', label: '支付中心', path: '/billing' },
@@ -33,11 +32,15 @@ const activeKey = computed(() => {
   for (const m of menus) {
     if (path === m.path || path.startsWith(m.path + '/')) return m.key
   }
-  return 'workbench'
+  return ''
 })
 
 function handleMenuClick(m: TopMenu) {
   router.push(m.path)
+}
+
+function openDocs() {
+  router.push('/docs')
 }
 </script>
 
@@ -65,6 +68,9 @@ function handleMenuClick(m: TopMenu) {
         <div class="header-bell">
           <i class="i-ant-design-bell-outlined header-icon" />
         </div>
+        <button class="header-bell header-help" type="button" title="文档中心" @click="openDocs">
+          <i class="i-ant-design-question-circle-outlined header-icon" />
+        </button>
         <div class="user-trigger">
           <div class="user-avatar">李</div>
           <span class="user-name">李瀚</span>
@@ -175,6 +181,8 @@ function handleMenuClick(m: TopMenu) {
 .header-bell {
   width: 32px;
   height: 32px;
+  border: 0;
+  padding: 0;
   border-radius: 50%;
   background: #ffffff;
   display: flex;
@@ -187,6 +195,10 @@ function handleMenuClick(m: TopMenu) {
   &:hover {
     box-shadow: 0 2px 10px rgba(59, 130, 246, 0.2);
   }
+}
+
+.header-help {
+  font: inherit;
 }
 
 .header-icon {

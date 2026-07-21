@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="910" viewBox="0 0 1920 910">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fbff"/>
+      <stop offset="0.54" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eefaf7"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ea580c" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#14b8a6" stop-opacity="0.92"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#1e3a8a" flood-opacity="0.16"/>
+    </filter>
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse">
+      <path d="M42 0H0V42" fill="none" stroke="#ea580c" stroke-opacity="0.07" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1920" height="910" fill="url(#bg)"/>
+  <rect x="90" y="78" width="1740" height="754" rx="24" fill="#fff" stroke="#e1e9f4" filter="url(#shadow)"/>
+  <rect x="126" y="114" width="1668" height="682" rx="20" fill="url(#grid)"/>
+  <rect x="168" y="156" width="688" height="596" rx="18" fill="#fff" stroke="#e6edf7"/>
+  <rect x="214" y="210" width="176" height="50" rx="18" fill="#ea580c"/>
+  <text x="238" y="244" font-family="Microsoft YaHei UI, PingFang SC, Arial" font-size="28" font-weight="700" fill="#fff">客流分析</text>
+  <text x="214" y="356" font-family="Microsoft YaHei UI, PingFang SC, Arial" font-size="68" font-weight="700" fill="#172033">趋势可视，客流更好懂</text>
+  <text x="214" y="438" font-family="Microsoft YaHei UI, PingFang SC, Arial" font-size="30" fill="#667085">功能清晰呈现，价值快速传达</text>
+  <text x="214" y="488" font-family="Microsoft YaHei UI, PingFang SC, Arial" font-size="30" fill="#667085">适合客户演示、方案汇报和业务培训</text>
+  <rect x="214" y="640" width="128" height="42" rx="21" fill="#ea580c" opacity="0.16"/>
+  <rect x="214" y="640" width="58" height="42" rx="21" fill="#ea580c"/>
+  <rect x="374" y="640" width="128" height="42" rx="21" fill="#ea580c" opacity="0.16"/>
+  <rect x="374" y="640" width="82" height="42" rx="21" fill="#ea580c"/>
+  <rect x="534" y="640" width="128" height="42" rx="21" fill="#ea580c" opacity="0.16"/>
+  <rect x="534" y="640" width="104" height="42" rx="21" fill="#ea580c"/>
+  <rect x="930" y="156" width="760" height="596" rx="18" fill="#fff" stroke="#dbe6f2"/>
+  <g fill="#f8fafc" stroke="#e4ebf5">
+    <rect x="984" y="218" width="264" height="102" rx="16"/>
+    <rect x="1302" y="218" width="264" height="102" rx="16"/>
+    <rect x="984" y="376" width="264" height="102" rx="16"/>
+    <rect x="1302" y="376" width="264" height="102" rx="16"/>
+    <rect x="984" y="534" width="264" height="102" rx="16"/>
+    <rect x="1302" y="534" width="264" height="102" rx="16"/>
+  </g>
+  <g fill="#ea580c">
+    <circle cx="1040" cy="269" r="24" opacity="0.8"/>
+    <circle cx="1358" cy="269" r="24" opacity="0.34"/>
+    <circle cx="1040" cy="427" r="24" opacity="0.34"/>
+    <circle cx="1358" cy="427" r="24" opacity="0.8"/>
+    <circle cx="1040" cy="585" r="24" opacity="0.8"/>
+    <circle cx="1358" cy="585" r="24" opacity="0.34"/>
+  </g>
+  <path d="M1087 264h104M1087 288h78M1405 264h104M1405 288h78M1087 422h104M1087 446h78M1405 422h104M1405 446h78M1087 580h104M1087 604h78M1405 580h104M1405 604h78" stroke="#cbd5e1" stroke-width="8" stroke-linecap="round"/>
+  <path d="M1020 704C1136 622 1214 642 1306 550C1394 462 1502 528 1602 398" fill="none" stroke="url(#accent)" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="1020" cy="704" r="14" fill="#ea580c"/>
+  <circle cx="1306" cy="550" r="14" fill="#ea580c"/>
+  <circle cx="1602" cy="398" r="14" fill="#ea580c"/>
+  <text x="1594" y="722" text-anchor="end" font-family="Microsoft YaHei UI, PingFang SC, Arial" font-size="22" fill="#94a3b8">JetLinks Cloud / Advantage 01</text>
+</svg>
